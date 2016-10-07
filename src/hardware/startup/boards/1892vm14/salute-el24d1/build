@@ -1,0 +1,94 @@
+###################################################################################
+#
+# Neutrino trunk on the Elvees Salute EL24D1 board, based on ARM Cortex A9-MPCore 
+#
+####################################################################################
+
+[image=0x40100000]
+[virtual=armle-v7,raw +compress] .bootstrap = {
+	# Watchdog can be enabled using '-W' startup option
+	startup-salute-el24d1 -vvv
+	# '-ae' startup option allows for unaligned memory accesses
+#	PATH=/proc/boot procnto-v6 -ae -mP
+	PATH=/proc/boot procnto-smp -ae 
+}
+[+script] .script = {
+    # Initialise the console
+    procmgr_symlink ../../proc/boot/libc.so.3 /usr/lib/ldqnx.so.2
+    
+    confstr sysname KPDA
+    
+    display_msg Welcome to KPDA on the Salute EL24D1 board (ARM Cortex-A9 MPCore)
+    slogger &
+
+    # Start some common servers
+    pipe &
+    
+    devc-pty
+    waitfor /dev/ptyp0 4
+
+    # Start the main shell
+    SYSNAME=nto
+    TERM=qansi
+    HOME=/
+    PATH=:/bin:/usr/bin:/sbin:/usr/sbin:/proc/boot
+    LD_LIBRARY_PATH=:/lib:/usr/lib:/lib/dll:/proc/boot
+    [+session] ksh &
+}
+
+# Redirect console messages
+[type=link] /bin/sh=/proc/boot/ksh
+[type=link] /dev/console=/dev/ser1
+[type=link] /tmp=/dev/shmem
+
+# Programs require the runtime linker (ldqnx.so) to be at a fixed location
+
+# Shared libraries
+libc.so
+libm.so.2
+libc.so.3
+
+
+# Executables
+[data=c dperms=0755]
+
+###########################################################################
+## general secvices
+###########################################################################
+devc-pty
+slogger
+pipe
+
+###########################################################################
+## general commands
+###########################################################################
+cp
+confstr
+ls
+cat
+ksh
+sleep
+pidin
+uname
+sloginfo
+slay
+mount
+umount
+use
+date
+shutdown
+chmod
+ln
+rm
+mv
+sleep
+random
+dd
+top
+touch
+stty
+date
+
+###########################################################################
+## END OF BUILD SCRIPT
+###########################################################################

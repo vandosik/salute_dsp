@@ -1,0 +1,20 @@
+BSP_NAME=bsp-kpda-elvees-salute-el24d1
+
+BNAME=$(BSP_NAME)-bin-`date +%Y%m%d`.tar.gz
+SNAME=$(BSP_NAME)-src-`date +%Y%m%d`.zip
+
+all: bundle
+	@echo done
+
+bundle:
+	$(MAKE) -C. -f Makefile all
+	$(MAKE) -Cimages -f Makefile clean	
+	
+	# Create 'binary' BSP
+	tar --owner=root --group=root -zcf ../$(BNAME) install prebuilt images
+	
+	# Cleanup and create 'source' BSP
+	$(MAKE) -C. -f Makefile clean
+	rm images/*.build
+	zip -r ../$(SNAME) src install prebuilt images Makefile source.xml
+	@echo done

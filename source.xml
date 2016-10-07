@@ -1,0 +1,10 @@
+<!-- Unless otherwise specified, values/attributes are free-form strings -->
+    <!-- type is currently either BSP or SourceOnly -->
+<sourcePackage type="BSP" id="bsp-kpda-1892vm14-salute-el24d1">
+    <title>bsp-kpda-1892vm14-salute-el24d1</title>
+    <release>1.0.0</release>
+    <description> This package contains the source and build files for Elvees Salute EL24D1 board.</description>
+    <vendor>SWD Embedded Systems Ltd.</vendor>
+    <qnxTargetVersion>6.5.0</qnxTargetVersion>
+	<qnxTargetCPU variant="armle.v7">ARM</qnxTargetCPU>
+</sourcePackage>
