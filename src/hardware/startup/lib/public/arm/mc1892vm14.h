@@ -126,8 +126,12 @@
 #define MC1892VM14_CMCTR_DIV_MPU_REG	0x4
 #define MC1892VM14_CMCTR_DIV_SYS0_REG	0x40
 #define MC1892VM14_CMCTR_DIV_SYS1_REG	0x44
+#define MC1892VM14_CMCTR_GATE_SYS_REG	0x4C
 #define MC1892VM14_CMCTR_SEL_APLL_REG	0x100
 #define MC1892VM14_CMCTR_SEL_SPLL_REG	0x10C
+
+#define MC1892VM14_CMCTR_GATE_SYS_UART2_EN				(1 << 14)
+#define MC1892VM14_CMCTR_GATE_SYS_UART3_EN				(1 << 15)
 
 /*
  * -------------------------------------------------------------------------
@@ -137,6 +141,28 @@
 #define MC1892VM14_PMCTR_BASE			0x38095000
 #define MC1892VM14_PMCTR_SIZE			0x100
 #define MC1892VM14_PMCTR_SW_RST_REG		0x40
+
+
+/* -------------------------------------
+ * GPIO
+ * -------------------------------------
+ */
+
+#define MC1892VM14_GPIO_BASE		0x38034000
+#define MC1892VM14_GPIO_SIZE		0x1000
+
+#define MC1892VM14_GPIOA_DR			0x00
+#define MC1892VM14_GPIOA_DDR		0x04
+#define MC1892VM14_GPIOA_CTL		0x08
+#define MC1892VM14_GPIOB_DR			0x0C
+#define MC1892VM14_GPIOB_DDR		0x10
+#define MC1892VM14_GPIOB_CTL		0x14
+#define MC1892VM14_GPIOC_DR			0x18
+#define MC1892VM14_GPIOC_DDR		0x1C
+#define MC1892VM14_GPIOC_CTL		0x20
+#define MC1892VM14_GPIOD_DR			0x24
+#define MC1892VM14_GPIOD_DDR		0x28
+#define MC1892VM14_GPIOD_CTL		0x2C
 
 
 /* -------------------------------------------------------------------------

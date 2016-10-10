@@ -9,7 +9,6 @@
 	# Watchdog can be enabled using '-W' startup option
 	startup-salute-el24d1 -vvv
 	# '-ae' startup option allows for unaligned memory accesses
-#	PATH=/proc/boot procnto-v6 -ae -mP
 	PATH=/proc/boot procnto-smp -ae 
 }
 [+script] .script = {
@@ -20,6 +19,11 @@
     
     display_msg Welcome to KPDA on the Salute EL24D1 board (ARM Cortex-A9 MPCore)
     slogger &
+    
+    #################################################################
+    ## Serial driver
+    #######################################################################
+    devc-ser8250 -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
 
     # Start some common servers
     pipe &
@@ -33,6 +37,10 @@
     HOME=/
     PATH=:/bin:/usr/bin:/sbin:/usr/sbin:/proc/boot
     LD_LIBRARY_PATH=:/lib:/usr/lib:/lib/dll:/proc/boot
+    
+    waitfor /dev/ser1 5
+    reopen /dev/ser1
+    
     [+session] ksh &
 }
 
@@ -51,6 +59,11 @@ libc.so.3
 
 # Executables
 [data=c dperms=0755]
+
+###########################################################################
+## uncomment for Serial driver
+###########################################################################
+devc-ser8250
 
 ###########################################################################
 ## general secvices
@@ -76,7 +89,7 @@ mount
 umount
 use
 date
-shutdown
+sd=shutdown
 chmod
 ln
 rm

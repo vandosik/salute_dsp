@@ -36,5 +36,6 @@ uint32_t mc1892vm14_get_cpu_clk(void);
 void mc1892vm14_init_qtime(void);
 void mc1892vm14_wdg_enable(void);
 void mc1892vm14_wdg_reload(void);
+void mc1892vm14_hwinit(void);
 
 #endif  // __MC1892VM14_STARTUP_H

@@ -131,6 +131,9 @@ main(int argc, char **argv, char **envv)
 	/* Initialize the CPU related information */
 	init_cpuinfo();
 
+	/* Initialize peripherial */
+	mc1892vm14_hwinit();
+	
 	/* Initialize the Hwinfo section of the Syspage */
  	init_hwinfo();
 
