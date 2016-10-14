@@ -1,13 +1,14 @@
 %C - I2C bus resource manager for Synopsys DesignWare (TI DaVinci) adapters
 
-Usage: i2c-komdiv [-m instance] [-i interrupt] [-p base_addr] [-v]
+Usage:
+i2c-designware [-m instance] [-i interrupt] [-p base_addr] [-f frequency] [-v]
 
 Options:
- -m instance            I2C controller instance (default: 0)
- -i interrupt           interrupt number for I2C controller
- -p base_addr           physical base address for I2C controller 
- -v                     verbose (for debugging purposes)
- -f                     I2C base frequency in MHz (default: 288 MHz)
+-m instance             I2C controller instance (default: 0)
+-i interrupt            interrupt number for I2C controller
+-p base_addr            physical base address for I2C controller 
+-f frequency            I2C base frequency in MHz (default: 288 MHz)
+-v                      verbose (for debugging purposes)
 
 Samples:
 1. Elvees 1892VM14YA I2C0:
