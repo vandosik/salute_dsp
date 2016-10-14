@@ -132,6 +132,9 @@
 
 #define MC1892VM14_CMCTR_GATE_SYS_UART2_EN				(1 << 14)
 #define MC1892VM14_CMCTR_GATE_SYS_UART3_EN				(1 << 15)
+#define MC1892VM14_CMCTR_GATE_SYS_I2C0_EN				(1 << 16)
+#define MC1892VM14_CMCTR_GATE_SYS_I2C1_EN				(1 << 17)
+#define MC1892VM14_CMCTR_GATE_SYS_I2C2_EN				(1 << 18)
 
 /*
  * -------------------------------------------------------------------------
