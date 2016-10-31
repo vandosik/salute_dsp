@@ -1,0 +1,15 @@
+%C Driver for Synopsys DesignWare OTG Controller
+
+Syntax:
+io-usb -d dwcotg [option[,option ...]] ... &
+
+Options:
+    ioport=addr     register base address 
+    irq=num         interrupt request number
+    sched_prio=num  set software scheduler priority ( default = 21 )
+    nchan=num       number of channels ( default = 4 )
+    verbose=num     Set verbosity level.
+
+Examples:
+
+        io-usb -ddwcotg ioport=0x38002000,irq=64,nchan=8

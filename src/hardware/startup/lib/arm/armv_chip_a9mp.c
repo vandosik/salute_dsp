@@ -49,9 +49,7 @@ const struct armv_chip armv_chip_a9mp = {
 	.pte_wt		= 0,				// not supported
 	.setup		= armv_setup_a9mp,
 	.ttb_attr	= ARM_TTBR_IRGN_WA|ARM_TTBR_RGN_WA|ARM_TTBR_NOS|ARM_TTBR_S,
-	.ttb_attr	= ARM_TTBR_S,
 	.pte_attr	= ARM_PTE_V6_SP_XN|ARM_PTE_V6_WA|ARM_PTE_V6_S,
-	.pte_attr	= ARM_PTE_V6_SP_XN,
 };
 
 

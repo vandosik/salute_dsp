@@ -18,7 +18,7 @@
     confstr sysname KPDA
     
     display_msg Welcome to KPDA on the Salute EL24D1 board (ARM Cortex-A9 MPCore)
-    slogger &
+    slogger -s64k &
     
     #################################################################
     ## Serial driver
@@ -57,6 +57,32 @@ libm.so.2
 libc.so.3
 
 
+###########################################################################
+## uncomment for USB HOST driver
+###########################################################################
+#devu-dwcotg.so
+#libusbdi.so
+#devh-usb.so
+#libhiddi.so
+
+###########################################################################
+## uncomment for BLOCK driver
+## substitute cam-xxx.so and fs-xxx.so with the cam drivers and filesystems
+## required
+###########################################################################
+#libcam.so
+#io-blk.so
+#cam-disk.so
+#fs-qnx6.so
+#fs-qnx4.so
+#fs-dos.so
+
+###########################################################################
+## uncomment for NETWORK driver
+###########################################################################
+#libsocket.so
+#[perms=+r,+x] devnp-arasan-gemac.so
+
 # Executables
 [data=c dperms=0755]
 
@@ -64,6 +90,24 @@ libc.so.3
 ## uncomment for Serial driver
 ###########################################################################
 devc-ser8250
+
+###########################################################################
+## uncomment for NETWORK driver
+###########################################################################
+#io-pkt-v4-hc
+
+###########################################################################
+## uncomment for USB HOST driver
+###########################################################################
+#io-usb
+#usb
+#devb-umass
+#devu-kbd
+
+###########################################################################
+## uncomment for HID devices 
+###########################################################################
+io-hid
 
 ###########################################################################
 ## general secvices
@@ -101,6 +145,13 @@ top
 touch
 stty
 date
+cksum
+
+#hidview
+
+#ifconfig
+#nicinfo
+#ping
 
 ###########################################################################
 ## END OF BUILD SCRIPT
