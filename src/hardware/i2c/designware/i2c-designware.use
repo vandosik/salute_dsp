@@ -4,18 +4,25 @@ Usage:
 i2c-designware [-m instance] [-i interrupt] [-p base_addr] [-f frequency] [-v]
 
 Options:
--m instance             I2C controller instance (default: 0)
--i interrupt            interrupt number for I2C controller
 -p base_addr            physical base address for I2C controller 
--f frequency            I2C base frequency in MHz (default: 288 MHz)
+-f frequency            I2C input clock frequency in KHz (default: 144000 KHz)
 -v                      verbose (for debugging purposes)
+
+Generic options:
+--b bus_speed           Default bus speed. (Default: 100000)
+--m max_msg_len         Minimum length of resmgr receive buffer. 
+                        (Default: 128 bytes)
+--n nparts              Minimum number of iov_t's in resmgr context.
+                        (Default: 2)
+--u unit                Unit number. Number to append to device name
+                        prefix (/dev/i2c). (Default: 0)
 
 Samples:
 1. Elvees 1892VM14YA I2C0:
-    i2c-designware -m0 -i100 -p3802c000 &
+    i2c-designware --u0 -p0x3802c000 &
 
 2. Elvees 1892VM14YA I2C1:
-    i2c-designware -m1 -i101 -p3802d000 &
+    i2c-designware --u1 -p0x3802d000 &
 
 3. Elvees 1892VM14YA I2C2:
-    i2c-designware -m2 -i102 -p3802e000 &
+    i2c-designware --u2 -p0x3802e000 &

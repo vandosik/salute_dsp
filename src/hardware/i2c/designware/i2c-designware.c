@@ -89,7 +89,7 @@ int designware_i2c_set_bus_speed_( void *handler, uint32_t speed, uint32_t *ospe
     designware_i2c_dev_t    *dev = handler;
     i2c_speed_mode_t        speed_mode;
 
-    i2c_printf(_SLOG_DEBUG2, "Debug: [%s() call: speed=0x%x]", __FUNCTION__, speed);
+    i2c_printf( _SLOG_DEBUG2, "Debug: [%s() call: speed=%d]", __FUNCTION__, speed );
 
     if ( speed > 400000 )
         speed_mode = I2C_SPEED_HIGH;
@@ -139,7 +139,7 @@ int i2c_printf( int level, const char *fmt, ... )
 
     sprintf( format, "[i2c-designware] %s", fmt );
 
-    if ( level <= verbosity )
+    if ( level <= verbosity || level == _SLOG_ERROR )
     {
         va_start( arg, fmt );
 
@@ -163,8 +163,6 @@ int designware_i2c_parseopts( designware_i2c_dev_t *dev, int argc, char *argv[] 
     int             prev_optind;
     int             done = 0;
 
-    dev->irq       = 0;
-    dev->unit      = 0;
     dev->physbase  = 0;
     dev->speed     = 0;
     dev->frequency = IC_CLK;
@@ -173,21 +171,12 @@ int designware_i2c_parseopts( designware_i2c_dev_t *dev, int argc, char *argv[] 
     {
         prev_optind = optind;
 
-        c = getopt( argc, argv, "f:i:m:p:v" );
+        c = getopt( argc, argv, "f:p:v" );
 
         switch ( c )
         {
             case 'f':
                 dev->frequency = strtoul( optarg, NULL, 0 );
-                break;
-
-            case 'i':
-                dev->irq = strtoul( optarg, NULL, 0 );
-                i2c_printf( _SLOG_INFO, "Info: IRQ number: %d (0x%x) [%s()]", __FUNCTION__, dev->irq, dev->irq );
-                break;
-
-            case 'm':
-                dev->unit = strtoul( optarg, NULL, 0 );
                 break;
 
             case 'p':
@@ -230,21 +219,9 @@ int designware_i2c_parseopts( designware_i2c_dev_t *dev, int argc, char *argv[] 
         }
     }
 
-    if ( (dev->unit < 0) || (dev->unit > 1) )
-    {
-        i2c_printf( _SLOG_ERROR, "Error: invalid I2C module [%s()]", __FUNCTION__ );
-        return (-1);
-    }
-
     if ( dev->physbase == 0 )
     {
         i2c_printf( _SLOG_ERROR, "Error: invalid I2C base address [%s()]", __FUNCTION__ );
-        return (-1);
-    }
-
-    if ( dev->irq == 0 )
-    {
-        i2c_printf( _SLOG_ERROR, "Error: invalid I2C interrupt number [%s()]", __FUNCTION__ );
         return (-1);
     }
 
@@ -255,58 +232,57 @@ int designware_i2c_parseopts( designware_i2c_dev_t *dev, int argc, char *argv[] 
 void *designware_i2c_init_( int argc, char *argv[] )
 {
     designware_i2c_dev_t    *dev;
-    static struct sigevent  event;
 
     i2c_printf( _SLOG_DEBUG2, "Debug: [%s() call]", __FUNCTION__ );
 
     if ( ThreadCtl( _NTO_TCTL_IO, 0 ) == -1 )
     {
-        i2c_printf( 10, "Error: ThreadCtl() call failed [%s()]", __FUNCTION__ );
+        i2c_printf( _SLOG_ERROR, "Error: ThreadCtl() call failed [%s()]", __FUNCTION__ );
         return (NULL);
     }
 
     dev = malloc( sizeof( designware_i2c_dev_t ) );
     if ( !dev )
     {
-        i2c_printf( 10, "Error: device descriptor allocation failed [%s()]", __FUNCTION__ );
+        i2c_printf( _SLOG_ERROR, "Error: device descriptor allocation failed [%s()]", __FUNCTION__ );
         return (NULL);
     }
 
     if ( designware_i2c_parseopts( dev, argc, argv ) == -1 )
         goto fail;
 
-    i2c_printf( _SLOG_INFO, "Info: mapping I2C I/O range... [%s()]", __FUNCTION__ );
-    dev->registers = (designware_i2c_regs_t *)mmap_device_io( DESIGNWARE_I2C_REGLEN, dev->physbase );
+    i2c_printf( _SLOG_INFO, "Info: mapping I2C I/O range (base=0x%x)... [%s()]", dev->physbase, __FUNCTION__ );
+    dev->registers = (designware_i2c_regs_t *)mmap_device_memory( NULL, DESIGNWARE_I2C_REGLEN, PROT_READ | PROT_WRITE | PROT_NOCACHE, 0, dev->physbase );
     if ( dev->registers == (designware_i2c_regs_t *)MAP_FAILED )
     {
-        i2c_printf( 10, "Error: unable to mmap physical base address [%s()]", __FUNCTION__ );
+        i2c_printf( _SLOG_ERROR, "Error: unable to mmap physical base address [%s()]", __FUNCTION__ );
         goto fail;
+    }
+
+    if ( synopsys_i2c_init( dev ) )
+    {
+        i2c_printf( _SLOG_ERROR, "Error: unable to read Synopsys registers [%s()]", __FUNCTION__ );
+        pthread_mutex_destroy( &dev->lock );
+        goto fail1;
     }
 
     if ( pthread_mutex_init( &dev->lock, NULL ) == -1 )
     {
-        i2c_printf( 10, "Error: unable to initialize lock [%s()]", __FUNCTION__ );
+        i2c_printf( _SLOG_ERROR, "Error: unable to initialize lock [%s()]", __FUNCTION__ );
         pthread_mutex_destroy( &dev->lock );
-        goto fail;
+        goto fail1;
     }
 
     designware_i2c_reset( dev );
     i2c_printf( _SLOG_INFO, "Info: controller reset done [%s()]", __FUNCTION__ );
     designware_i2c_init( dev, I2C_SPEED_STANDARD, 0x0 );
 
-    SIGEV_INTR_INIT( &event );
-    dev->iid = InterruptAttachEvent( dev->irq, &event, _NTO_INTR_FLAGS_TRK_MSK );
-    if ( dev->iid == -1 )
-    {
-        i2c_printf( 10, "Error: unable to attach interrupt [%s()]", __FUNCTION__ );
-        goto fail;
-    }
-    i2c_printf( _SLOG_INFO, "Info: interrupt %d (0x%x) attached [%s()]", dev->irq, dev->irq, __FUNCTION__ );
-
     return dev;
 
+fail1:
+    if ( dev->registers )
+        munmap_device_memory( dev->registers, DESIGNWARE_I2C_REGLEN );
 fail:
-    munmap_device_io( (long)dev->registers, DESIGNWARE_I2C_REGLEN );
     free( dev );
 
     return (NULL);
@@ -321,7 +297,8 @@ void designware_i2c_fini( void *handler )
 
     designware_i2c_reset( dev );
 
-    munmap_device_io( (long)dev->registers, DESIGNWARE_I2C_REGLEN );
+    if ( dev->registers )
+        munmap_device_memory( dev->registers, DESIGNWARE_I2C_REGLEN );
 
     pthread_mutex_destroy( &dev->lock );
 
