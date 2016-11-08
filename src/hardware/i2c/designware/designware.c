@@ -71,8 +71,16 @@ static void i2c_flush_rxfifo( designware_i2c_dev_t *dev )
 {
     uint32_t        tmp;
 
-    while ( READ( ic_status ) & IC_STATUS_RFNE )
+#if 1
+	//FIXME: Flush rx fifo by disable/enable controller
+	__i2c_dw_enable( dev, false );
+	__i2c_dw_enable( dev, true );
+#else
+	// Read of ic_cmd_data don't flush RX fifo and cause to infinite loop
+    while ( READ( ic_status ) & IC_STATUS_RFNE) {
         tmp = READ( ic_cmd_data );
+	}
+#endif
 }
 
 
@@ -316,7 +324,7 @@ uint32_t designware_i2c_read( designware_i2c_dev_t *dev, uint8_t slave_address, 
 
     i2c_printf( _SLOG_INFO, "Info: fixing addr_overflow [%s(): slave=0x%02x, offset=0x%02x]", __FUNCTION__, slave_address, offset );
 #endif
-
+	i2c_printf( _SLOG_INFO, "Info: xfer slave_address %x offset %x alen %d len %d", slave_address, offset, alen, len );
     if ( i2c_xfer_init( dev, slave_address, offset, alen ) )
     {
         i2c_printf( _SLOG_ERROR, "Error: reading failed [%s(): transfer initialization failed, slave=0x%02x, offset=0x%02x]", __FUNCTION__,
