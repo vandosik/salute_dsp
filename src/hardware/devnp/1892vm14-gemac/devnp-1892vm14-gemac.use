@@ -1,0 +1,31 @@
+%C Driver for Gigabit Ethernet on Elvees Salute EL24D1 board
+
+Supported devices:
+  Gigabit Ethernet on Elvees Salute EL24D1 board
+
+Syntax:
+  io-pkt-v4 -d 1892vm14-gemac [option[,option ...]] ... &
+
+Options
+  duplex=[0|1]       Set link duplex (0 = half, 1 = full).
+  baddr=N            Base address on system bus
+  irq=N              Hardware interrupt to attach to (default autodetect).
+  mac=XXXXXXXXXXXX   Override MAC address of the controller. 
+  mtu=N              Maximum transmission unit (default 1500).
+  nomulticast        Disable multicast support.
+  priority=N         Priority of driver's event handler thread (default 21).
+  promiscuous        Enable reception of all packets.
+  speed=N            Set link speed (specified in Mbits/second).
+  receive=N          Set number of receive descriptors (default 8).
+  transmit=N         Set number of transmit descriptors (default 128).
+  tx_reap=N          Set maximum number of transmit descriptors to reap (default 8).
+  verbose            Be verbose.
+
+Note: if the duplex is specified via the "duplex" option, you should
+also specify the speed using the "speed" option.
+
+Examples:
+  # Start io-pkt using the devnp-1892vm14-gemac.so driver and the full TCP/IP stack: 
+  io-pkt-v4 -d1892vm14-gemac
+  ifconfig ag0 192.168.0.10
+
