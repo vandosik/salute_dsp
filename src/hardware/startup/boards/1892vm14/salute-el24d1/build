@@ -14,16 +14,28 @@
 [+script] .script = {
     # Initialise the console
     procmgr_symlink ../../proc/boot/libc.so.3 /usr/lib/ldqnx.so.2
-    
+
     confstr sysname KPDA
-    
+
     display_msg Welcome to KPDA on the Salute EL24D1 board (ARM Cortex-A9 MPCore)
     slogger -s64k &
-    
+
     #################################################################
     ## Serial driver
     #################################################################
     devc-ser8250 -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
+
+    #################################################################
+    ## I2C driver
+    #################################################################
+    i2c-designware -p0x3802c000 --u0 &
+    i2c-designware -p0x3802d000 --u1 &
+    i2c-designware -p0x3802e000 --u2 &
+
+    #################################################################
+    ## Graphics driver
+    #################################################################
+    waitfor /dev/i2c1 1
 
     # Start some common servers
     pipe &
@@ -134,7 +146,8 @@ devc-ser8250
 ###########################################################################
 ## uncomment for I2C driver
 ###########################################################################
-#i2c-designware
+i2c-designware
+i2c-dump
 
 ###########################################################################
 ## general secvices
@@ -165,11 +178,13 @@ chmod
 ln
 rm
 mv
+sleep
 random
 dd
 top
 touch
 stty
+date
 cksum
 
 echo
