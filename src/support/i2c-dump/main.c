@@ -53,8 +53,6 @@ int i2c_read( uint8_t addr, uint8_t reg, uint8_t *data )
     i2c_send_t      *pshdr = (i2c_send_t *)buf;
     int             rbytes;
 
-if ( reg != 0x62 )
-{
     memset( buf, 0, sizeof(i2c_send_t) + 1 );
 
     pshdr->slave.addr       = addr;
@@ -70,63 +68,6 @@ if ( reg != 0x62 )
 
     printf( "Reading %s: addr=0x%x reg=0x%x val=0x%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
     *data = buf[sizeof( i2c_send_t )];
-} else {
-
-
-
-    memset( buf, 0, sizeof(i2c_send_t) + 1 );
-
-    pshdr->slave.addr       = addr;
-    pshdr->slave.fmt        = I2C_ADDRFMT_7BIT;
-    pshdr->len              = 1;
-    pshdr->stop             = 0;
-buf[sizeof( i2c_send_t )] = 0x62;
-    status = devctl( fd, DCMD_I2C_RECV, buf, sizeof( i2c_send_t ) + 1, &rbytes );
-    if ( status ) {
-    printf( "I2C read failed - fd error on read\n" );
-        return (-1);
-    }
-printf( "Reading %s: addr=0x%x reg=0x%x val=0x%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
-*data = buf[sizeof( i2c_send_t )];
-sleep( 1 );
-
-
-
-memset( buf, 0, sizeof(i2c_send_t) + 1 );
-
-pshdr->slave.addr       = addr;
-pshdr->slave.fmt        = I2C_ADDRFMT_7BIT;
-pshdr->len              = 2;
-pshdr->stop             = 0;
-buf[sizeof( i2c_send_t )] = 0x62;
-buf[sizeof( i2c_send_t ) + 1] = 0x18;
-status = devctl( fd, DCMD_I2C_SEND, buf, sizeof( i2c_send_t ) + 2, NULL );
-if ( status ) {
-    printf( "I2C read failed - fd error on write\n" );
-    return (-1);
-}
-sleep( 1 );
-
-
-
-memset( buf, 0, sizeof(i2c_send_t) + 1 );
-
-pshdr->slave.addr       = addr;
-pshdr->slave.fmt        = I2C_ADDRFMT_7BIT;
-pshdr->len              = 1;
-pshdr->stop             = 0;
-buf[sizeof( i2c_send_t )] = 0x62;
-status = devctl( fd, DCMD_I2C_RECV, buf, sizeof( i2c_send_t ) + 1, &rbytes );
-if ( status ) {
-    printf( "I2C read failed - fd error on read\n" );
-    return (-1);
-}
-printf( "Reading %s: addr=0x%x reg=0x%x val=0x%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
-    *data = buf[sizeof( i2c_send_t )];
-
-
-
-}
 
     return (0);
 }
