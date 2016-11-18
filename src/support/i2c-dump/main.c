@@ -24,7 +24,7 @@ Options:
 char        *devname = "/dev/i2c0";
 unsigned    bus_speed = 100000;
 uint8_t     addr = 0;
-uint8_t     reg = 1;
+uint8_t     reg = 0;
 int         fd = 0;
 
 void init( int argc, char *argv[] )
@@ -53,6 +53,8 @@ int i2c_read( uint8_t addr, uint8_t reg, uint8_t *data )
     i2c_send_t      *pshdr = (i2c_send_t *)buf;
     int             rbytes;
 
+if ( reg != 0x62 )
+{
     memset( buf, 0, sizeof(i2c_send_t) + 1 );
 
     pshdr->slave.addr       = addr;
@@ -60,11 +62,17 @@ int i2c_read( uint8_t addr, uint8_t reg, uint8_t *data )
     pshdr->len              = 1;
     pshdr->stop             = 0;
     buf[sizeof( i2c_send_t )] = reg;
-    status = devctl( fd, DCMD_I2C_SEND, buf, sizeof( i2c_send_t ) + 1, NULL );
+    status = devctl( fd, DCMD_I2C_RECV, buf, sizeof( i2c_send_t ) + 1, &rbytes );
     if ( status ) {
-        printf( "P1022: I2C read failed - fd error on write\n" );
+        printf( "I2C read failed - fd error on read\n" );
         return (-1);
     }
+
+    printf( "Reading %s: addr=0x%x reg=0x%x val=0x%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
+    *data = buf[sizeof( i2c_send_t )];
+} else {
+
+
 
     memset( buf, 0, sizeof(i2c_send_t) + 1 );
 
@@ -72,14 +80,53 @@ int i2c_read( uint8_t addr, uint8_t reg, uint8_t *data )
     pshdr->slave.fmt        = I2C_ADDRFMT_7BIT;
     pshdr->len              = 1;
     pshdr->stop             = 0;
+buf[sizeof( i2c_send_t )] = 0x62;
     status = devctl( fd, DCMD_I2C_RECV, buf, sizeof( i2c_send_t ) + 1, &rbytes );
     if ( status ) {
-        printf( "P1022: I2C read failed - fd error on read\n" );
+    printf( "I2C read failed - fd error on read\n" );
         return (-1);
     }
+printf( "Reading %s: addr=0x%x reg=0x%x val=0x%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
+*data = buf[sizeof( i2c_send_t )];
+sleep( 1 );
 
-    printf( ">>>>> %s: addr=%x reg=%x val=%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
+
+
+memset( buf, 0, sizeof(i2c_send_t) + 1 );
+
+pshdr->slave.addr       = addr;
+pshdr->slave.fmt        = I2C_ADDRFMT_7BIT;
+pshdr->len              = 2;
+pshdr->stop             = 0;
+buf[sizeof( i2c_send_t )] = 0x62;
+buf[sizeof( i2c_send_t ) + 1] = 0x18;
+status = devctl( fd, DCMD_I2C_SEND, buf, sizeof( i2c_send_t ) + 2, NULL );
+if ( status ) {
+    printf( "I2C read failed - fd error on write\n" );
+    return (-1);
+}
+sleep( 1 );
+
+
+
+memset( buf, 0, sizeof(i2c_send_t) + 1 );
+
+pshdr->slave.addr       = addr;
+pshdr->slave.fmt        = I2C_ADDRFMT_7BIT;
+pshdr->len              = 1;
+pshdr->stop             = 0;
+buf[sizeof( i2c_send_t )] = 0x62;
+status = devctl( fd, DCMD_I2C_RECV, buf, sizeof( i2c_send_t ) + 1, &rbytes );
+if ( status ) {
+    printf( "I2C read failed - fd error on read\n" );
+    return (-1);
+}
+printf( "Reading %s: addr=0x%x reg=0x%x val=0x%x\n", devname, addr, reg, buf[sizeof( i2c_send_t )] );
     *data = buf[sizeof( i2c_send_t )];
+
+
+
+}
 
     return (0);
 }
@@ -91,7 +138,8 @@ int main( int argc, char *argv[] )
     uint8_t data;
 
     fd = open(devname, O_RDWR);
-    if (fd < 0) {
+    if ( fd < 0 )
+    {
         fprintf(stderr, "open(%s): %s\n", devname, strerror(errno));
         exit(-1);
     }
@@ -102,8 +150,6 @@ int main( int argc, char *argv[] )
         exit(-1);
     }
 #endif
-
-    printf( "Read I2C:\n" );
 
     i2c_read( addr, reg, &data );
 

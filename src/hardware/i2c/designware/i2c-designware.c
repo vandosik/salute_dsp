@@ -25,7 +25,7 @@ i2c_status_t designware_i2c_send( void *handler, void *buf, uint32_t len, uint32
     pthread_mutex_lock( &dev->lock );
 
     /* Send data */
-    if ( designware_i2c_write( dev, dev->slave_addr.addr, 0 /* offset */, 0 /* offset length */, (uint8_t *)buf, len ) )
+    if ( designware_i2c_write( dev, dev->slave_addr.addr, *(uint8_t *)buf /* offset */, 1 /* offset length */, (uint8_t *)(buf + 1), len - 1 ) )
     {
         i2c_printf( _SLOG_ERROR, "Error: I2C send operation failed [%s()]", __FUNCTION__ );
         rval = I2C_STATUS_ERROR;
@@ -50,7 +50,7 @@ i2c_status_t designware_i2c_recv( void *handler, void *buf, uint32_t len, uint32
     pthread_mutex_lock( &dev->lock );
 
     /* Receive data */
-    if ( designware_i2c_read( dev, dev->slave_addr.addr, 0 /* offset */, 0 /* offset length */, (uint8_t *)buf, len ) )
+    if ( designware_i2c_read( dev, dev->slave_addr.addr, *(uint8_t *)buf /* offset */, 1 /* offset length */, (uint8_t *)buf, len ) )
     {
         i2c_printf( _SLOG_ERROR, "Error: I2C receive operation failed [%s()]", __FUNCTION__ );
         rval = I2C_STATUS_ERROR;
