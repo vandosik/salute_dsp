@@ -606,7 +606,6 @@ vm14_gemac_init_ring(vm14_gemac_dev_t *vm14_gemac)
 		if ( i == vm14_gemac->num_receive - 1 ) {
 			phys = drvr_mphys((void *)&vm14_gemac->rdesc[0]);
 			vm14_gemac->rdesc[i].buffer2 = VM14_DMA_ADDR(phys);
-			vm14_gemac_hw_set_rx_dma_addr(vm14_gemac, phys);
 		}
 		
 #ifndef VM14_DEBUG
@@ -617,6 +616,7 @@ vm14_gemac_init_ring(vm14_gemac_dev_t *vm14_gemac)
 			i, ENDIAN_LE32(vm14_gemac->rdesc[i].buffer1),
 			ENDIAN_LE32(vm14_gemac->rdesc[i].misc), vm14_gemac->rdesc[i].status);
 	}
+	vm14_gemac_hw_set_rx_dma_addr(vm14_gemac, drvr_mphys((void *)&vm14_gemac->rdesc[0]));
 
 	vm14_gemac->tx_free = vm14_gemac->num_transmit;
 	vm14_gemac->cur_tx_wptr = 0;
