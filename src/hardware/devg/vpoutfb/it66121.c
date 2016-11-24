@@ -188,7 +188,7 @@ int it66121_init( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint
     ret |= hdmi_write_masked( vpout, vpout_draw, port_index, 0xE0, 0x00, 0x0F );
 
     /* Set up clock-related settings */
-    if ( /*(1000000.0 / ((float)pixel_clock / 1000.0))*/(float)pixel_clock >= (float)12500.0 )
+    if ( (float)pixel_clock >= (float)12500.0 )
     {
         ret |= hdmi_write_masked( vpout, vpout_draw, port_index, REG_CLK1, 0x18, 0xFF );
         ret |= hdmi_write_masked( vpout, vpout_draw, port_index, REG_CLK2, 0x10, 0xFF );

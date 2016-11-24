@@ -52,7 +52,7 @@ extern int verbose;
 /*************************************************/
 
 /* Enable IRQs support */
-//#define ENABLE_IRQ
+#define ENABLE_IRQ
 
 /* Compile with hw-cursor support */
 //#define ENABLE_HW_CURSOR
@@ -180,7 +180,7 @@ typedef struct vpout_context
     int                     irq_coid;
 #define VBLANK_PULSE                                0x5b                    /* VBLANK IRQ pulse code */
     struct sigevent         irq_event;
-    uint32_t                vsync_counter[VPOUT_GPU_PIPES];                 /* VSYNC counter */
+    volatile uint32_t       vsync_counter[VPOUT_GPU_PIPES];                 /* VSYNC counter */
     volatile uint32_t       error_counter;                                  /* Interrupt INTERRUPT_OUT_FIFO counter */
     volatile uint32_t       error_reset_counter;                            /* Sisplay controller failed reset counter */
 

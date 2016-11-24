@@ -24,7 +24,7 @@ int vpout_isr_setup( disp_adapter_t *adapter, vpout_context_t *vpout, vpout_draw
 {
     int             err = EOK;
 
-#ifndef ENABLE_IRQ
+#ifdef ENABLE_IRQ
     vpout->irq_polling = 0;
 #else
     vpout->irq_polling = 1;

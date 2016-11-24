@@ -82,7 +82,12 @@ struct sigevent * vpout_hw_isr( vpout_context_t *vpout, vpout_draw_context_t *vp
     *MMIO32( LCDINT ) = status;
 
     if ( status & INTERRUPT_SYNC_DONE )
+    {
+        /* Update counter */
+        vpout->vsync_counter[0 /*dispno*/]++;
+
         return &vpout->irq_event;
+    }
 
     return (NULL);
 }
@@ -216,7 +221,6 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
                 return (-EBUSY);
             }
 
-#if 0
         /* Configure video mode */
             hsw   = settings->h_sync_len - 1;
             vsw   = settings->v_sync_len - 1;
@@ -226,28 +230,16 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
             vgdel = settings->v_total - settings->v_sync_start - settings->v_sync_len - 1;
             hlen  = settings->h_total - 1;
             vlen  = settings->v_total - 1;
-#else
-            hsw = /*var->hsync_len*/40 - 1;
-            vsw = /*var->vsync_len*/5 - 1;
-            hgate = 1280 - 1;
-            vgate = 720 - 1;
-            hgdel = /*var->left_margin*/220 - 1;
-            vgdel = /*var->upper_margin*/20 - 1;
-            hlen = 1280 + /*var->left_margin*/220 +
-                /*var->right_margin*/110 + /*var->hsync_len*/40 - 1;
-            vlen = 720 + /*var->upper_margin*/20 +
-                /*var->lower_margin*/5 + /*var->vsync_len*/5 - 1;
-#endif
 
-//#ifdef __QNX__
-#if 0
-            div = DIV_ROUND_CLOSEST( get_apll_frequency( vpout ), settings->pixel_clock ) - 1;
+#ifdef __QNX__
+            undiv = hz_to_ps( get_apll_frequency( vpout ) );
+            div = DIV_ROUND_CLOSEST( hz_to_ps( settings->pixel_clock * 1000 ), undiv ) - 1;
 #else
-            //~ if ( par->clk_count == 2 )
+            if ( par->clk_count == 2 )
                 undiv = hz_to_ps( get_apll_frequency( vpout ) );
-            //~ else
-                //~ undiv = UNDIVPIXCLK;
-            div   = DIV_ROUND_CLOSEST( /*settings->pixel_clock*/13890, undiv ) - 1;
+            else
+                undiv = UNDIVPIXCLK;
+            div   = DIV_ROUND_CLOSEST( hz_to_ps( settings->pixel_clock ), undiv ) - 1;
 #endif
 
             *MMIO32( LCDHT0 ) = ((hgdel << LCDHT0_HGDEL_SHIFT) & LCDHT0_HGDEL_MASK) |
@@ -316,10 +308,10 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
                 return (-EBUSY);
             }
             *MMIO32( LCDCSR ) = CSR_RUN | CSR_EN;
-#if 1
+
             if ( (DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI) &&
                  (strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0) )
-                return it66121_init( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), /*settings->pixel_clock*/13890 );
-#endif
+                return it66121_init( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), hz_to_ps( settings->pixel_clock * 1000 ) );
+
     return (0);
 }

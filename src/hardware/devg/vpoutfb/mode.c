@@ -134,8 +134,8 @@ int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_
 
 int vpout_wait_vsync( disp_adapter_t *adapter, int dispno )
 {
-    vpout_context_t       *vpout      = adapter->ms_ctx;
-    vpout_draw_context_t  *vpout_draw = adapter->gd_ctx;
+    vpout_context_t         *vpout      = adapter->ms_ctx;
+    vpout_draw_context_t    *vpout_draw = adapter->gd_ctx;
     int                     pipe          = dispno;
 
     if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
@@ -147,11 +147,11 @@ int vpout_wait_vsync( disp_adapter_t *adapter, int dispno )
 #ifdef ENABLE_IRQ
     if ( vpout->error_counter || vpout->error_reset_counter )
     {
-        disp_printf_debug( adapter, "[vpoutfb] Error: caught OUT_FIFO interrupt (display controller FIFO reinitialized %d times)"
+        disp_printf_debug( adapter, "[vpoutfb] Error: caught OUT_FIFO interrupt (display controller FIFO reinitialized %d times)",
                            vpout->error_counter );
         vpout->error_counter = 0;
 
-        disp_printf_debug( adapter, "[vpoutfb] Error: display controller reset failed at OUT_FIFO interrupt (counter: %d)"
+        disp_printf_debug( adapter, "[vpoutfb] Error: display controller reset failed at OUT_FIFO interrupt (counter: %d)",
                            vpout->error_reset_counter );
         vpout->error_reset_counter = 0;
     }
