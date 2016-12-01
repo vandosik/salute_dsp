@@ -76,8 +76,10 @@ void	vm14_gemac_mdi_callback (void *hdl, uint8_t phy_id, uint8_t link_state)
 			vm14_gemac->cfg.flags &= ~NIC_FLAG_LINK_DOWN;
 			if_link_state_change(ifp, LINK_STATE_UP);
 
-			if (mode)
-				vm14_gemac_set_phy_mode(vm14_gemac);
+			if (mode) {
+				vm14_gemac_hwduplex(vm14_gemac, vm14_gemac->cfg.duplex);
+				vm14_gemac_hwspeed(vm14_gemac, vm14_gemac->cfg.media_rate / 1000);
+			}
 			break;
 		case MDI_LINK_DOWN:
 			vm14_gemac->cfg.media_rate = vm14_gemac->cfg.duplex = -1;
@@ -112,66 +114,6 @@ void vm14_gemac_mii_callout(void *arg)
 	}
 	vm14_gemac->pkts_received = 0;
 	callout_msec(&vm14_gemac->mii_callout, 3 * 1000, vm14_gemac_mii_callout, vm14_gemac);
-}
-
-static inline unsigned int mii_nway_result(unsigned int negotiated)
-{
-	unsigned int ret;
-
-	if (negotiated & ANAR_100bTFD)
-		ret = ANAR_100bTFD;
-	else if (negotiated & ANAR_100bT4)
-		ret = ANAR_100bT4;
-	else if (negotiated & ANAR_100bT)
-		ret = ANAR_100bT;
-	else if (negotiated & ANAR_10bTFD)
-		ret = ANAR_10bTFD;
-	else
-		ret = ANAR_10bT;
-
-	return ret;
-}
-
-static void vm14_gemac_set_phy_mode(vm14_gemac_dev_t *vm14_gemac)
-{
-	unsigned int	lpa;
-	unsigned int	advertise;
-	unsigned int	media;
-	int				speed = 0;
-
-	lpa = vm14_gemac_hw_mii_read(vm14_gemac, vm14_gemac->cfg.phy_addr, MDI_ANLPAR);
-	advertise = vm14_gemac_hw_mii_read(vm14_gemac, vm14_gemac->cfg.phy_addr, MDI_ANAR);
-	if (vm14_gemac->cfg.verbose > 12)
-		slogf (_SLOGC_NETWORK, _SLOG_DEBUG1,"%s: MII lpa 0x%x advertise 0x%x", __devname__,
-		lpa, advertise);
-	if (0/*GMII*/) {
-		unsigned int lpa2;
-		unsigned int advertise2;
-
-		lpa2 = vm14_gemac_hw_mii_read(vm14_gemac, vm14_gemac->cfg.phy_addr, MDI_MSSR);
-		advertise2 = vm14_gemac_hw_mii_read(vm14_gemac, vm14_gemac->cfg.phy_addr, MDI_MSCR);
-		if (vm14_gemac->cfg.verbose > 12)
-			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1,"%s: GMII status 0x%x control 0x%x", __devname__, lpa2, advertise2);
-		if ((advertise2 & (MSCR_ADV_1000bT | MSCR_ADV_1000bTFD)) &&
-			(lpa2 & (MSSR_LP_1000bTFD | MSSR_LP_1000bT)))
-			speed = SPEED_1000;
-	}
-	if (speed == 0) {
-		media = mii_nway_result(lpa & advertise);
-		if (media & (ANAR_100bTFD | ANAR_100bT))
-			speed = SPEED_100;
-		else
-			speed = SPEED_10;
-		if (vm14_gemac->cfg.verbose > 12)
-			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1,"%s: nway set %d Mbits %s-duplex mode",  __devname__,
-				speed, vm14_gemac->cfg.duplex ? "full" : "half");
-	}
-	if (vm14_gemac->cfg.verbose > 12)
-		slogf (_SLOGC_NETWORK, _SLOG_DEBUG1,"%s: set %d Mbits %s-duplex mode",  __devname__,
-			speed, vm14_gemac->cfg.duplex ? "full" : "half");
-
-	vm14_gemac_hwduplex(vm14_gemac, vm14_gemac->cfg.duplex);
-	vm14_gemac_hwspeed(vm14_gemac, speed);
 }
 
 int vm14_gemac_findphy (vm14_gemac_dev_t *vm14_gemac)
@@ -296,7 +238,5 @@ int vm14_gemac_findphy (vm14_gemac_dev_t *vm14_gemac)
 			    "%s: MDI_EnableMonitor returned %x", __devname__, status);
 	}
 	
-	vm14_gemac_set_phy_mode(vm14_gemac);
-
 	return (0);
 }
