@@ -101,6 +101,16 @@ ser_intr(void *area, int id) {
 #endif				
 				;
 			switch(iir) {
+#if defined(VARIANT_dw)
+			case II_BUSY:
+				dev->read_8250(port[DW_UART_USR]);
+				// Enable interrupt sources
+				if (dev->tty.c_cflag & CREAD)
+					dev->write_8250(port[REG_IE], IE_SET_ALL);
+				else
+					dev->write_8250(port[REG_IE], (IE_SET_ALL & ~IE_RX) );
+				break;
+#endif
 #if defined(PA6T_WORKAROUND)			
 			case II_RX ^ 0x1:
 				// Work around the fact that the early PA6T-1682's have

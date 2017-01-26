@@ -67,6 +67,16 @@
 	#define TL16C752B_WORKAROUND
 #endif
 
+#if defined(VARIANT_dw)
+#define SER_REG_TOTAL		0x20
+/*Additional DW UART Status Register*/
+#define DW_UART_USR			0x1f
+/*DW BUSY Interrupt Status */
+#define II_BUSY				0x7
+#else
+#define SER_REG_TOTAL		REG_TOTAL
+#endif
+
 #ifndef DEV_8250			/* Can be defined in variant.h to override default */
 typedef struct dev_8250 {
 	TTYDEV			tty;
@@ -81,7 +91,7 @@ typedef struct dev_8250 {
 	unsigned char   irr_fiddle;			/* for PA6T-1682 workaround */
 	unsigned char	tx_empty_disable;	/* for PA6T-1682 workaround */
 #endif
-	uintptr_t		port[REG_TOTAL];
+	uintptr_t		port[SER_REG_TOTAL];
     uint32_t        (*read_8250)(uintptr_t port);                   /* HW access function pointers */
     void            (*write_8250)(uintptr_t port, uint32_t val);
 } DEV_8250;

@@ -106,11 +106,11 @@ init_cacheattr()
 
 	/*
 	 * Set data RAM latencies for this board
-	 * setup = 1 (2 cycles)
+	 * setup = 2 (3 cycles)
 	 * read  = 2 (3 cycles)
-	 * write = 1 (2 cycles)
+	 * write = 2 (3 cycles)
 	 */
-	out32(l2_base + L2_DATA_RAM_L_CTRL, (1 << 0) | (2 << 4) | (1 << 8));
+	out32(l2_base + L2_DATA_RAM_L_CTRL, (2 << 0) | (2 << 4) | (2 << 8));
 
 	/* aux control register initialized by ROM monitor */
 
