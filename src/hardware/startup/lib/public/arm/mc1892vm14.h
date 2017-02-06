@@ -36,6 +36,7 @@
 #define MC1892VM14_HWI_UART				"uart"
 #define MC1892VM14_HWI_WDT				"wdt"
 #define MC1892VM14_HWI_DMA				"dma"
+#define MC1892VM14_HWI_SPLL				"spll"
 
 /* -------------------------------------------------------------------------
  * SDRAM
@@ -138,7 +139,8 @@
 
 
 
-
+#define MC1892VM14_CMCTR_GATE_SYS_SDMMC0_EN				(1 << 2)
+#define MC1892VM14_CMCTR_GATE_SYS_SDMMC1_EN				(1 << 3)
 #define MC1892VM14_CMCTR_GATE_SYS_EMAC_EN				(1 << 4)
 #define MC1892VM14_CMCTR_GATE_SYS_USBIC_EN				(1 << 5)
 #define MC1892VM14_CMCTR_GATE_SYS_UART2_EN				(1 << 14)

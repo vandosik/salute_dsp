@@ -1,7 +1,6 @@
 /*
  * $QNXLicenseC: 
- * Copyright 2012, QNX Software Systems.  
- * Copyright 2013, Adeneo Embedded.
+ * Copyright 2011, QNX Software Systems.  
  *  
  * Licensed under the Apache License, Version 2.0 (the "License"). You  
  * may not reproduce, modify or distribute this software except in  
@@ -20,23 +19,22 @@
  * $
  */
 
-#include "startup.h"
-#include "board.h"
-#include <arm/mc1892vm14.h>
+// Module Description:  board specific header file
 
 
-uint32_t mc1892vm14_get_cpu_clk(void)
-{
-	uint32_t apll_mode;
+#ifndef _BS_H_INCLUDED
+#define _BS_H_INCLUDED
 
-	apll_mode = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_APLL_REG) & 0xFF;
-	return (apll_mode + 1) * EL24D1_XTI_FREQ;
-}
+#define MMCSD_VENDOR_SDHCI
 
-uint32_t mc1892vm14_get_spll_clk(void)
-{
-	uint32_t spll_mode;
+int bs_init(SIM_HBA *hba);
+int bs_dinit(SIM_HBA *hba);
 
-	spll_mode = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_SPLL_REG) & 0xFF;
-	return (spll_mode + 1) * EL24D1_XTI_FREQ;
-}
+
+
+#endif
+
+#if defined(__QNXNTO__) && defined(__USESRCVERSION)
+#include <sys/srcversion.h>
+__SRCVERSION("$URL: http://svn/product/branches/6.5.0/trunk/hardware/devb/mmcsd/arm/xzynq.le.v7/sim_bs.h $ $Rev: 704235 $")
+#endif

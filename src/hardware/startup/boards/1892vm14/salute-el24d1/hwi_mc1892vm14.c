@@ -22,9 +22,9 @@
 
 
 #include "startup.h"
+#include "board.h"
 #include "hwinfo_private.h"
 #include <drvr/hwinfo.h>                // for hwi support routines in libdrvr
-#include <arm/mc1892vm14.h>
 
 /*
  * Add 1892VM16 SoC devices to the hardware info section of the syspage.
@@ -81,6 +81,20 @@ void hwi_mc1892vm14()
 		hwitag_set_avail_ivec(hwi_off, 0, MC1892VM14_IRQ_SDMA0);
 	}
 
+	/* add SPLL clock info  */
+	{
+		unsigned hwi_off;
+		hwiattr_timer_t attr = HWIATTR_TIMER_T_INITIALIZER;
+		struct hwi_inputclk clksrc_spll;
+		
+		HWIATTR_TIMER_SET_NUM_CLK(&attr, 1);
+		clksrc_spll.clk = mc1892vm14_get_spll_clk();
+		clksrc_spll.div = 1;
+		hwi_off = hwidev_add_timer(MC1892VM14_HWI_SPLL, &attr,  HWI_NULL_OFF);
+		ASSERT(hwi_off != HWI_NULL_OFF);
+		hwitag_set_inputclk(hwi_off, 0, (struct hwi_inputclk *)&clksrc_spll);
+	}
+	
 	/* add RTC */
 //	hwi_add_device(HWI_ITEM_BUS_UNKNOWN, HWI_ITEM_DEVCLASS_RTC, "NONE", 0);
 

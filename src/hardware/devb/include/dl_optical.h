@@ -1,7 +1,6 @@
 /*
  * $QNXLicenseC: 
- * Copyright 2012, QNX Software Systems.  
- * Copyright 2013, Adeneo Embedded.
+ * Copyright 2008, QNX Software Systems.  
  *  
  * Licensed under the Apache License, Version 2.0 (the "License"). You  
  * may not reproduce, modify or distribute this software except in  
@@ -17,26 +16,27 @@
  * Please review this entire file for other proprietary rights or license  
  * notices, as well as the QNX Development Suite License Guide at  
  * http://licensing.qnx.com/license-guide/ for other information. 
- * $
+ * $ 
  */
 
-#include "startup.h"
-#include "board.h"
-#include <arm/mc1892vm14.h>
+#include <ntocam.h>
 
 
-uint32_t mc1892vm14_get_cpu_clk(void)
-{
-	uint32_t apll_mode;
+__SRCVERSION( "$URL: http://svn/product/branches/6.5.0/trunk/hardware/devb/include/dl_optical.h $ $Rev: 219612 $" )
 
-	apll_mode = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_APLL_REG) & 0xFF;
-	return (apll_mode + 1) * EL24D1_XTI_FREQ;
-}
+extern int dll_pdrvr_init_optical( cam_entry_t *cam_funcs, char *argv[] );
+extern int cam_pdrv_version_optical;
 
-uint32_t mc1892vm14_get_spll_clk(void)
-{
-	uint32_t spll_mode;
+/*
+ * This list is matched with the exported symbol list.
+ */
+static const struct dll_syms optical_syms[] = {
+	{ "dll_pdrvr_init", &dll_pdrvr_init_optical },
+	{ "cam_pdrv_version", &cam_pdrv_version_optical },
+	{ NULL, NULL }
+};
 
-	spll_mode = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_SPLL_REG) & 0xFF;
-	return (spll_mode + 1) * EL24D1_XTI_FREQ;
-}
+/*
+ * This matched the dll file name
+ */
+#define CAM_OPTICAL_LIST		"cam-optical.so", optical_syms
