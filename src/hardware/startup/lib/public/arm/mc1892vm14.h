@@ -54,6 +54,12 @@
 #define MC1892VM14_SDMA_BASE_ADDR		0x37220000
 #define MC1892VM14_SDMA_REG_SIZE		0x1000
 
+/* -------------------------------------
+ * NAND
+ * -------------------------------------
+ */
+#define MC1892VM14_NAND_BASE_ADDR		0x38007000
+#define MC1892VM14_NAND_REG_SIZE		0x1000
 
 /* -------------------------------------------------------------------------
  * ARM / SMP
@@ -148,6 +154,7 @@
 #define MC1892VM14_CMCTR_GATE_SYS_I2C0_EN				(1 << 16)
 #define MC1892VM14_CMCTR_GATE_SYS_I2C1_EN				(1 << 17)
 #define MC1892VM14_CMCTR_GATE_SYS_I2C2_EN				(1 << 18)
+#define MC1892VM14_CMCTR_GATE_SYS_NAND_EN				(1 << 21)
 
 /*
  * -------------------------------------------------------------------------
