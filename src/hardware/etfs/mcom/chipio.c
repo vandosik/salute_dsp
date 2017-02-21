@@ -158,7 +158,7 @@ int devio_options( struct etfs_devio *dev, char *optstr )
 	};
 
 	cio = dev->cio = &chipio;
-	cio->chip.nblks = NAND_BLK_NUM;
+	cio->chip.nblks = 0;
 	cio->irq_num = MC1892VM14_IRQ_NAND;
 	cio->use_dma = 1;
 	cio->use_polling = 0;
@@ -301,7 +301,7 @@ int nand_setup_ecc(struct chipio * cio)
 
 	cio->data_bch.ecc_bytes = DIV_ROUND_UP(cio->data_bch.ecc_strength * fls(8 * cio->data_bch.ecc_size), 8);
 	cio->data_bch.ecc_steps = cio->chip.datasize / cio->data_bch.ecc_size;
-	fprintf(stderr, "DATA ECC bytes per step %d ecc steps %d\n", cio->data_bch.ecc_bytes, cio->data_bch.ecc_steps);
+//	fprintf(stderr, "DATA ECC bytes per step %d ecc steps %d\n", cio->data_bch.ecc_bytes, cio->data_bch.ecc_steps);
 	
 	if (nand_bch_init(&cio->data_bch) == -1) {
 		fprintf(stderr, "Data ECC BCH init failed\n");
@@ -316,9 +316,9 @@ int nand_setup_ecc(struct chipio * cio)
 	cio->spare_bch.ecc_bytes = DIV_ROUND_UP(cio->spare_bch.ecc_strength * fls(8 * cio->spare_bch.ecc_size), 8);
 	cio->spare_bch.ecc_steps = 1;
 	
- 	fprintf(stderr, "SPARE size %d ECC size %d ECC bytes per step %d ecc steps %d\n", 
- 			cio->chip.sparesize, cio->spare_bch.ecc_size,
- 			cio->spare_bch.ecc_bytes, cio->spare_bch.ecc_steps);
+//	fprintf(stderr, "SPARE size %d ECC size %d ECC bytes per step %d ecc steps %d\n", 
+//			cio->chip.sparesize, cio->spare_bch.ecc_size,
+//			cio->spare_bch.ecc_bytes, cio->spare_bch.ecc_steps);
 	
 	if (nand_bch_init(&cio->spare_bch) == -1) {
 		fprintf(stderr, "Spare ECC BCH init failed\n");
@@ -529,7 +529,7 @@ static inline void nand_set_irq_masks( struct chipio * cio, uint32_t val )
 
 int nand_read_onfi( struct chipio * cio )
 {
-	unsigned  	onfi_buf[128];
+	unsigned  	onfi_buf[64];
 	int 	i;
 	volatile unsigned  val32;
 	unsigned char *databuffer = (unsigned char *)onfi_buf;
@@ -567,7 +567,7 @@ int nand_read_onfi( struct chipio * cio )
 	cio->chip.sparesize = ENDIAN_LE16(*(uint16_t*)(databuffer + 84));
 	if (cio->chip.nblks == 0)
 		cio->chip.nblks = ENDIAN_LE32(*(uint32_t*)(databuffer + 96));
-	cio->chip.pages2blk = ENDIAN_LE32(*(uint16_t*)(databuffer + 92));
+	cio->chip.pages2blk = ENDIAN_LE16(*(uint16_t*)(databuffer + 92));
 	
 	// Get ECC params
 	cio->data_bch.ecc_strength = *(uint8_t *)(databuffer + 112);

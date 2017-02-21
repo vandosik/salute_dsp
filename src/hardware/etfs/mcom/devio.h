@@ -114,7 +114,7 @@ struct _chipio {
 #define MAX_RESET_USEC					600		// 600us
 #define MAX_READ_USEC					100      //  50us
 #define MAX_POST_USEC					2500    //   2ms
-#define MAX_ERASE_USEC					35000	//  30ms
+#define MAX_ERASE_USEC					30000	//  30ms
 
 // NAND device status register bits
 #define	NAND_PROGRAM_ERASE_ERROR		0x01

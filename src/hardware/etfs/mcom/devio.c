@@ -138,7 +138,6 @@ int devio_readcluster(struct etfs_devio *dev, unsigned cluster, uint8_t *buf, st
 	else if(((uint64_t *)sp)[2] == ~0ll  &&  ((uint64_t *)sp)[3] == ~0ll
 			&& ((uint64_t *)sp)[4] == ~0ll  &&  ((uint64_t *)sp)[5] == ~0ll
 				&& ((uint64_t *)sp)[6] == ~0ll  &&  ((uint64_t *)sp)[7] == ~0ll) {
-			dev->log(_SLOG_ERROR, "devio_readcluster: cluster %d erased", cluster);
 			trp->tacode = ETFS_TRANS_ERASED;
 	}
 	else if(dev->crc32((uint8_t *) sp, crc_bytes) != *(uint32_t *)((uint8_t *)sp + SPARE_CRC_OFFSET)) {
