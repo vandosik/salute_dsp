@@ -28,7 +28,6 @@
 #include "mc1892vm14_startup.h"
 
 /* RAM size (MB) */
-#define EL24D1_SDRAM_SIZE		2048
 #define EL24D1_XTI_FREQ			24000000
 
 #endif  // __BOARD_H

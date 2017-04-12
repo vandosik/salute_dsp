@@ -31,7 +31,7 @@
 	#define FALSE 0
 #endif
 
-void mc1892vm14_init_raminfo(unsigned ram_size);
+void mc1892vm14_init_raminfo(void);
 uint32_t mc1892vm14_get_cpu_clk(void);
 uint32_t mc1892vm14_get_spll_clk(void);
 void mc1892vm14_init_qtime(void);

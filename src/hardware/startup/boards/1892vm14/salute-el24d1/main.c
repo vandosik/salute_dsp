@@ -94,7 +94,7 @@ main(int argc, char **argv, char **envv)
 	/*
 	 * Collect information on all free RAM in the system
 	 */
-	mc1892vm14_init_raminfo(EL24D1_SDRAM_SIZE);
+	mc1892vm14_init_raminfo();
 	
 	/*
 	 * Get CPU frequency

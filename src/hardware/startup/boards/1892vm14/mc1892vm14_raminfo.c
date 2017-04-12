@@ -29,18 +29,19 @@
 #include "startup.h"
 #include <arm/mc1892vm14.h>
 
-void mc1892vm14_init_raminfo(unsigned ram_size)
+#define DDRMC_RAM_SIZE			1024
+
+void mc1892vm14_init_raminfo(void)
 {
-	if (MEG(ram_size) <= MEG(1024))
-		add_ram(MC1892VM14_DDRMC0_BASE, MEG(ram_size));
-	else {
-		if (MEG(ram_size) < MEG(2048)) {
-			add_ram(MC1892VM14_DDRMC0_BASE, MEG(1024));
-			add_ram(MC1892VM14_DDRMC1_BASE, MEG(ram_size) - MEG(1024));
-		}
-		else {
-			add_ram(MC1892VM14_DDRMC0_BASE, MEG(1024));
-			add_ram(MC1892VM14_DDRMC1_BASE, MEG(1024));
-		}
+	unsigned	reg;
+	
+	reg = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_GATE_CORE_REG);
+	
+	if (reg & MC1892VM14_CMCTR_GATE_CORE_DDR0_EN) {
+		add_ram(MC1892VM14_DDRMC0_BASE, MEG(DDRMC_RAM_SIZE));
+	}
+	
+	if (reg & MC1892VM14_CMCTR_GATE_CORE_DDR1_EN) {
+		add_ram(MC1892VM14_DDRMC1_BASE, MEG(DDRMC_RAM_SIZE));
 	}
 }
