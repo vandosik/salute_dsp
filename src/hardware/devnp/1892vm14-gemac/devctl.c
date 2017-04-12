@@ -66,8 +66,8 @@ void vm14_gemac_filter(vm14_gemac_dev_t *vm14_gemac/*, int reset*/)
 		if (vm14_gemac->cfg.verbose) {
 			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1,
 				   "%s: enm %p %02X:%02X:%02X mcentries %d",
-						__devname__, enm, enm->enm_addrlo[0],
-							enm->enm_addrlo[1], enm->enm_addrlo[2], mcentries);
+						__devname__, enm, enm->enm_addrlo[3],
+							enm->enm_addrlo[4], enm->enm_addrlo[5], mcentries);
 		}
 		vm14_gemac_hw_setup_hashtable(vm14_gemac, enm->enm_addrlo, 1);
 		mcentries++;

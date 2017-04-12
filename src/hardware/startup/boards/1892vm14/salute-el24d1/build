@@ -318,20 +318,20 @@ if [ -e "/dev/socket" ]; then
 		echo "Configure ethernet interface to address $IP_ADDR_ETH"
 		ifconfig en0 "$IP_ADDR_ETH" up
 	fi
-	if [ $USE_QNET ]; then
+	if [ $USE_QNET -eq 1 ]; then
 		echo "Starting qnet..."
 # 		mount -Tio-pkt -oprotected=1 lsm-qnet-ksz.so
 		mount -Tio-pkt lsm-qnet.so
 	fi
-	if [ $USE_QCONN ]; then
+	if [ $USE_QCONN -eq 1 ]; then
 		echo "Starting qconn..."
 		qconn qconn_prio=250 &
 	fi
-	if [ $USE_INETD ]; then
+	if [ $USE_INETD -eq 1 ]; then
 		echo "Starting inetd..."
 		inetd &
 	fi
-	if [ $USE_NTPD ]; then
+	if [ $USE_NTPD -eq 1 ]; then
 		echo "Setup time..."
 		echo "127.0.0.1 localhost" > /tmp/hosts
 		ln -sP /tmp/hosts /etc/hosts

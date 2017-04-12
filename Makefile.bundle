@@ -6,9 +6,31 @@ SNAME=$(BSP_NAME)-src-`date +%Y%m%d`.zip
 all: bundle
 	@echo done
 
+strip:
+	$(info Strip binary files)
+	$(eval distrib_files := $(shell find ./install))
+# 	@echo distrib_Files=$(distrib_files)
+	$(eval strip_status := $(shell for distr_file in $(shell ls $(distrib_files)); do \
+		if file $$distr_file | grep ELF >/dev/null; then \
+		ntoarm-strip -g -p $$distr_file; fi; done; echo -n $$?))
+	@if [ $(strip_status) -eq 0 ]; then \
+		echo Strip done; \
+	else \
+		echo Strip fail; \
+	fi
+
+demo-bundle:
+	$(MAKE) QNX_TARGET=$(NEUTRINO_TARGET) -C. -f Makefile clean all
+	$(MAKE) -Cimages -f Makefile clean
+	$(MAKE) -C. -f Makefile.bundle strip
+	$(MAKE) NEUTRINO_TARGET="" -Cimages -f Makefile b=demo
+
+	# Create 'binary-demo' BSP
+	tar --owner=root --group=root -zcf ../$(BNAME) install/armle-v7/boot/build/salute-el24d1-demo.build install/armle-v7/boot/sys/procnto-smp install/armle-v7/boot/sys/startup-salute-el24d1 install/armle-v7/lib/dll/devnp-1892vm14-gemac.so install/armle-v7/sbin/devc-ser8250 images/{salute-el24d1-demo.build,ifs-salute-el24d1-demo.bin,Makefile} --xform "s/-demo//"
+
 bundle:
-	$(MAKE) -C. -f Makefile all
-	$(MAKE) -Cimages -f Makefile clean	
+	$(MAKE) -C. -f Makefile clean all
+	$(MAKE) -Cimages -f Makefile clean
 	
 	# Create 'binary' BSP
 	tar --owner=root --group=root -zcf ../$(BNAME) install prebuilt images

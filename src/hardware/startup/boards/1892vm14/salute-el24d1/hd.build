@@ -1,0 +1,325 @@
+#
+# Файл построения защищенного загрузочного образа ЗОСРВ "Нейтрино-Э"
+#
+
+[image=0x40100000]
+[virtual=armle-v7,raw] .bootstrap = {
+	startup-salute-el24d1 -Nel24d1
+	# Раскомментируйте один вариант запуска микроядра
+# NOKSZ
+	PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp -ae -v
+	# Базовый
+# 	PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v
+	
+	# Очистка памяти
+	#PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v -K z
+
+	# Расширенный аудит
+	#PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v -K A
+
+	# Очистка памяти и расширенный аудит
+	#PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v -K z,A
+}
+
+[+script] .script = {
+# KSZ
+# 	procmgr_symlink ../../proc/boot/libc-ksz.so.3 /usr/lib/ldqnx.so.2
+# NOKSZ
+	procmgr_symlink ../../proc/boot/libc.so.3 /usr/lib/ldqnx.so.2
+
+	LC_CTYPE=C-TRADITIONAL
+
+	display_msg Добро пожаловать в КПДА Нейтрино на модуле ЭЛ24Д1
+
+#	Раскомментируйте для запуска драйвер диска с очисткой внешней памяти
+#	UMASS_FSOPTS="qnx6 sync=optional,zero qnx4 zero"
+#	HD_FSOPTS="qnx6 zero qnx4 zero"
+
+	slogger -s64 &
+	wdtkick -p50 -e &
+
+	pipe
+	xip_setup
+# 	PATH=/proc/boot:/bin:/usr/bin:/sbin:/usr/sbin:/usr/ksz/bin:/dev/shmem/xip
+	LD_LIBRARY_PATH=/proc/boot:/lib:/usr/lib:/lib/dll:/dev/shmem/xip
+	# NOKSZ
+	PATH=/proc/boot:/bin:/usr/bin:/sbin:/usr/sbin:/dev/shmem/xip
+	
+	start_services
+
+	waitfor /dev/con1 5
+	reopen /dev/con1
+
+	waitfor /dev/io-usb 5
+	io-hid -d usb
+	mount_all
+
+	sysinit
+}
+
+[type=link] /dev/console=/dev/ser1
+[type=link] /dev/con1=/dev/ser1
+
+###########################################################################
+## Системные библиотеки
+###########################################################################
+# KSZ
+# libc-ksz.so.3
+# [type=link] /proc/boot/libc.so=libc-ksz.so.3
+# [type=link] /proc/boot/libc.so.3=libc-ksz.so.3
+# lsm-qnet-ksz.so
+
+# NOKSZ
+libc.so.3
+[type=link] /proc/boot/libc.so=libc.so.3
+lsm-qnet.so
+
+libsocket.so.3
+libm.so.2
+
+###########################################################################
+## Библиотеки работы с диском и файловые системы
+###########################################################################
+# KSZ
+# fs-qnx4-ksz.so
+# fs-qnx6-ksz.so
+# [type=link] /proc/boot/fs-qnx4.so=fs-qnx4-ksz.so
+# [type=link] /proc/boot/fs-qnx6.so=fs-qnx6-ksz.so
+# NOKSZ
+fs-qnx4.so
+fs-qnx6.so
+#
+libcam.so
+io-blk.so
+cam-disk.so
+fs-dos.so
+fs-ext2.so
+cam-cdrom.so
+fs-cd.so
+fs-udf.so
+fs-nt.so
+fs-mac.so
+
+###########################################################################
+## Драйверы USB и устройств ввода
+###########################################################################
+libusbdi.so
+devu-ehci.so
+devu-ohci.so
+libhiddi.so
+devh-usb.so
+
+###########################################################################
+## Менеджеры ресурсов, системные сервисы и утилиты
+###########################################################################
+
+###########################################################################
+## uncomment for Serial driver
+###########################################################################
+devc-ser8250-dw
+
+###########################################################################
+## uncomment for MMC/SD driver
+###########################################################################
+devb-mmcsd-mcom
+
+###########################################################################
+## uncomment for MMC/SD driver
+###########################################################################
+fs-etfs-mcom
+etfsctl
+
+devb-umass
+io-usb
+usb
+io-hid
+mount
+umount
+ls
+cp
+rm
+cp_tmp=cp
+on
+awk
+printf
+pipe
+pidin
+grep
+sleep
+waitfor
+shutdown
+slogger
+rtc
+slay
+chmod
+
+[perms=u+x]xip_setup = {
+#!/proc/boot/ksh
+	cp_tmp /proc/boot/cp /dev/shmem/xip/cp
+	/proc/boot/cp /proc/boot/ls /dev/shmem/xip/ls
+	/dev/shmem/xip/cp $(ls /proc/boot/* 2>/dev/null) /dev/shmem/xip
+	rm -f /dev/shmem/xip/.script
+}
+
+[perms=u+x]to_rcd = {
+#!/proc/boot/ksh
+	tgt=$1
+	shift
+	echo "$@" >> /etc/rc.d/rc.$tgt
+}
+
+[perms=u+x]delay_start_services = {
+#!/proc/boot/ksh
+	rm -f /etc/rc.d/rc.devices
+	to_rcd devices enum-devices \\&
+	to_rcd devices waitfor /dev/random 5
+	to_rcd devices waitfor /dev/slog 5
+	to_rcd devices 'if test $KSZ_ENABLED -gt 0; then'
+	to_rcd devices io-pkt-ksz -ptcpip forward,stacksize=8192
+	to_rcd devices 'else'
+	to_rcd devices io-pkt-v4-hc -ptcpip forward,stacksize=8192
+	to_rcd devices 'fi'
+	to_rcd devices waitfor /dev/bpf0 5
+	to_rcd devices waitfor /dev/socket 5
+	to_rcd devices mount -T io-pkt -o verbose,mac=e25eff95ac76,transmit=128 devnp-1892vm14-gemac.so
+	to_rcd devices netmanager \\&
+	to_rcd devices waitfor /dev/i2c1 5
+	to_rcd devices io-display -dvid=0x0,did=0x0
+	chmod +x /etc/rc.d/rc.devices
+	rm -f /etc/rc.d/rc.local
+	to_rcd local qconn
+	to_rcd local inetd
+	to_rcd local '\(waitfor /dev/random 5; ret=1; while [ $ret -ne 0 ]; do /usr/sbin/sshd 1>/dev/null 2>&1; ret=$?; sleep 0.5; done\)' \\&
+	to_rcd local ntpd -g -c /etc/ntp/ntp.conf \\&
+	to_rcd local slay -f dumper
+	chmod +x /etc/rc.d/rc.local
+}
+
+[perms=u+x]start_services = {
+#!/proc/boot/ksh
+	devc-ser8250-dw -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
+	io-usb -ddwcotg ioport=0x38002000,irq=64,nchan=16
+	for i in 0 1 2 3; do
+		devb-mmcsd-mcom blk cache=1M cam quiet $HD_FSOPTS
+		waitfor /dev/hd0 0.5 >/dev/null 2>&1
+		if [ -e /dev/hd0 ]; then
+			break
+		else
+			slay -f devb-mmcsd-mcom
+			k=0
+			while pidin -P devb-mmcsd-mcom | grep devb-mmcsd-mcom >/dev/null; do
+				sleep 0.1
+				((k++))
+				if [ $k -gt 5 ]; then
+					slay -f -9 devb-mmcsd-mcom
+				fi
+				if [ $k -gt 10 ]; then
+					exit 1
+				fi
+			done
+		fi
+	done
+	#################################################################
+	## I2C driver
+	#################################################################
+	i2c-designware -p0x3802c000 --u0 &
+	i2c-designware -p0x3802d000 --u1 &
+	i2c-designware -p0x3802e000 --u2 &
+}
+
+[perms=u+x]sysinit = {
+#!/proc/boot/ksh
+	waitfor /dev/con1 5
+	reopen /dev/con1
+	if [ -e "/etc/system/sysinit" ]; then
+		echo Запуск стартовых скриптов ...
+		rm -f /dev/shmem/xip/*
+		delay_start_services
+		exec /etc/system/sysinit
+	else
+		HOME=/dev/shmem
+		echo Запуск оболочки ...
+		ontty /dev/con1 ksh -l
+	fi
+}
+
+[perms=u+x]mount_all = {
+#!/proc/boot/ksh
+	echo -ne "\\033[?25l"
+	echo Поиск доступных разделов ...
+	dname=/dev/hd
+	target_root=""
+	target_boot=""
+	waitfor $\{dname\}0 5 >/dev/null 2>&1
+	for j in 1 2; do
+		for i in 0 1 2 3; do
+			waitfor $\{dname\}$\{i\} 0.1 >/dev/null 2>&1
+			if [ ! -e $\{dname\}$\{i\} ]; then
+				continue
+			fi
+			mount -e $\{dname\}$\{i\}
+			for ftype in 77 78 79 177 178 179 11 12 14 131; do
+				if [ -e $\{dname\}$\{i\}t$\{ftype\} ]; then
+					case $\{ftype\} in
+						77|78|79|177|178|179)
+							if [ -z "$target_root" ]; then
+								target_root=$\{dname\}$\{i\}t$\{ftype\}
+							fi
+							;;
+						*)
+							if [ -z "$target_boot" ]; then
+								target_boot=$\{dname\}$\{i\}t$\{ftype\}
+							fi
+							;;
+					esac
+					if [ -n "$target_root" -a -n "$target_boot" ]; then
+						break 3
+					fi
+				fi
+			done
+		done
+	done
+	if [ -z "$target_root" -o -z "$target_boot" ]; then
+		echo "У Вас нет ни одного подходящего раздела"
+		echo -ne "\\033[?25h"
+		exit 1
+	fi
+	if [ "$target_root" = "$\{target_root##*17\}" ]; then
+		echo Монтирование QNX4 ФС ...
+		mount -t qnx4 $target_root /
+	else
+		echo Монтирование Power-Safe ФС ...
+		mount -t qnx6 $target_root /
+	fi
+	if [ "$target_boot" = "$\{target_boot##*131\}" ]; then
+		echo Монтирование FAT32 ФС ...
+		mount -t dos $target_boot /boot
+	else
+		echo Монтирование EXT2 ФС ...
+		mount -t ext2 $target_boot /boot
+	fi
+	echo -ne "\\033[?25h"
+	
+}
+
+[data=c]
+
+###########################################################################
+## Watchdog utility
+###########################################################################
+wdtkick
+
+# io-pkt-ksz
+ksh
+/lib/dll/devg-vpoutfb.so=devg-vpoutfb.so
+i2c-designware
+devu-dwcotg.so
+devnp-1892vm14-gemac.so
+
+###########################################################################
+## Программы КСЗ
+###########################################################################
+# ${QNX_TARGET}/armle-v7/usr/ksz/bin/cksum_ksz
+# ${QNX_TARGET}/armle-v7/usr/ksz/bin/check_ksz
+# ${QNX_TARGET}/armle-v7/usr/ksz/bin/auditlogger_ksz
+# ${QNX_TARGET}/armle-v7/usr/ksz/bin/spooler_ksz
