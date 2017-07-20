@@ -230,6 +230,80 @@
 #define MC1892VM14_UART_LCR_BC		(1 << 6)	/* Set break */
 #define MC1892VM14_UART_LCR_DLAB	(1 << 7)	/* Divisor latch access */
 
+
+/*
+ * -------------------------------------------------------------------------
+ * TIMER - synchronization controller
+ * -------------------------------------------------------------------------
+ */
+#define MC1892VM14_TIMERS_BASE		0x38026000
+#define MC1892VM14_TIMERS_SIZE		0x1000
+
+// LOAD COUNT REGISTER
+#define MC1892VM14_TIMER0_LC		0x00
+#define MC1892VM14_TIMER1_LC		0x14
+#define MC1892VM14_TIMER2_LC		0x28
+#define MC1892VM14_TIMER3_LC		0x3C
+#define MC1892VM14_TIMER4_LC		0x50
+#define MC1892VM14_TIMER5_LC		0x64
+#define MC1892VM14_TIMER6_LC		0x78
+#define MC1892VM14_TIMER7_LC		0x8C
+
+// LOAD COUNT 2 REGISTER
+#define MC1892VM14_TIMER0_LC2		0xB0
+#define MC1892VM14_TIMER1_LC2		0xB4
+#define MC1892VM14_TIMERN_LC2		0
+
+// CURRENT VALUE REGISTER
+#define MC1892VM14_TIMER0_CV		0x04
+#define MC1892VM14_TIMER1_CV		0x18
+#define MC1892VM14_TIMER2_CV		0x2C
+#define MC1892VM14_TIMER3_CV		0x40
+#define MC1892VM14_TIMER4_CV		0x54
+#define MC1892VM14_TIMER5_CV		0x68
+#define MC1892VM14_TIMER6_CV		0x7C
+#define MC1892VM14_TIMER7_CV		0x90
+
+// CONTROL REGISTER	
+#define MC1892VM14_TIMER0_CNTR	0x08
+#define MC1892VM14_TIMER1_CNTR	0x1C
+#define MC1892VM14_TIMER2_CNTR	0x30
+#define MC1892VM14_TIMER3_CNTR	0x44
+#define MC1892VM14_TIMER4_CNTR	0x58
+#define MC1892VM14_TIMER5_CNTR	0x6C
+#define MC1892VM14_TIMER6_CNTR	0x80
+#define MC1892VM14_TIMER7_CNTR	0x94
+
+// END OF INTERRUPT REGISTER	
+#define MC1892VM14_TIMER0_EOI		0x0C
+#define MC1892VM14_TIMER1_EOI		0x20
+#define MC1892VM14_TIMER2_EOI		0x34
+#define MC1892VM14_TIMER3_EOI		0x48
+#define MC1892VM14_TIMER4_EOI		0x5C
+#define MC1892VM14_TIMER5_EOI		0x70
+#define MC1892VM14_TIMER6_EOI		0x84
+#define MC1892VM14_TIMER7_EOI		0x98
+
+// INTERRUPT STATUS REGISTER	
+#define MC1892VM14_TIMER0_IS		0x10
+#define MC1892VM14_TIMER1_IS		0x24
+#define MC1892VM14_TIMER2_IS		0x38
+#define MC1892VM14_TIMER3_IS		0x4C
+#define MC1892VM14_TIMER4_IS		0x60
+#define MC1892VM14_TIMER5_IS		0x74
+#define MC1892VM14_TIMER6_IS		0x88
+#define MC1892VM14_TIMER7_IS		0x9C
+
+#define MC1892VM14_TIMERS_IS		0xA0	// Common interrupt status register
+#define MC1892VM14_TIMERS_EOI		0xA4	// Common end of interrupt register
+#define MC1892VM14_TIMERS_IRS		0xA8	// Common raw interrupt status register
+
+#define MC1892VM14_TIMERS_ENABLE	0x01	// Timer enable
+#define MC1892VM14_TIMERS_MODE		0x02	// Timer mode
+#define MC1892VM14_TIMERS_IRQ_MASK	0x04	// Timer interrupnt mask
+#define MC1892VM14_TIMERS_TPWM		0x08	// Timer pulse-width modulation mode
+
+
 /* -------------------------------------------------------------------------
  * Watchdog
  * -------------------------------------------------------------------------

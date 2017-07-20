@@ -142,6 +142,7 @@ struct local_syspage {
 	SYSPAGE_SECTION(pminfo);
 	SYSPAGE_SECTION(mdriver);
 	struct cpu_local_syspage	cpu;
+	SYSPAGE_SECTION(cmctr);
 };
 
 struct debug_device {
@@ -217,6 +218,7 @@ void init_cpuinfo(void);
 void init_hwinfo(void);
 void init_asinfo(unsigned mem);
 void init_nanospin(void);
+void init_cmctr(void);
 
 // Only needed for SMP systems
 void init_smp(void);

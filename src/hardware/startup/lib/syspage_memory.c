@@ -180,6 +180,7 @@ alloc_syspage_memory() {
 	INIT_ENTRY(smp);
 	INIT_ENTRY(pminfo);
 	INIT_ENTRY(mdriver);
+	INIT_ENTRY(cmctr);
 
 	memset(&cpu, 0, sizeof(cpu));
 	cpu.syspage = lsp.system_private.p->user_syspageptr;

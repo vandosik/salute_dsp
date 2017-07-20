@@ -1,0 +1,23 @@
+%C Test application for 1892vm14 timer library 
+
+Syntax:
+  %C [options]
+
+Options:
+  -n tid         timer id - [0..7, default: 0]
+  -m mode        timer modes - [0..1, default: 0] 
+                   0 - free run mode, 
+                   1 - user mode.
+  -d time        test duration time, in seconds [default: 5]
+  -t time        irq period, in micro seconds [default: 1 seconds]
+
+Examples:
+  # Start %C application with default timer settings.
+
+  %C
+
+  # Start %C application with custom timer settings.
+
+  k64_test -n 1 -m 1 -d 7
+ 
+  (see vm14timer.h for details)
