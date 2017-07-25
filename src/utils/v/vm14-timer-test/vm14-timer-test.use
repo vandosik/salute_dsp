@@ -1,7 +1,7 @@
 %C Test application for 1892vm14 timer library 
 
 Syntax:
-  %C [options]
+  vm14-timer-test [options]
 
 Options:
   -n tid         timer id - [0..7, default: 0]
@@ -12,12 +12,12 @@ Options:
   -t time        irq period, in micro seconds [default: 1 seconds]
 
 Examples:
-  # Start %C application with default timer settings.
+  # Start vm14-timer-test application with default timer settings.
 
-  %C
+  vm14-timer-test
 
-  # Start %C application with custom timer settings.
+  # Start vm14-timer-test application with custom timer settings.
 
-  k64_test -n 1 -m 1 -d 7
+  vm14-timer-test -n 1 -m 1 -d 7
  
   (see vm14timer.h for details)

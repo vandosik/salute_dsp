@@ -69,19 +69,19 @@ int vm14_timer_valid(vm14_timer_id_t id);
 
 int vm14_timer_start(vm14_timer_id_t id);
 int vm14_timer_stop(vm14_timer_id_t id);
-int vm14_timer_is_work(vm14_timer_id_t id);
+int vm14_timer_running(vm14_timer_id_t id);
 
 int vm14_timer_set_free_run_mode(vm14_timer_id_t id);
 int vm14_timer_set_user_mode(vm14_timer_id_t id);
 int vm14_timer_get_mode(vm14_timer_id_t id);
 
-int vm14_timer_irq_mask(vm14_timer_id_t id);
-int vm14_timer_irq_unmask(vm14_timer_id_t id);
-int vm14_timer_irq_mask_status(vm14_timer_id_t id);
+int vm14_timer_mask(vm14_timer_id_t id);
+int vm14_timer_unmask(vm14_timer_id_t id);
+int vm14_timer_get_mask(vm14_timer_id_t id);
 
-int vm14_timer_enable_toggle(vm14_timer_id_t id);
-int vm14_timer_disable_toggle(vm14_timer_id_t id);
-int vm14_timer_toggl_status(vm14_timer_id_t id);
+int vm14_timer_pwm_enable(vm14_timer_id_t id);
+int vm14_timer_pwm_disable(vm14_timer_id_t id);
+int vm14_timer_pwm_status(vm14_timer_id_t id, uint32_t *val);
 
 int vm14_timer_get_cur_val(vm14_timer_id_t id, uint32_t *val);
 int vm14_timer_set_count(vm14_timer_id_t id, uint32_t val);
@@ -95,7 +95,6 @@ int vm14_timer_reset_all_irq(void);
 int vm14_timer_irq_status(vm14_timer_id_t id);
 int vm14_timer_all_irq_status(void);
 int vm14_timer_all_raw_irq_status(void);
-
 
 #ifdef __cplusplus
 }

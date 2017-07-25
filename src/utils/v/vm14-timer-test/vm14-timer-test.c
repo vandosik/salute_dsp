@@ -57,7 +57,7 @@ void *k64_event_handler(void *data)
 
 	ThreadCtl(_NTO_TCTL_IO, 0);
 	vm14_timer_reset_irq(timer_info.tid);
-	vm14_timer_irq_mask(timer_info.tid);
+	vm14_timer_mask(timer_info.tid);
 
 	SIGEV_INTR_INIT(&event);
 	iid = InterruptAttachEvent(timer_info.irqnum, &event, _NTO_INTR_FLAGS_TRK_MSK);
@@ -74,7 +74,7 @@ void *k64_event_handler(void *data)
 	else
 		vm14_timer_set_free_run_mode(timer_info.tid);
 
-	vm14_timer_irq_unmask(timer_info.tid);
+	vm14_timer_unmask(timer_info.tid);
 	vm14_timer_start(timer_info.tid);
 
 	lcc_prev = ClockCycles();
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	tmp_val = vm14_timer_is_work(timer_info.tid);
+	tmp_val = vm14_timer_running(timer_info.tid);
 	if ( tmp_val == -1  ) 
 	{
 		fprintf(stderr, "vm14_timer_is_work(): error\n");

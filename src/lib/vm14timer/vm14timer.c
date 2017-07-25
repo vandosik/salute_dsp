@@ -34,7 +34,7 @@
 
 static uint32_t *timer_addr;
 
-static const vm14_timer_reg_t	vm14_timer_reg[VM14_TIMER_MAX] = {
+static const vm14_timer_reg_t vm14_timer_reg[VM14_TIMER_MAX] = {
 	{MC1892VM14_TIMER0_LC, MC1892VM14_TIMER0_LC2, MC1892VM14_TIMER0_CV, MC1892VM14_TIMER0_CNTR, MC1892VM14_TIMER0_EOI, MC1892VM14_TIMER0_IS, MC1892VM14_IRQ_TIMER0},
 	{MC1892VM14_TIMER1_LC, MC1892VM14_TIMER1_LC2, MC1892VM14_TIMER1_CV, MC1892VM14_TIMER1_CNTR, MC1892VM14_TIMER1_EOI, MC1892VM14_TIMER1_IS, MC1892VM14_IRQ_TIMER1},
 	{MC1892VM14_TIMER2_LC, MC1892VM14_TIMERN_LC2, MC1892VM14_TIMER2_CV, MC1892VM14_TIMER2_CNTR, MC1892VM14_TIMER2_EOI, MC1892VM14_TIMER2_IS, MC1892VM14_IRQ_TIMER2},
@@ -60,10 +60,10 @@ int vm14_timer_setup(void)
 	if ( ThreadCtl(_NTO_TCTL_IO, 0) == -1 )
 		return -1;
 
-	timer_addr = (uint32_t *) mmap( NULL, MC1892VM14_TIMERS_SIZE,
+	timer_addr = (uint32_t *) mmap(NULL, MC1892VM14_TIMERS_SIZE,
 				PROT_NOCACHE | PROT_READ | PROT_WRITE,
 				MAP_PHYS | MAP_SHARED,
-				NOFD, MC1892VM14_TIMERS_BASE );
+				NOFD, MC1892VM14_TIMERS_BASE);
 
 	if ( timer_addr == MAP_FAILED )
 		return -1;
@@ -115,7 +115,7 @@ int vm14_timer_stop(vm14_timer_id_t id)
 	return 0;
 }
 
-int vm14_timer_is_work(vm14_timer_id_t id)
+int vm14_timer_running(vm14_timer_id_t id)
 {
 	if ( vm14_timer_valid(id) )
 		return -1;
@@ -159,7 +159,7 @@ int vm14_timer_get_mode(vm14_timer_id_t id)
 	return timer_reg_read(vm14_timer_reg[id].cntr) & MC1892VM14_TIMERS_MODE;
 }
 
-int vm14_timer_irq_mask(vm14_timer_id_t id)
+int vm14_timer_mask(vm14_timer_id_t id)
 {
 	uint32_t tmp_val;
 
@@ -173,7 +173,7 @@ int vm14_timer_irq_mask(vm14_timer_id_t id)
 	return 0;
 }
 
-int vm14_timer_irq_unmask(vm14_timer_id_t id)
+int vm14_timer_unmask(vm14_timer_id_t id)
 {
 	uint32_t tmp_val;
 
@@ -187,7 +187,7 @@ int vm14_timer_irq_unmask(vm14_timer_id_t id)
 	return 0;
 }
 
-int vm14_timer_irq_mask_status(vm14_timer_id_t id)
+int vm14_timer_get_mask(vm14_timer_id_t id)
 {
 	if ( vm14_timer_valid(id) )
 		return -1;
@@ -195,7 +195,7 @@ int vm14_timer_irq_mask_status(vm14_timer_id_t id)
 	return timer_reg_read(vm14_timer_reg[id].cntr) & MC1892VM14_TIMERS_IRQ_MASK;
 }
 
-int vm14_timer_enable_toggle(vm14_timer_id_t id)
+int vm14_timer_pwm_enable(vm14_timer_id_t id)
 {
 	uint32_t tmp_val;
 
@@ -212,7 +212,7 @@ int vm14_timer_enable_toggle(vm14_timer_id_t id)
 	return 0;
 }
 
-int vm14_timer_disable_toggle(vm14_timer_id_t id)
+int vm14_timer_pwm_disable(vm14_timer_id_t id)
 {
 	uint32_t tmp_val;
 
@@ -229,7 +229,7 @@ int vm14_timer_disable_toggle(vm14_timer_id_t id)
 	return 0;
 }
 
-int vm14_timer_toggle_status(vm14_timer_id_t id, uint32_t *val)
+int vm14_timer_pwm_status(vm14_timer_id_t id, uint32_t *val)
 {
 	if ( vm14_timer_valid(id) )
 		return -1;
@@ -318,7 +318,7 @@ int vm14_timer_irq_status(vm14_timer_id_t id)
 	if ( vm14_timer_valid(id) )
 		return -1;
 
-	return timer_reg_read(vm14_timer_reg[id].status);;
+	return timer_reg_read(vm14_timer_reg[id].status);
 }
 
 int vm14_timer_all_irq_status(void)
