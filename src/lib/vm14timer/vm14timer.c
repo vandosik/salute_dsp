@@ -23,14 +23,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/neutrino.h>
 #include <hw/inout.h>
+
 #include "vm14timer.h"
+#include <drvr/hwinfo.h>
 
 static uint32_t *timer_addr;
 
@@ -85,6 +86,24 @@ int vm14_timer_valid(vm14_timer_id_t id)
 		return 0;
 
 	return -1;
+}
+
+unsigned vm14_timer_freq(void)
+{
+	unsigned hwi_off;
+	hwi_tag *tag;
+
+	hwi_off = hwi_find_device("spll", 2);
+	if( hwi_off != HWI_NULL_OFF ) {
+		tag = hwi_tag_find(hwi_off, HWI_TAG_NAME_inputclk, 0);
+		if ( tag ) {
+			return tag->inputclk.clk / tag->inputclk.div;
+		} else {
+			return 0;
+		}
+	} else {
+		return 0;
+	}
 }
 
 int vm14_timer_start(vm14_timer_id_t id)

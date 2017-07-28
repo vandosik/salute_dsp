@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <arm/mc1892vm14.h>
 
+
 #define VM14_TIMER_MAX			8
 
 #define VM14_TIMERS_FREE_RUN_MODE	0x02	// Timer free-running mode
@@ -66,6 +67,7 @@ int vm14_timer_setup(void);
 int vm14_timer_destroy(void);
 
 int vm14_timer_valid(vm14_timer_id_t id);
+unsigned vm14_timer_freq(void);
 
 int vm14_timer_start(vm14_timer_id_t id);
 int vm14_timer_stop(vm14_timer_id_t id);

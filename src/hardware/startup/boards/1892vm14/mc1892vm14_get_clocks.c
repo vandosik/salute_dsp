@@ -40,3 +40,19 @@ uint32_t mc1892vm14_get_spll_clk(void)
 	spll_mode = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_SPLL_REG) & 0xFF;
 	return (spll_mode + 1) * EL24D1_XTI_FREQ;
 }
+
+uint32_t mc1892vm14_get_l1_clk(unsigned spll_clk)
+{
+	uint32_t div_sys0_ctr;
+
+	div_sys0_ctr = (in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_DIV_SYS0_REG) & 0x01) + 1;
+	return spll_clk / div_sys0_ctr;
+}
+
+uint32_t mc1892vm14_get_l2_clk(unsigned l1_clk)
+{
+	uint32_t div_sys1_ctr;
+
+	div_sys1_ctr = (in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_DIV_SYS1_REG) & 0x01) + 1;
+	return l1_clk / div_sys1_ctr;
+}

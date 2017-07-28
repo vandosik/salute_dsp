@@ -139,7 +139,6 @@ main(int argc, char **argv, char **envv)
 
 	add_typed_string(_CS_MACHINE, "el24d1");
 
-	init_cmctr();
 	/*
 	 * Load bootstrap executables in the image file system and Initialise
 	 * various syspage pointers. This must be the _last_ initialisation done

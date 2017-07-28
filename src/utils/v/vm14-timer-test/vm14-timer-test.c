@@ -48,7 +48,7 @@ struct data_timer
 struct data_timer timer_info;
 
 
-void *vm14_event_handler(void *data)
+void *k64_event_handler(void *data)
 {
 	int iid;
 	uint64_t lcc_prev;
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	timer_info.irq_period = timer_info.irq_period * (SYSPAGE_ENTRY(cmctr)->l3_pclk / 1000);
+	timer_info.irq_period = timer_info.irq_period * (vm14_timer_freq() / 1000);
 
 	if ( vm14_timer_valid(timer_info.tid) )
 	{
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	pthread_create(&time_tid, NULL, (void *)vm14_event_handler, NULL);
+	pthread_create(&time_tid, NULL, (void *)k64_event_handler, NULL);
 	pthread_setname_np(0, "main");
 	pthread_setschedprio(time_tid, 9);
 

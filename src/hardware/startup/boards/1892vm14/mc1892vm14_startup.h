@@ -34,6 +34,8 @@
 void mc1892vm14_init_raminfo(void);
 uint32_t mc1892vm14_get_cpu_clk(void);
 uint32_t mc1892vm14_get_spll_clk(void);
+uint32_t mc1892vm14_get_l1_clk(unsigned spll_clk);
+uint32_t mc1892vm14_get_l2_clk(unsigned l1_clk);
 void mc1892vm14_init_qtime(void);
 void mc1892vm14_wdg_enable(void);
 void mc1892vm14_wdg_reload(void);

@@ -84,13 +84,27 @@ void hwi_mc1892vm14()
 	/* add SPLL clock info  */
 	{
 		unsigned hwi_off;
+		unsigned val;
+
 		hwiattr_timer_t attr = HWIATTR_TIMER_T_INITIALIZER;
 		struct hwi_inputclk clksrc_spll;
 		
 		HWIATTR_TIMER_SET_NUM_CLK(&attr, 1);
-		clksrc_spll.clk = mc1892vm14_get_spll_clk();
+		clksrc_spll.clk = val = mc1892vm14_get_spll_clk();
 		clksrc_spll.div = 1;
 		hwi_off = hwidev_add_timer(MC1892VM14_HWI_SPLL, &attr,  HWI_NULL_OFF);
+		ASSERT(hwi_off != HWI_NULL_OFF);
+		hwitag_set_inputclk(hwi_off, 0, (struct hwi_inputclk *)&clksrc_spll);
+
+		clksrc_spll.clk = val = mc1892vm14_get_l1_clk(val);
+		clksrc_spll.div = 1;
+		hwi_off = hwidev_add_timer(MC1892VM14_HWI_SPLL, &attr,  hwi_off);
+		ASSERT(hwi_off != HWI_NULL_OFF);
+		hwitag_set_inputclk(hwi_off, 0, (struct hwi_inputclk *)&clksrc_spll);
+
+		clksrc_spll.clk = mc1892vm14_get_l2_clk(val);
+		clksrc_spll.div = 1;
+		hwi_off = hwidev_add_timer(MC1892VM14_HWI_SPLL, &attr,  hwi_off);
 		ASSERT(hwi_off != HWI_NULL_OFF);
 		hwitag_set_inputclk(hwi_off, 0, (struct hwi_inputclk *)&clksrc_spll);
 	}

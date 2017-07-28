@@ -241,14 +241,6 @@ print_qtime(void) {
 }
 
 void
-print_cmctr(void) {
-	struct cmctr_entry *cmctr = _SYSPAGE_ENTRY(PSP_SYSPAGE,cmctr);
-
-	kprintf("  cmctr l1_hclk: %d\n", PSP_NATIVE_ENDIAN32(cmctr->l1_hclk));
-	kprintf("  cmctr l3_pclk: %d\n", PSP_NATIVE_ENDIAN32(cmctr->l3_pclk));
-}
-
-void
 print_cpuinfo(void) {
  	struct cpuinfo_entry *cpu = _SYSPAGE_ENTRY(PSP_SYSPAGE,cpuinfo);
 	unsigned i;
@@ -390,7 +382,6 @@ static struct debug_syspage_section sp_section[] = {
 	PRT_SYSPAGE_RTN(smp),
 	PRT_SYSPAGE_RTN(pminfo),
 	PRT_SYSPAGE_RTN(mdriver),
-	PRT_SYSPAGE_RTN(cmctr),
 // This second include of print_sysp.h will cause the CPU_PRT_SYSPAGE_RTN
 // definitions for the various routines to be added.
 #include "print_sysp.h"	
