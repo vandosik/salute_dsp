@@ -33,6 +33,7 @@
 
 void mc1892vm14_init_raminfo(void)
 {
+#if 0
 	unsigned	reg;
 	
 	reg = in32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_GATE_CORE_REG);
@@ -44,4 +45,7 @@ void mc1892vm14_init_raminfo(void)
 	if (reg & MC1892VM14_CMCTR_GATE_CORE_DDR1_EN) {
 		add_ram(MC1892VM14_DDRMC1_BASE, MEG(DDRMC_RAM_SIZE));
 	}
+#else
+	add_ram(MC1892VM14_DDRMC0_BASE, MEG(DDRMC_RAM_SIZE));
+#endif
 }

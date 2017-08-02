@@ -21,16 +21,14 @@
  */
 
 
-#include "startup.h"
-#include "arm/mc1892vm14.h"
+#ifndef __BOARD_H
+#define __BOARD_H
 
-unsigned long rtc_time(void)
-{
-	/*
-	 * Tell Neutrino what kind of chip for 'rtc' utility
-	 */
-	// TODO add RTC
-	hwi_add_rtc("1892vm14", 0, 0, 0, 1, -1);
+#include <arm/mc1892vm14.h>
+#include "mc1892vm14_startup.h"
 
-	return 0;
-}
+/* RAM size (MB) */
+#define EL24D1_XTI_FREQ			24000000
+
+#endif  // __BOARD_H
+

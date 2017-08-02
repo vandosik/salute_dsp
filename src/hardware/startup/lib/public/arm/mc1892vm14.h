@@ -157,6 +157,7 @@
 #define MC1892VM14_CMCTR_GATE_SYS_I2C1_EN				(1 << 17)
 #define MC1892VM14_CMCTR_GATE_SYS_I2C2_EN				(1 << 18)
 #define MC1892VM14_CMCTR_GATE_SYS_NAND_EN				(1 << 21)
+#define MC1892VM14_CMCTR_GATE_SYS_NOR_EN				(1 << 22)
 
 /*
  * -------------------------------------------------------------------------

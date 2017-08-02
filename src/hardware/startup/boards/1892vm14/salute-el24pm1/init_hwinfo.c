@@ -1,6 +1,6 @@
 /*
  * $QNXLicenseC: 
- * Copyright 2012, QNX Software Systems.  
+ * Copyright 2011, QNX Software Systems.  
  * Copyright 2013, Adeneo Embedded.
  *  
  * Licensed under the Apache License, Version 2.0 (the "License"). You  
@@ -17,20 +17,16 @@
  * Please review this entire file for other proprietary rights or license  
  * notices, as well as the QNX Development Suite License Guide at  
  * http://licensing.qnx.com/license-guide/ for other information. 
- * $
+ * $ 
  */
 
-
 #include "startup.h"
-#include "arm/mc1892vm14.h"
+#include "hwinfo_private.h"
+#include <drvr/hwinfo.h>
+#include <arm/mc1892vm14.h>
 
-unsigned long rtc_time(void)
+extern void hwi_mc1892vm14();
+void init_hwinfo()
 {
-	/*
-	 * Tell Neutrino what kind of chip for 'rtc' utility
-	 */
-	// TODO add RTC
-	hwi_add_rtc("1892vm14", 0, 0, 0, 1, -1);
-
-	return 0;
+	hwi_mc1892vm14();
 }

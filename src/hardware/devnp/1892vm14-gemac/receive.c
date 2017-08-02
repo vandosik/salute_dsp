@@ -55,14 +55,18 @@ void vm14_gemac_rx(vm14_gemac_dev_t *vm14_gemac, struct nw_work_thread *wtp)
 	do {
 		phys = drvr_mphys((void *)rdesc);
 		if ( rdesc->status & DMA_RDES0_OWN_BIT ) {
+#if VM14_DEBUG > 0
 			if (vm14_gemac->cfg.verbose > 8)
 				slogf(_SLOGC_NETWORK, _SLOG_ERROR, "%s: H/W owns this RxDesc, nothing Rx'd then rdesc %X",__devname__, phys);
+#endif
 			break;
 		}
 		
 		if ( !(rdesc->status & DMA_RDES0_LD) ) {
+#if VM14_DEBUG > 0
 			if (vm14_gemac->cfg.verbose > 8)
 				slogf(_SLOGC_NETWORK, _SLOG_ERROR, "%s: rdesc %X",__devname__, phys);
+#endif
 // 			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: rx csum %X, len %d", __devname__, RDES2_CSUM(ENDIAN_LE32(rdesc->desc2)), RDES0_PFL(ENDIAN_LE32(rdesc->desc0)));
 			goto nextpkt;
 		}
@@ -76,8 +80,10 @@ void vm14_gemac_rx(vm14_gemac_dev_t *vm14_gemac, struct nw_work_thread *wtp)
 		}
 
 		pkt_len = DMA_RDES0_PKTLEN(rdesc->status);
+#if VM14_DEBUG > 0
 		if (vm14_gemac->cfg.verbose > 8)
 			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: pkt_len %d rdesc %X", __devname__, pkt_len, phys);
+#endif
 
 		/* Get a packet/buffer to replace the one that was filled */
 		m = m_getcl_wtp(M_DONTWAIT, MT_DATA, M_PKTHDR, wtp);
@@ -97,7 +103,7 @@ void vm14_gemac_rx(vm14_gemac_dev_t *vm14_gemac, struct nw_work_thread *wtp)
 		}
 		rm = vm14_gemac->rx_mbuf[cur_rx_rptr];
 		vm14_gemac->rx_mbuf[cur_rx_rptr] = m;
-#ifdef VM14_DEBUG
+#if VM14_DEBUG > 0
 		if ( rm == NULL )
 			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: rm == NULL", __devname__);
 #endif
@@ -116,7 +122,7 @@ void vm14_gemac_rx(vm14_gemac_dev_t *vm14_gemac, struct nw_work_thread *wtp)
 		vm14_gemac->rx_len += rm->m_len;
 
 		rm = vm14_gemac->rx_head;
-#ifdef VM14_DEBUG
+#if VM14_DEBUG > 0
 		if ( rm == NULL )
 			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: rm2 == NULL", __devname__);
 #endif
@@ -132,16 +138,6 @@ void vm14_gemac_rx(vm14_gemac_dev_t *vm14_gemac, struct nw_work_thread *wtp)
 			bpf_mtap(ifp->if_bpf, rm);
 #endif
 
-		/* stats */
-// 		gstats->rxed_ok++;
-// 		gstats->octets_rxed_ok += pkt_len;
-// 		dptr = mtod(rm, uint8_t *);
-// 		if (dptr[0] & 1) {
-// 			if (K64_IS_BROADCAST(dptr))
-// 				gstats->rxed_broadcast++;
-// 			else
-// 				gstats->rxed_multicast++;
-// 		}
 		/* Send it up */
 		ifp->if_ipackets++;
 		(*ifp->if_input)(ifp, rm);

@@ -83,63 +83,50 @@ void vm14_gemac_reap(vm14_gemac_dev_t *vm14_gemac)
 	int				cur_tx_rptr = vm14_gemac->cur_tx_rptr;
 	struct ifnet	*ifp = &vm14_gemac->ecom.ec_if;
 	struct mbuf		*m;
-// 	nic_stats_t		*stats = &vm14_gemac->stats;
-// 	uint8_t			*dptr;
-	unsigned		count;
-	int				verbose = 0/*!vm14_gemac->tx_free*/;
-	int16_t			reaped = 0;
-	vm14_tx_desc_t	*tdesc;
+	int				i, to_reap = 0, cnt = 0;
+	vm14_tx_desc_t	*desc;
 
-	if (verbose) {
-		slogf(_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: gemac_reap tx_wptr %d tx_rptr %d tx_free %d", __devname__, vm14_gemac->cur_tx_wptr, cur_tx_rptr, vm14_gemac->tx_free);
-	}
-	if ( cur_tx_rptr == vm14_gemac->cur_tx_wptr &&
-		vm14_gemac->tx_free == vm14_gemac->num_transmit )
+	if ( vm14_gemac->tx_free == vm14_gemac->num_transmit ) {
 		return;
-	do {
-		tdesc = &vm14_gemac->tdesc[cur_tx_rptr];
-		m = vm14_gemac->tx_mbuf[cur_tx_rptr].mbuf;
-		count = vm14_gemac->tx_mbuf[cur_tx_rptr].count;
-
-		if (verbose) {
-			slogf(_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: gemac_reap rptr %d, status %x, misc %x, buffer %x, next %x", __devname__, cur_tx_rptr, tdesc->status, tdesc->misc, tdesc->buffer1, tdesc->buffer2);
-		}
-		if ( (tdesc->status & DMA_TDES0_OWN_BIT) ) {
+	}
+	for ( i = 0, cnt = cur_tx_rptr; ; i++ ) {
+		desc = &vm14_gemac->tdesc[cnt];
+		if ( (desc->status & DMA_TDES0_OWN_BIT) ) {
 			break;
 		}
-
-		if ( tdesc->misc & DMA_TDES1_LS ) {
-			if ( m != NULL ) {
-				/* stats */
-				if (!(tdesc->status & DMA_TDES0_STATUS)) {
-					ifp->if_opackets++;
-// 					stats->txed_ok++;
-// 					stats->octets_txed_ok += m->m_pkthdr.len;
-// 					dptr = mtod(m, uint8_t *);
-// 					if (dptr[0] & 1) {
-// 						if (VM14_IS_BROADCAST(dptr))
-// 							stats->txed_broadcast++;
-// 						else
-// 							stats->txed_multicast++;
-// 					}
-				}
-
-				vm14_gemac->tx_mbuf[cur_tx_rptr].mbuf = NULL;
-				vm14_gemac->tx_mbuf[cur_tx_rptr].count = 0;
-				vm14_gemac->tx_free += count;
-				m_freem(m);
-			}
+		if ( desc->misc & DMA_TDES1_LS )
+			to_reap++;
+		cnt = (cnt + 1) % vm14_gemac->num_transmit;
+		if ( cnt == vm14_gemac->cur_tx_wptr ) {
+			break;
 		}
-		reaped++;
-// reap_next:
-		cur_tx_rptr = (cur_tx_rptr + 1) % vm14_gemac->num_transmit;
-	} while (reaped < vm14_gemac->tx_reap /*&& cur_tx_rptr <= vm14_gemac->cur_tx_wptr*/);
-	if (verbose) {
-		slogf(_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: gemac_reap reaped %d free %d", __devname__, reaped, vm14_gemac->tx_free);
 	}
+		
+	if ( !to_reap ) {
+		return;
+	}
+	cnt = 0;
+	while ( to_reap ) {
+		desc = &vm14_gemac->tdesc [cur_tx_rptr];
+		if ( (m = vm14_gemac->tx_mbuf[cur_tx_rptr]) != NULL ) {
+			m_freem(m);
+			ifp->if_opackets++;
+			vm14_gemac->tx_mbuf[cur_tx_rptr] = NULL;
+		}
+		if ( desc->misc & DMA_TDES1_LS ) {
+			to_reap--;
+			desc->misc &= ~DMA_TDES1_LS;
+		}
+		cur_tx_rptr = (cur_tx_rptr + 1) % vm14_gemac->num_transmit;
+		vm14_gemac->tx_free++;
+		/* This is to avoid the reap routine looping for too long */
+		if ( ++cnt == vm14_gemac->tx_reap ) {
+			break;
+		}
+	}
+
 	vm14_gemac->cur_tx_rptr = cur_tx_rptr;
 }
-
 
 void vm14_gemac_start(struct ifnet *ifp)
 {
@@ -169,23 +156,32 @@ void vm14_gemac_start(struct ifnet *ifp)
 #endif
 
 	if (vm14_gemac->tx_free < vm14_gemac->num_transmit / 4) {
-#if VM14_DEBUG == 0
+#if VM14_DEBUG > 0
 		if ( vm14_gemac->cfg.verbose > 12 )
-#endif
 			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: reap", __devname__);
+#endif
 		vm14_gemac_reap(vm14_gemac);
+		if (vm14_gemac->tx_free < vm14_gemac->num_transmit / 4) {
+			ifp->if_flags_tx |= IFF_OACTIVE;
+// 			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: not enough tx descriptors, try later", __devname__);
+			goto done; // not enough tx descriptors, try later
+		}
 	}
 	for (;;) {
 		IFQ_POLL(&ifp->if_snd, m0);
 		if (m0 == NULL) {
+#if VM14_DEBUG > 0
 			if ( vm14_gemac->cfg.verbose > 12 )
 				slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: IFQ_POLL 0", __devname__);
+#endif
 			break;
 		}
 
 		if (!vm14_gemac->tx_free) {
+#if VM14_DEBUG > 0
 			if ( vm14_gemac->cfg.verbose > 1 )
 				slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: tx_free == 0", __devname__);
+#endif
 			ifp->if_flags_tx |= IFF_OACTIVE;
 			vm14_gemac->stats.tx_failed_allocs++;
 			break;
@@ -200,14 +196,14 @@ void vm14_gemac_start(struct ifnet *ifp)
 		IFQ_DEQUEUE(&ifp->if_snd, m0);
 		// count up mbuf fragments
 		for (num_frag=0, m=m0; m; num_frag++) {
-#if VM14_DEBUG == 0
+#if VM14_DEBUG > 0
 			if (vm14_gemac->cfg.verbose > 12)
-#endif
 				slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: num_frag %d m->len %d", __devname__, num_frag, m->m_len);
+#endif
 			m = m->m_next;
 		}
 		// ridiculously fragmented?
-		if (num_frag > vm14_gemac->tx_free) {
+		if (num_frag > vm14_gemac->tx_free/*min(vm14_gemac->tx_reap, vm14_gemac->tx_free)*/) {
 			if ( vm14_gemac->cfg.verbose > 1 )
 				slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: num_frag %d - ridiculously fragmented", __devname__, num_frag);
 			//
@@ -264,6 +260,17 @@ void vm14_gemac_start(struct ifnet *ifp)
 				for (num_frag=0, m=m0; m; num_frag++) {
 					m = m->m_next;
 				}
+				if ( vm14_gemac->tx_free < num_frag ) {
+					if ( vm14_gemac->cfg.verbose ) {
+						slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: dropped heavily fragmented packet: "
+						"size %d, num_frag %d, free tx descr %d", 
+						__devname__, m0->m_pkthdr.len, num_frag, vm14_gemac->tx_free);
+					}
+					m_freem(m0);
+					vm14_gemac->stats.tx_failed_allocs++;
+					ifp->if_oerrors++;
+					goto done;
+				}
 			}
 		}
 		
@@ -310,8 +317,7 @@ void vm14_gemac_start(struct ifnet *ifp)
 #endif
 		
 		/* Store a pointer to the packet for freeing later */
-		vm14_gemac->tx_mbuf[free_wptr].mbuf = m0;
-		vm14_gemac->tx_mbuf[free_wptr].count = num_frag;
+		vm14_gemac->tx_mbuf[free_wptr] = m0;
 
 		vm14_gemac->tx_free -= num_frag;
 		if ( vm14_gemac->tx_free < MIN_NUM_TX/*vm14_gemac->num_transmit / 4*/ ) {

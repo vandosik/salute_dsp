@@ -70,12 +70,12 @@
 	(ptr)[4] == 0xff && (ptr)[5] == 0xff)
 
 /* Rx and Tx ring descriptors. */
-#define DEFAULT_TX_REAP			8
-#define MIN_TX_REAP				2
-#define MAX_TX_REAP				2048
-
-#define DEFAULT_NUM_TX			8
+#define DEFAULT_NUM_TX			128
 #define DEFAULT_NUM_RX			128
+#define DEFAULT_TX_REAP			(DEFAULT_NUM_TX / 4)
+
+#define MIN_TX_REAP				2
+#define MAX_TX_REAP				128
 #define MIN_NUM_TX				2
 #define MIN_NUM_RX				2
 #define MAX_NUM_TX				4096
@@ -133,10 +133,15 @@ typedef struct vm14_gemac_dma_desc vm14_rx_desc_t;
 
 #define VM14_FILTER_LIMIT		64
 
-typedef struct {
-	unsigned		count;
-	struct mbuf		*mbuf;
-} smbuf_t;
+typedef struct gpio_info {
+	uint32_t *base;
+	struct gpio_pin_info {
+		uint32_t ddr;
+		uint32_t ctl;
+		uint32_t dr;
+		uint8_t  bit;
+	} pins[2];
+} gpioinfo_t;
 
 typedef struct _nic_vm14_gemac_ext {
 	struct ethercom 		ecom; /* common device */
@@ -153,6 +158,9 @@ typedef struct _nic_vm14_gemac_ext {
 	int						dying;
 	const struct sigevent	* (*isrp)(void *, int);
 
+	int8_t					phy_addr;
+	gpioinfo_t				gpio;
+
 	void					*mem_area;
 	void					*sd_hook;
 
@@ -163,7 +171,7 @@ typedef struct _nic_vm14_gemac_ext {
 	int					cur_tx_rptr;
 	int					cur_tx_wptr;
 	vm14_tx_desc_t		*tdesc;
-	smbuf_t				*tx_mbuf;
+	struct mbuf			**tx_mbuf;
 	int					start_running;  // tx in progress
 
 	mdi_t				*mdi;
@@ -233,6 +241,10 @@ extern uint32_t vm14_gemac_hw_txstat_read(vm14_gemac_dev_t *vm14_gemac, int id);
 extern uint32_t vm14_gemac_hw_rxstat_read(vm14_gemac_dev_t *vm14_gemac, int id);
 extern void vm14_gemac_hw_dump_registers(vm14_gemac_dev_t *vm14_gemac);
 extern int vm14_gemac_hw_phy_reset(vm14_gemac_dev_t *vm14_gemac);
+
+extern int vm14_init_hwi(vm14_gemac_dev_t *vm14_gemac);
+extern void vm14_dinit_hwi(vm14_gemac_dev_t *vm14_gemac);
+
 // receive
 extern void vm14_gemac_rx(vm14_gemac_dev_t *vm14_gemac, struct nw_work_thread *wtp);
 extern void vm14_gemac_update_rx_stats(vm14_gemac_dev_t *vm14_gemac);

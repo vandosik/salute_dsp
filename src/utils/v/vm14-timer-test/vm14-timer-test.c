@@ -48,7 +48,7 @@ struct data_timer
 struct data_timer timer_info;
 
 
-void *k64_event_handler(void *data)
+void *vm14_event_handler(void *data)
 {
 	int iid;
 	uint64_t lcc_prev;
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	pthread_create(&time_tid, NULL, (void *)k64_event_handler, NULL);
+	pthread_create(&time_tid, NULL, (void *)vm14_event_handler, NULL);
 	pthread_setname_np(0, "main");
 	pthread_setschedprio(time_tid, 9);
 

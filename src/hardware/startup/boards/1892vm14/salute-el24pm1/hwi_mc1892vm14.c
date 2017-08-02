@@ -116,7 +116,7 @@ void hwi_mc1892vm14()
 	/* add an ethernet device */
     {
 		unsigned hwi_off;
-		const uint8_t mac[6] = {'B', 0x01, 0x00, 0x00, 0xFF, 0x00}; // use mac as GPIO info
+		const uint8_t mac[6] = {'C', 0x14, 0x00, 'A', 0x03, 0x00}; // use mac as GPIO info
 
 		hwiattr_enet_t attr = HWIATTR_ENET_T_INITIALIZER;
 
@@ -125,7 +125,7 @@ void hwi_mc1892vm14()
 		HWIATTR_ENET_SET_DLL(&attr, "1892vm14-gemac");
 		hwi_off = hwidev_add_enet(VM14_HWI_ENET, &attr, hwi_bus_internal);
 		ASSERT(hwi_off != HWI_NULL_OFF);
-		hwitag_set_phyaddr(hwi_off, 0, 7);
+		hwitag_set_phyaddr(hwi_off, 0, 1);
 		hwi_add_synonym(hwi_find_device(VM14_HWI_ENET, 0), "arasan-gemac");
 	}
 	/* TODO Add peripherals */

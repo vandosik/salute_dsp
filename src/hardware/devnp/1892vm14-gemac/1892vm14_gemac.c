@@ -30,7 +30,6 @@
 // #include <drvr/common.h>
 #include "1892vm14_gemac.h"
 
-
 // #define VM14_DEBUG 1
 
 static unsigned char base_ip_addr[6] = { 0, 0, 0, 0, 0, 0 };
@@ -48,7 +47,6 @@ int vm14_gemac_enable_interrupt(void *);
 void vm14_gemac_shutdown(void *);
 int vm14_gemac_detach_cleanup(vm14_gemac_dev_t *vm14_gemac, int flags);
 void bsd_mii_initmedia(vm14_gemac_dev_t *);
-
 
 
 struct _iopkt_drvr_entry IOPKT_DRVR_ENTRY_SYM(vm14_gemac) = IOPKT_DRVR_ENTRY_SYM_INIT(vm14_gemac_entry);
@@ -223,7 +221,17 @@ error:
 
 		rc = EINVAL;
 	}
-
+	
+	if (vm14_gemac != NULL) {
+		vm14_gemac->tx_reap = vm14_gemac->num_transmit / 4;
+		vm14_gemac->tx_reap = vm14_gemac->num_transmit / 4;
+		if ( vm14_gemac->tx_reap < MIN_TX_REAP ) {
+			vm14_gemac->tx_reap = MIN_TX_REAP;
+		} else if ( vm14_gemac->tx_reap > MAX_TX_REAP ) {
+			vm14_gemac->tx_reap = MAX_TX_REAP;
+		}
+	}
+	
 	free(freeptr, M_TEMP);
 
 	return rc;
@@ -284,7 +292,8 @@ vm14_gemac_entry(void *dll_hdl,  struct _iopkt_self *iopkt, char *options)
 static void vm14_gemac_devinfo(vm14_gemac_dev_t *vm14_gemac)
 {
 	nic_config_t	*cfg = &vm14_gemac->cfg;
-	uint32_t		rnd = time(NULL);
+	uint64_t		clc = ClockCycles();
+	uint32_t		rnd = ((clc >> 32) & 0xFFFFFF) ^ (clc & 0xFFFFFF);
 	int				i;
 
 	cfg->vendor_id = 0;
@@ -318,7 +327,6 @@ vm14_gemac_attach(struct device *parent, struct device *self, void *aux)
 	int						tmem_fd = NOFD;
 	unsigned 				map_flags;
 	unsigned				prot_flags;
-	
 
 	/* initialization and attach */
 	adev = (struct vm14_gemac_dev *)self;
@@ -332,6 +340,10 @@ vm14_gemac_attach(struct device *parent, struct device *self, void *aux)
 	vm14_gemac->iopkt = iopkt;
 	vm14_gemac->iid = -1; /* Not attached */
 	vm14_gemac->rx_tail = &vm14_gemac->rx_head;
+
+	if ( vm14_init_hwi(vm14_gemac) != 0 ) {
+		return ENODEV;
+	}
 
 	cfg = &vm14_gemac->cfg;
 	ifp = &vm14_gemac->ecom.ec_if;
@@ -432,10 +444,10 @@ vm14_gemac_attach(struct device *parent, struct device *self, void *aux)
 												cfg->mem_window_base[0]);
 	
 	if ( vm14_gemac->cfg.verbose > 8 )
-		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: mmap_device_memory()  baddr 0x%08X, size 0x%08X, reg 0x%08X", __devname__, (uint32_t)cfg->mem_window_base[0], (uint32_t)cfg->mem_window_size[0], (uint32_t)vm14_gemac->reg);
+		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: BADDR 0x%08X SIZE 0x%08X REG 0x%08X", __devname__, (uint32_t)cfg->mem_window_base[0], (uint32_t)cfg->mem_window_size[0], (uint32_t)vm14_gemac->reg);
 	
 	if (vm14_gemac->reg == MAP_FAILED) {
-		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: mmap_device_memory() failed: errno %d.", __devname__, err);
+		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: REG failed %d.", __devname__, err);
 		vm14_gemac_detach_cleanup(vm14_gemac, 5);
 		return errno;
 	}
@@ -484,7 +496,7 @@ vm14_gemac_attach(struct device *parent, struct device *self, void *aux)
 
 
 	if (vm14_gemac->mem_area == NULL) {
-		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: mmap() of descriptors failed, errno %d.", __devname__, errno);
+		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: mmap() of descriptors failed %d.", __devname__, errno);
 		vm14_gemac_detach_cleanup(vm14_gemac, 8);
 		return errno;
 	}
@@ -547,14 +559,14 @@ vm14_gemac_init_ring(vm14_gemac_dev_t *vm14_gemac)
 	wtp = WTP;
 
 	vm14_gemac->cur_rx_rptr = 0;
-#ifndef VM14_DEBUG
+#if VM14_DEBUG > 0
 	if (vm14_gemac->cfg.verbose > 12) {
-#else 
 	{
-#endif
+
 		slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: /* Pre-allocate a receive buffer for each receive descriptor */", __func__);
 		slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: vm14_gemac->num_receive %d", __func__, vm14_gemac->num_receive);
 	}
+#endif
 // 	memset(vm14_gemac->tdesc, 0, sizeof(vm14_tx_desc_t) * vm14_gemac->num_transmit);
 	for (i = 0; i < vm14_gemac->num_transmit; i++) {
 		vm14_gemac->tdesc[i].status = 0;
@@ -576,23 +588,23 @@ vm14_gemac_init_ring(vm14_gemac_dev_t *vm14_gemac)
 		if (vm14_gemac->rx_mbuf[i] != NULL)
 			continue;
 		m = m_getcl_wtp(M_DONTWAIT, MT_DATA, M_PKTHDR, wtp);
-#ifndef VM14_DEBUG
+#if VM14_DEBUG > 0
 		if (vm14_gemac->cfg.verbose > 12)
-#endif
 			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: m[%d] %p", __func__, i, m);
+#endif
 		if (m == NULL) {
 			i++;
 			break;
 		}
 		vm14_gemac->rx_mbuf[i] = m;
-#ifdef VM14_DEBUG
+#if VM14_DEBUG > 0
 		slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: m[%d] mbuf_phys %llx again", __func__, i, mbuf_phys(m));
 #endif
 		phys = pool_phys(m->m_data, m->m_ext.ext_page);
-#ifndef VM14_DEBUG
+#if VM14_DEBUG > 0
 		if (vm14_gemac->cfg.verbose > 12)
-#endif
 			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: phys %p", __func__, (void *)phys);
+#endif
 #ifdef USE_LIBCACHE
 		CACHE_INVAL(&vm14_gemac->cachectl, m->m_data, phys, m->m_ext.ext_size);
 #endif
@@ -608,13 +620,13 @@ vm14_gemac_init_ring(vm14_gemac_dev_t *vm14_gemac)
 			vm14_gemac->rdesc[i].buffer2 = VM14_DMA_ADDR(phys);
 		}
 		
-#ifndef VM14_DEBUG
+#if VM14_DEBUG > 0
 		if (vm14_gemac->cfg.verbose > 12)
-#endif
 			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: make recieve buf %d, "
-	       		"base = 0x%x , misc = 0x%x status 0x%08X\n", __devname__, 
+	       		"base = 0x%x , misc = 0x%x status 0x%08X\n", __devname__,
 			i, ENDIAN_LE32(vm14_gemac->rdesc[i].buffer1),
 			ENDIAN_LE32(vm14_gemac->rdesc[i].misc), vm14_gemac->rdesc[i].status);
+#endif
 	}
 	vm14_gemac_hw_set_rx_dma_addr(vm14_gemac, drvr_mphys((void *)&vm14_gemac->rdesc[0]));
 
@@ -747,10 +759,9 @@ vm14_gemac_stop(struct ifnet *ifp, int disable)
 	vm14_gemac_hw_stop_tx(vm14_gemac);
 	/* Release any queued transmit buffers */
 	for (i = 0; i < vm14_gemac->num_transmit; i++) {
-		if ((m = vm14_gemac->tx_mbuf[i].mbuf) != NULL) {
+		if ((m = vm14_gemac->tx_mbuf[i]) != NULL) {
 			m_freem(m);
-			vm14_gemac->tx_mbuf[i].mbuf = NULL;
-			vm14_gemac->tx_mbuf[i].count = 0;
+			vm14_gemac->tx_mbuf[i] = NULL;
 		}
 	}
 	ifp->if_flags_tx &= ~(IFF_RUNNING | IFF_OACTIVE);
@@ -811,6 +822,8 @@ int vm14_gemac_detach_cleanup(vm14_gemac_dev_t *vm14_gemac, int flags)
 		case	1:
 			if (vm14_gemac->sd_hook != NULL)
 				shutdownhook_disestablish (vm14_gemac->sd_hook);
+		case	0:
+			vm14_dinit_hwi(vm14_gemac);
 		}
 
 	return EOK;
@@ -863,7 +876,9 @@ const struct sigevent *vm14_gemac_isr(void *arg, int iid)
 	}
 
 	vm14_gemac_hw_change_interrupts(vm14_gemac, ~0, IRQ_DISABLE);
+#if VM14_DEBUG > 0
 	vm14_gemac->stats.un.estats.symbol_errors++;
+#endif
 
 
 	vm14_gemac->iid = iid;

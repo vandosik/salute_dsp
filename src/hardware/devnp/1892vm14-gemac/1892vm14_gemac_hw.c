@@ -7,6 +7,9 @@
  *                                                                           *
  *****************************************************************************/
 
+#include <inttypes.h>
+#include <sys/hwinfo.h>
+#include <drvr/hwinfo.h>
 #include "1892vm14_gemac.h"
 #include <arm/mc1892vm14.h>
 
@@ -48,7 +51,7 @@ void vm14_gemac_hw_reset(vm14_gemac_dev_t *vm14_gemac)
 
 	WREG(vm14_gemac, MAC_ADDRESS_CONTROL, MAC_ADDRESS1_ENABLE);
 	WREG(vm14_gemac, MAC_TRANSMIT_FIFO_ALMOST_FULL, (512 - 8));
-	vm14_gemac_hw_speed2tx_threshold(vm14_gemac, 0);
+// 	vm14_gemac_hw_speed2tx_threshold(vm14_gemac, 0);
 	WREG(vm14_gemac, MAC_RECEIVE_PACKET_START_THRESHOLD, 64);
 
 // 	reg = RREG(vm14_gemac, MAC_RECEIVE_CONTROL);
@@ -62,29 +65,99 @@ void vm14_gemac_hw_reset(vm14_gemac_dev_t *vm14_gemac)
 	vm14_gemac_hw_setmac(vm14_gemac);
 }
 
-int vm14_gemac_hw_phy_reset(vm14_gemac_dev_t *vm14_gemac)
+#define CONCATE3(x,y,z) x ## y ## _ ## z
+#define GPIO_REG2(id, reg) CONCATE3(MC1892VM14_GPIO, id, reg)
+int vm14_init_hwi(vm14_gemac_dev_t *vm14_gemac)
 {
-	char *gpio;
+	int			i, j;
+	unsigned	hwi_off;
 	
-	gpio = mmap_device_memory(NULL, MC1892VM14_GPIO_SIZE,
+	hwi_off = hwi_find_device("arasan-gemac", 0);
+	if(hwi_off != HWI_NULL_OFF) {
+		hwi_tag *tag = hwi_tag_find(hwi_off, HWI_TAG_NAME_nicaddr, 0);
+		
+		if ( tag ) {
+			vm14_gemac->gpio.base = (uint32_t *)mmap_device_memory(NULL, MC1892VM14_GPIO_SIZE,
 					PROT_READ | PROT_WRITE | PROT_NOCACHE, MAP_SHARED,
 												MC1892VM14_GPIO_BASE);
 
-	if (gpio == MAP_FAILED) {
-		return -1;
+			if (vm14_gemac->gpio.base == MAP_FAILED) {
+				return -1;
+			}
+#if VM14_DEBUG > 0
+			slogf(_SLOGC_NETWORK, _SLOG_INFO, "%s: el24om phy-reset-gpios nicaddr %02x:%02x:%02x:%02x:%02x:%02x\n", __devname__,
+					tag->nicaddr.addr[0],
+					tag->nicaddr.addr[1],
+					tag->nicaddr.addr[2],
+					tag->nicaddr.addr[3],
+					tag->nicaddr.addr[4],
+					tag->nicaddr.addr[5]
+			);
+#endif
+			for ( i = 0, j = 0; j < 2; i += 3, j++ ) {
+#if VM14_DEBUG > 0
+				slogf(_SLOGC_NETWORK, _SLOG_INFO, "%s: el24om phy-reset-gpios nicaddr[%d] %02x\n", __devname__, i, tag->nicaddr.addr[i]);
+#endif
+				switch ( tag->nicaddr.addr[i] ) {
+					case 'A':
+						vm14_gemac->gpio.pins[j].ddr = GPIO_REG2(A,DDR) >> 2;
+						vm14_gemac->gpio.pins[j].ctl = GPIO_REG2(A,CTL) >> 2;
+						vm14_gemac->gpio.pins[j].dr  = GPIO_REG2(A,DR) >> 2;
+						break;
+					case 'B':
+						vm14_gemac->gpio.pins[j].ddr = GPIO_REG2(B,DDR) >> 2;
+						vm14_gemac->gpio.pins[j].ctl = GPIO_REG2(B,CTL) >> 2;
+						vm14_gemac->gpio.pins[j].dr  = GPIO_REG2(B,DR) >> 2;
+						break;
+					case 'C':
+						vm14_gemac->gpio.pins[j].ddr = GPIO_REG2(C,DDR) >> 2;
+						vm14_gemac->gpio.pins[j].ctl = GPIO_REG2(C,CTL) >> 2;
+						vm14_gemac->gpio.pins[j].dr  = GPIO_REG2(C,DR) >> 2;
+						break;
+					case 'D':
+						vm14_gemac->gpio.pins[j].ddr = GPIO_REG2(D,DDR) >> 2;
+						vm14_gemac->gpio.pins[j].ctl = GPIO_REG2(D,CTL) >> 2;
+						vm14_gemac->gpio.pins[j].dr  = GPIO_REG2(D,DR) >> 2;
+						break;
+					default:
+						if ( i == 0 ) {
+							return -1;
+						}
+						vm14_gemac->gpio.pins[j].ddr =
+						vm14_gemac->gpio.pins[j].ctl =
+						vm14_gemac->gpio.pins[j].dr  = 0;
+						break;
+				}
+				vm14_gemac->gpio.pins[j].bit = tag->nicaddr.addr[i + 1];
+#if VM14_DEBUG > 0
+				slogf(_SLOGC_NETWORK, _SLOG_INFO, "%s: el24om phy-reset-gpios bit[%d] %02x\n", __devname__, j, vm14_gemac->gpio.pins[j].bit);
+#endif
+			}
+		}
+		vm14_gemac->phy_addr = hwitag_find_phyaddr(hwi_off, NULL);
 	}
-	
-// 	OUT
-	gpio[MC1892VM14_GPIOB_DDR] |= BIT(1);
-// SOFT
-	gpio[MC1892VM14_GPIOB_CTL] &= ~BIT(1);
+	return 0;
+}
 
-	gpio[MC1892VM14_GPIOB_DR] &= ~BIT(1);
-	delay(1);
-	gpio[MC1892VM14_GPIOB_DR] |= BIT(1);
+void vm14_dinit_hwi(vm14_gemac_dev_t *vm14_gemac)
+{
+	if ( vm14_gemac->gpio.base != MAP_FAILED && vm14_gemac->gpio.base != NULL ) {
+		munmap_device_memory(vm14_gemac->gpio.base, MC1892VM14_GPIO_SIZE);
+	}
+}
 
-	munmap_device_memory (gpio, MC1892VM14_GPIO_BASE);
-
+int vm14_gemac_hw_phy_reset(vm14_gemac_dev_t *vm14_gemac)
+{
+	if ( vm14_gemac->gpio.pins[0].bit != 0xFF ) {
+		// OUT
+		vm14_gemac->gpio.base[vm14_gemac->gpio.pins[0].ddr] |= BIT(vm14_gemac->gpio.pins[0].bit);
+		// SOFT
+		vm14_gemac->gpio.base[vm14_gemac->gpio.pins[0].ctl] &= ~BIT(vm14_gemac->gpio.pins[0].bit);
+		// RESET
+		vm14_gemac->gpio.base[vm14_gemac->gpio.pins[0].dr] &= ~BIT(vm14_gemac->gpio.pins[0].bit);
+		delay(20);
+		vm14_gemac->gpio.base[vm14_gemac->gpio.pins[0].dr] |= BIT(vm14_gemac->gpio.pins[0].bit);
+	}
 	return 0;
 }
 
@@ -110,14 +183,9 @@ void vm14_gemac_hw_change_interrupts(vm14_gemac_dev_t *vm14_gemac, int type, int
 
 void vm14_gemac_hw_dma_soft_reset(vm14_gemac_dev_t *vm14_gemac)
 {
-	uint32_t	reg;
-
-	reg = RREG(vm14_gemac, DMA_CONFIGURATION);
-	WREG(vm14_gemac, DMA_CONFIGURATION, (reg | DMA_CONFIGURATION_SOFT_RESET));
+	WREG(vm14_gemac, DMA_CONFIGURATION, DMA_CONFIGURATION_SOFT_RESET);
 	delay(10);
-	WREG(vm14_gemac, DMA_CONFIGURATION, reg);
-// 	WREG(vm14_gemac, MAC_TX_STATCTR_CONTROL, MAC_STATCTR_CONTROL_START);
-// 	WREG(vm14_gemac, MAC_RX_STATCTR_CONTROL, MAC_STATCTR_CONTROL_START);
+	WREG(vm14_gemac, DMA_CONFIGURATION, DMA_CONFIGURATION_BURST_LENGTH(4));
 }
 
 #define TRANSMIT_ENABLE 1
@@ -341,9 +409,25 @@ void vm14_gemac_hwspeed(vm14_gemac_dev_t *vm14_gemac, int speed)
 	switch ( speed ) {
 		case 100:
 			reg |= MAC_GLOBAL_CONTROL_SPEED(1);
+			if ( vm14_gemac->gpio.pins[1].bit != 0xFF ) {
+				// OUT
+				vm14_gemac->gpio.base[vm14_gemac->gpio.pins[1].ddr] |= BIT(vm14_gemac->gpio.pins[1].bit);
+				// SOFT
+				vm14_gemac->gpio.base[vm14_gemac->gpio.pins[1].ctl] &= ~BIT(vm14_gemac->gpio.pins[1].bit);
+				// UNSET
+				vm14_gemac->gpio.base[vm14_gemac->gpio.pins[1].dr] &= ~BIT(vm14_gemac->gpio.pins[1].bit);
+			}
 			break;
 		case 1000:
 			reg |= MAC_GLOBAL_CONTROL_SPEED(2);
+			if (  vm14_gemac->gpio.pins[1].bit != 0xFF ) {
+				// OUT
+				vm14_gemac->gpio.base[vm14_gemac->gpio.pins[1].ddr] |= BIT(vm14_gemac->gpio.pins[1].bit);
+				// SOFT
+				vm14_gemac->gpio.base[vm14_gemac->gpio.pins[1].ctl] &= ~BIT(vm14_gemac->gpio.pins[1].bit);
+				// SET
+				vm14_gemac->gpio.base[vm14_gemac->gpio.pins[1].dr] |= BIT(vm14_gemac->gpio.pins[1].bit);
+			}
 			break;
 		default:
 			reg |= MAC_GLOBAL_CONTROL_SPEED(0);

@@ -10,7 +10,7 @@ endif
 include $(QCONFIG)
 unexport ROOT_DIR
 
-.PHONY: all install clean links make_links dummy images prebuilt binaries
+.PHONY: all install clean links make_links clean_links dummy images prebuilt
 
 # Expands to a single newline character
 define NEWLINE
@@ -25,13 +25,13 @@ all: install links $(if $(wildcard images/*),images)
 
 subdirs:=$(subst /Makefile,,$(wildcard */[Mm]akefile))
 
-clean:
+clean: clean_links
 	$(foreach dir,$(subdirs), $(MAKE) -C$(dir) clean $(NEWLINE))
 	-$(RM_HOST) -r install/*
 
 install: $(if $(wildcard prebuilt/*),prebuilt)
-	$(MAKE) -Csrc hinstall
-	$(MAKE) -Csrc install
+	$(if $(wildcard src/*), $(MAKE) -Csrc hinstall)
+	$(if $(wildcard src/*), $(MAKE) -Csrc install)
 
 #
 # Have to invoke "make_links" target because the first make expands
@@ -41,12 +41,15 @@ install: $(if $(wildcard prebuilt/*),prebuilt)
 links:
 	$(MAKE) make_links
 
-make_links:
-	$(foreach file,$(wildcard install/*/boot/build/*),cd images;$(LN_HOST) ../$(file) $(notdir $(file));cd ..; )
+make_links:	
+	$(foreach file,$(wildcard install/*/boot/build/*),cd images;cp --no-clobber ../$(file) $(notdir $(file));cd ..; )
+
+clean_links:	
+#	$(foreach file,$(wildcard install/*/boot/build/*),cd images;$(RM_HOST) $(notdir $(file));cd ..; )
 
 images:
 	$(MAKE) -Cimages
 
 prebuilt:
-	cp -rf prebuilt/* install
-
+	mkdir -p install
+	cp -r prebuilt/* install

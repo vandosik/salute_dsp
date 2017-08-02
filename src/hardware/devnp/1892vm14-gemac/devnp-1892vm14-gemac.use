@@ -16,9 +16,9 @@ Options
   priority=N         Priority of driver's event handler thread (default 21).
   promiscuous        Enable reception of all packets.
   speed=N            Set link speed (specified in Mbits/second).
-  receive=N          Set number of receive descriptors (default 8).
+  receive=N          Set number of receive descriptors (default 128).
   transmit=N         Set number of transmit descriptors (default 128).
-  tx_reap=N          Set maximum number of transmit descriptors to reap (default 8).
+  tx_reap=N          Set maximum number of transmit descriptors to reap (default transmit / 4).
   verbose            Be verbose.
 
 Note: if the duplex is specified via the "duplex" option, you should

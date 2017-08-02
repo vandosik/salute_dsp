@@ -9,8 +9,6 @@
 
 #include "1892vm14_gemac.h"
 
-static void vm14_gemac_set_phy_mode(vm14_gemac_dev_t *vm14_gemac);
-
 void	vm14_gemac_mdi_callback (void *hdl, uint8_t phy_id, uint8_t link_state)
 {
 	vm14_gemac_dev_t	*vm14_gemac = (vm14_gemac_dev_t *)hdl;
@@ -123,24 +121,12 @@ int vm14_gemac_findphy (vm14_gemac_dev_t *vm14_gemac)
 	uint16_t		reg;
 	struct ifnet	*ifp;
 
-	vm14_gemac->cfg.phy_addr = -1;
+	vm14_gemac->cfg.phy_addr = vm14_gemac->phy_addr;
 	ifp = &vm14_gemac->ecom.ec_if;
 
 	if (vm14_gemac->mdi) {
 		MDI_DeRegister ((mdi_t **)&vm14_gemac->mdi);
 	}
-// 	reg = vm14_gemac_hw_mii_read(vm14_gemac, 7, 18);
-// 	slogf(_SLOGC_NETWORK, _SLOG_INFO, "%s: readed 7-18: %x", __devname__, reg);
-// 	vm14_gemac_hw_mii_write(vm14_gemac, 7, 18, 0x67);
-// 	slogf(_SLOGC_NETWORK, _SLOG_INFO, "%s: writed 7-18: %x", __devname__, reg);
-// 	if (vm14_gemac->cfg.verbose) {
-// 		uint32_t	phy_id;
-// 
-// 		phy_id = vm14_gemac_hw_mii_read(vm14_gemac, 7, MDI_PHYID_1) << 16;
-// 		phy_id |= vm14_gemac_hw_mii_read(vm14_gemac, 7, MDI_PHYID_2);
-// 		
-// 		slogf(_SLOGC_NETWORK, _SLOG_INFO, "%s: phyid %X, vid %X, mod %X, rev %X", __devname__, phy_id, PHYID_VENDOR(phy_id), PHYID_MODEL(phy_id), PHYID_REV(phy_id));
-// 	}
 
 	status = MDI_Register_Extended (vm14_gemac, vm14_gemac_hw_mii_write, vm14_gemac_hw_mii_read,
 		vm14_gemac_mdi_callback, (mdi_t **)&vm14_gemac->mdi, NULL, 0, 0);
@@ -153,18 +139,18 @@ int vm14_gemac_findphy (vm14_gemac_dev_t *vm14_gemac)
 	
 	callout_init(&vm14_gemac->mii_callout);
 
-	for (vm14_gemac->cfg.phy_addr = 0;
-	    vm14_gemac->cfg.phy_addr < 32; vm14_gemac->cfg.phy_addr++) {
-		if (MDI_FindPhy(vm14_gemac->mdi, vm14_gemac->cfg.phy_addr) == MDI_SUCCESS)
-			break;
-	}
+	if ( vm14_gemac->cfg.phy_addr == -1 ) {
+		for (vm14_gemac->cfg.phy_addr = 0;
+			vm14_gemac->cfg.phy_addr < 32; vm14_gemac->cfg.phy_addr++) {
+			if (MDI_FindPhy(vm14_gemac->mdi, vm14_gemac->cfg.phy_addr) == MDI_SUCCESS)
+				break;
+		}
 
-	if (vm14_gemac->cfg.phy_addr == 32) {
-		slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: Cannot find an active PHY", __devname__);
-		return -1;
+		if (vm14_gemac->cfg.phy_addr == 32) {
+			slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: Cannot find an active PHY", __devname__);
+			return -1;
+		}
 	}
-	
-	vm14_gemac->cfg.phy_addr = 0x7;
 
 	if (vm14_gemac->cfg.verbose) {
 		uint32_t	phy_id;

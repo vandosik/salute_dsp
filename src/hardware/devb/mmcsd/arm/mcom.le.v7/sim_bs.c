@@ -34,10 +34,12 @@ int bs_init(SIM_HBA *hba)
 	unsigned hwi_off = hwi_find_device("spll", 0);
 
 	if (!cfg->NumIOPorts) {
-		cfg->MemBase[0]   = 0x3800B000;
-		cfg->MemLength[0] = 0x2000;
-        cfg->NumMemWindows = 1;
-	} 
+		cfg->IOPort_Base[0]   = 0x3800B000;
+		cfg->NumIOPorts = 1;
+	}
+	cfg->MemBase[0]   = cfg->IOPort_Base[0];
+	cfg->MemLength[0] = 0x2000;
+	cfg->NumMemWindows = 1;
 	
 	if (!cfg->NumIRQs) {
 		cfg->IRQRegisters[0] = 0x6E;
