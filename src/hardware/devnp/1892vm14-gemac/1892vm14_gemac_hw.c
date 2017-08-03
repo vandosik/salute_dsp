@@ -329,9 +329,18 @@ void vm14_gemac_hw_stop_rx(vm14_gemac_dev_t *vm14_gemac)
 
 void vm14_gemac_hw_set_frame_size(vm14_gemac_dev_t *vm14_gemac, uint32_t frame_size)
 {
-	WREG(vm14_gemac, MAC_MAXIMUM_FRAME_SIZE, frame_size + ETH_NODATA);
-	WREG(vm14_gemac, MAC_TRANSMIT_JABBER_SIZE, frame_size + ETH_NODATA * 2);
-	WREG(vm14_gemac, MAC_RECEIVE_JABBER_SIZE, frame_size + ETH_NODATA * 2);
+	if ( frame_size <= 1500 ) {
+		WREG(vm14_gemac, MAC_MAXIMUM_FRAME_SIZE, 0x5EE);
+		WREG(vm14_gemac, MAC_TRANSMIT_JABBER_SIZE, 0x600);
+		WREG(vm14_gemac, MAC_RECEIVE_JABBER_SIZE, 0x600);
+	} else {
+		WREG(vm14_gemac, MAC_MAXIMUM_FRAME_SIZE, 0x3FFF);
+		WREG(vm14_gemac, MAC_TRANSMIT_JABBER_SIZE, 0xFFFF);
+		WREG(vm14_gemac, MAC_RECEIVE_JABBER_SIZE, 0xFFFF);
+	}
+// 	WREG(vm14_gemac, MAC_MAXIMUM_FRAME_SIZE, frame_size + ETH_NODATA);
+// 	WREG(vm14_gemac, MAC_TRANSMIT_JABBER_SIZE, frame_size + ETH_NODATA * 2);
+// 	WREG(vm14_gemac, MAC_RECEIVE_JABBER_SIZE, frame_size + ETH_NODATA * 2);
 }
 
 void vm14_gemac_hw_set_promiscuous_mode(vm14_gemac_dev_t *vm14_gemac, int set)
@@ -610,6 +619,10 @@ void vm14_gemac_hw_dump_registers(vm14_gemac_dev_t *vm14_gemac)
 	print_reg(MAC_HASH_TABLE4);
 	print_reg(MAC_INTERRUPT);
 	print_reg(MAC_INTERRUPT_ENABLE);
+	
+	print_reg(MAC_MAXIMUM_FRAME_SIZE);
+	print_reg(MAC_TRANSMIT_JABBER_SIZE);
+	print_reg(MAC_RECEIVE_JABBER_SIZE);
 
 	if ( vm14_gemac->mdi != NULL )
 		MDI_DumpRegisters( vm14_gemac->mdi, vm14_gemac->cfg.phy_addr );

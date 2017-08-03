@@ -71,6 +71,8 @@ static char *vm14_gemac_opts[] = {
 	"transmit",
 #define TYPED_MEM 4
 	"typed_mem",
+#define JUMBO 5
+	"jumbo",
 	NULL
 };
 
@@ -213,7 +215,9 @@ vm14_gemac_parse_options(vm14_gemac_dev_t *vm14_gemac,
 				if (value != NULL)
 					vm14_gemac->tmem = value;
 				continue;
-				
+			case JUMBO:
+				vm14_gemac->ecom.ec_capabilities |= ETHERCAP_JUMBO_MTU;
+				continue;
 		}
 
 error:
@@ -363,8 +367,6 @@ vm14_gemac_attach(struct device *parent, struct device *self, void *aux)
 	ifp->if_capabilities_tx = 0;
 	ifp->if_capabilities_rx = 0;
 
-
-	vm14_gemac->ecom.ec_capabilities |= ETHERCAP_JUMBO_MTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	/* Ethernet stats we are interested in */
 	vm14_gemac->stats.un.estats.valid_stats =
@@ -533,7 +535,7 @@ vm14_gemac_attach(struct device *parent, struct device *self, void *aux)
 	/* Set up a timer for housekeeping */
 	callout_init(&vm14_gemac->hk_callout);
 
-	if ( cfg->verbose )
+	if ( cfg->verbose > 1 )
 		vm14_gemac_hw_dump_registers(vm14_gemac);
 
 	vm14_gemac->sd_hook = shutdownhook_establish(vm14_gemac_shutdown, vm14_gemac);

@@ -82,7 +82,7 @@
 #define MAX_NUM_RX				4096
 #define MAX_TX_FRAG				MAX_NUM_TX
 #define ETH_NODATA				(sizeof(ether_header_t) + ETH_CRC_LEN)
-#define MAX_FRAME_SIZE			(9600-ETH_NODATA)
+#define MAX_FRAME_SIZE			(VM14_MAXBUFSIZE-ETH_NODATA)
 
 #define DEFAULT_IPS				0
 #define MIN_IPS					80
@@ -119,7 +119,7 @@
 #define DMA_TDES1_SAC			BIT(25)
 
 #define VM14_DMA_ADDR(x)		x
-#define VM14_BUFSIZE(x)		((x) & 4095)
+#define VM14_BUFSIZE(x)		(min((x), VM14_MAXBUFSIZE))
 #define VM14_MAXBUFSIZE		(BIT(12) - 1)
 struct vm14_gemac_dma_desc {
 	volatile uint32_t status;

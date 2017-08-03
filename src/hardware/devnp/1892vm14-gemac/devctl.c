@@ -63,7 +63,7 @@ void vm14_gemac_filter(vm14_gemac_dev_t *vm14_gemac/*, int reset*/)
 			set_prom_mcast(vm14_gemac, 1);
 			return;
 		}
-		if (vm14_gemac->cfg.verbose) {
+		if (vm14_gemac->cfg.verbose > 1) {
 			slogf (_SLOGC_NETWORK, _SLOG_DEBUG1,
 				   "%s: enm %p %02X:%02X:%02X mcentries %d",
 						__devname__, enm, enm->enm_addrlo[3],
@@ -116,7 +116,7 @@ int vm14_gemac_ioctl(struct ifnet * ifp, unsigned long cmd, caddr_t data)
 			vm14_gemac_update_tx_stats(vm14_gemac);
 			vm14_gemac_update_rx_stats(vm14_gemac);
 			memcpy(&dstp->dcom_stats, &vm14_gemac->stats, sizeof(vm14_gemac->stats));
-			if (vm14_gemac->cfg.verbose) {
+			if (vm14_gemac->cfg.verbose > 1) {
 				vm14_gemac_hw_dump_registers(vm14_gemac);
 			}
 			break;

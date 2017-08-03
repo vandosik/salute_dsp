@@ -110,10 +110,14 @@ void vm14_gemac_reap(vm14_gemac_dev_t *vm14_gemac)
 		desc = &vm14_gemac->tdesc [cur_tx_rptr];
 		if ( (m = vm14_gemac->tx_mbuf[cur_tx_rptr]) != NULL ) {
 			m_freem(m);
-			ifp->if_opackets++;
 			vm14_gemac->tx_mbuf[cur_tx_rptr] = NULL;
 		}
 		if ( desc->misc & DMA_TDES1_LS ) {
+			if (!(desc->status & DMA_TDES0_STATUS)) {
+				ifp->if_opackets++;
+			} else if ( vm14_gemac->cfg.verbose ) {
+				slogf (_SLOGC_NETWORK, _SLOG_ERROR, "%s: transmit[%d] info %08X, misc %08X, len %d", __devname__, cur_tx_rptr, (desc->status & DMA_TDES0_STATUS), desc->misc, (desc->misc & VM14_MAXBUFSIZE));
+			}
 			to_reap--;
 			desc->misc &= ~DMA_TDES1_LS;
 		}
@@ -308,6 +312,7 @@ void vm14_gemac_start(struct ifnet *ifp)
 			} else {
 				tdesc->status = DMA_TDES0_OWN_BIT;
 			}
+// 			slogf(_SLOGC_NETWORK, _SLOG_DEBUG1, "%s: [%d] tdesc->buffer1 %08X tdesc->misc %08X", __devname__, cur_tx_wptr, tdesc->buffer1, tdesc->misc);
 			free_wptr = cur_tx_wptr;
 			cur_tx_wptr = (cur_tx_wptr + 1) % vm14_gemac->num_transmit;
 			nmbuf++;

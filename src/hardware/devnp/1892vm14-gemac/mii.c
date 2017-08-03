@@ -119,10 +119,10 @@ int vm14_gemac_findphy (vm14_gemac_dev_t *vm14_gemac)
 {
 	int				an_capable,status;
 	uint16_t		reg;
-	struct ifnet	*ifp;
+// 	struct ifnet	*ifp;
 
 	vm14_gemac->cfg.phy_addr = vm14_gemac->phy_addr;
-	ifp = &vm14_gemac->ecom.ec_if;
+// 	ifp = &vm14_gemac->ecom.ec_if;
 
 	if (vm14_gemac->mdi) {
 		MDI_DeRegister ((mdi_t **)&vm14_gemac->mdi);
