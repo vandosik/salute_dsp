@@ -24,13 +24,15 @@
 #include "startup.h"
 #include "arm/mc1892vm14.h"
 
+#define VM14_RTC_BASE	0x38027000
+
 unsigned long rtc_time(void)
 {
 	/*
 	 * Tell Neutrino what kind of chip for 'rtc' utility
 	 */
 	// TODO add RTC
-	hwi_add_rtc("1892vm14", 0, 0, 0, 1, -1);
+	hwi_add_rtc("1892vm14", VM14_RTC_BASE, 0, 0, 1, -1);
 
 	return 0;
 }
