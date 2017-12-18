@@ -33,7 +33,7 @@ static const struct startup_intrinfo	intrs[] = {
 
 	/* ARM General Interrupt Controller */
 	{	.vector_base     = _NTO_INTR_CLASS_EXTERNAL,
-		.num_vectors     = 128,
+		.num_vectors     = 160,
 		.cascade_vector  = _NTO_INTR_SPARE,
 		.cpu_intr_base   = 0,
 		.cpu_intr_stride = 0,
