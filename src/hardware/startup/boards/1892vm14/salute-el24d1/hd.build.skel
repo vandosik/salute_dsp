@@ -1,15 +1,22 @@
 #
+#ifdef VARIANT_ksz
 # Файл построения защищенного загрузочного образа ЗОСРВ "Нейтрино-Э"
+#else
+# Файл построения загрузочного образа ЗОСРВ "Нейтрино-Э"
+#endif
 #
 
+[uid=0 gid=0]
+[linker="qcc -bootstrap -nostdlib -Wl,--no-keep-memory -Vgcc_ntoarmv7 -EL %(h!=0, -Wl,-Ttext -Wl,0x%t%)%(d!=0, -Wl,-Tdata -Wl,0x%d%) -o%o %i%[M -L%^i -Wl,-uinit_%n -lmod_%n%]"]
 [image=0x40100000]
-[virtual=armle-v7,raw] .bootstrap = {
+[virtual=${PROCESSOR},elf +compress] .bootstrap = {
 	startup-salute-el24d1 -Nel24d1
+#	startup-salute-el24d1 -Nel24d1 -M0xA0000000,1G
 	# Раскомментируйте один вариант запуска микроядра
-# NOKSZ
-	PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp -ae -v
+
+#ifdef VARIANT_ksz
 	# Базовый
-# 	PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v
+	PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v
 	
 	# Очистка памяти
 	#PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v -K z
@@ -19,32 +26,38 @@
 
 	# Очистка памяти и расширенный аудит
 	#PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp-ksz -ae -v -K z,A
+#else
+	PATH=/proc/boot:/bin:/sbin:/usr/bin:/usr/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/lib/dll:/usr/lib procnto-smp -ae -v
+#endif
 }
 
 [+script] .script = {
-# KSZ
-# 	procmgr_symlink ../../proc/boot/libc-ksz.so.3 /usr/lib/ldqnx.so.2
-# NOKSZ
+#ifdef VARIANT_ksz
+ 	procmgr_symlink ../../proc/boot/libc-ksz.so.3 /usr/lib/ldqnx.so.2
+#else
 	procmgr_symlink ../../proc/boot/libc.so.3 /usr/lib/ldqnx.so.2
-
+#endif
 	LC_CTYPE=C-TRADITIONAL
 
 	display_msg Добро пожаловать в КПДА Нейтрино на модуле ЭЛ24Д1
 
+#ifdef VARIANT_ksz
 #	Раскомментируйте для запуска драйвер диска с очисткой внешней памяти
 #	UMASS_FSOPTS="qnx6 sync=optional,zero qnx4 zero"
 #	HD_FSOPTS="qnx6 zero qnx4 zero"
+#endif
 
 	slogger -s64 &
 	wdtkick -p50 -e &
 
 	pipe
 	xip_setup
-# 	PATH=/proc/boot:/bin:/usr/bin:/sbin:/usr/sbin:/usr/ksz/bin:/dev/shmem/xip
 	LD_LIBRARY_PATH=/proc/boot:/lib:/usr/lib:/lib/dll:/dev/shmem/xip
-	# NOKSZ
+#ifdef VARIANT_ksz
+	PATH=/proc/boot:/bin:/usr/bin:/sbin:/usr/sbin:/usr/ksz/bin:/dev/shmem/xip
+#else
 	PATH=/proc/boot:/bin:/usr/bin:/sbin:/usr/sbin:/dev/shmem/xip
-	
+#endif
 	start_services
 
 	waitfor /dev/con1 5
@@ -57,22 +70,22 @@
 	sysinit
 }
 
-[type=link] /dev/console=/dev/ser1
-[type=link] /dev/con1=/dev/ser1
+[type=link] /dev/console=ser1
+[type=link] /dev/con1=ser1
 
 ###########################################################################
 ## Системные библиотеки
 ###########################################################################
-# KSZ
-# libc-ksz.so.3
-# [type=link] /proc/boot/libc.so=libc-ksz.so.3
-# [type=link] /proc/boot/libc.so.3=libc-ksz.so.3
-# lsm-qnet-ksz.so
-
-# NOKSZ
+#ifdef VARIANT_ksz
+libc-ksz.so.3
+[type=link] /proc/boot/libc.so=libc-ksz.so.3
+[type=link] /proc/boot/libc.so.3=libc-ksz.so.3
+lsm-qnet-ksz.so
+#else
 libc.so.3
 [type=link] /proc/boot/libc.so=libc.so.3
 lsm-qnet.so
+#endif
 
 libsocket.so.3
 libm.so.2
@@ -80,15 +93,15 @@ libm.so.2
 ###########################################################################
 ## Библиотеки работы с диском и файловые системы
 ###########################################################################
-# KSZ
-# fs-qnx4-ksz.so
-# fs-qnx6-ksz.so
-# [type=link] /proc/boot/fs-qnx4.so=fs-qnx4-ksz.so
-# [type=link] /proc/boot/fs-qnx6.so=fs-qnx6-ksz.so
-# NOKSZ
+#ifdef VARIANT_ksz
+fs-qnx4-ksz.so
+fs-qnx6-ksz.so
+[type=link] /proc/boot/fs-qnx4.so=fs-qnx4-ksz.so
+[type=link] /proc/boot/fs-qnx6.so=fs-qnx6-ksz.so
+#else
 fs-qnx4.so
 fs-qnx6.so
-#
+#endif
 libcam.so
 io-blk.so
 cam-disk.so
@@ -149,12 +162,13 @@ sleep
 waitfor
 shutdown
 slogger
+sloginfo
 rtc
 slay
 chmod
 
 [perms=u+x]xip_setup = {
-#!/proc/boot/ksh
+#!/proc/boot/sh
 	cp_tmp /proc/boot/cp /dev/shmem/xip/cp
 	/proc/boot/cp /proc/boot/ls /dev/shmem/xip/ls
 	/dev/shmem/xip/cp $(ls /proc/boot/* 2>/dev/null) /dev/shmem/xip
@@ -162,41 +176,68 @@ chmod
 }
 
 [perms=u+x]to_rcd = {
-#!/proc/boot/ksh
+#!/proc/boot/sh
 	tgt=$1
 	shift
 	echo "$@" >> /etc/rc.d/rc.$tgt
 }
 
-[perms=u+x]delay_start_services = {
-#!/proc/boot/ksh
+[perms=u+x]setup_once = {
+#!/proc/boot/sh
+	export TMPDIR=/dev/shmem
+	if test -r /etc/system/setupisdone; then
+		exit 0
+	fi
 	rm -f /etc/rc.d/rc.devices
 	to_rcd devices enum-devices \\&
 	to_rcd devices waitfor /dev/random 5
 	to_rcd devices waitfor /dev/slog 5
 	to_rcd devices 'if test $KSZ_ENABLED -gt 0; then'
-	to_rcd devices io-pkt-ksz -ptcpip forward,stacksize=8192
+	to_rcd devices io-pkt-ksz -ptcpip forward,stacksize=8192,auditksz=1
 	to_rcd devices 'else'
 	to_rcd devices io-pkt-v4-hc -ptcpip forward,stacksize=8192
 	to_rcd devices 'fi'
 	to_rcd devices waitfor /dev/bpf0 5
 	to_rcd devices waitfor /dev/socket 5
-	to_rcd devices mount -T io-pkt -o verbose,mac=e25eff95ac76,transmit=128 devnp-1892vm14-gemac.so
+	to_rcd devices mount -T io-pkt -o verbose devnp-1892vm14-gemac.so
 	to_rcd devices netmanager \\&
 	to_rcd devices waitfor /dev/i2c1 5
 	to_rcd devices io-display -dvid=0x0,did=0x0
 	chmod +x /etc/rc.d/rc.devices
 	rm -f /etc/rc.d/rc.local
+	to_rcd local export PHINPUT=/usr/photon/bin/inputtrap.sh
 	to_rcd local qconn
 	to_rcd local inetd
 	to_rcd local '\(waitfor /dev/random 5; ret=1; while [ $ret -ne 0 ]; do /usr/sbin/sshd 1>/dev/null 2>&1; ret=$?; sleep 0.5; done\)' \\&
 	to_rcd local ntpd -g -c /etc/ntp/ntp.conf \\&
 	to_rcd local slay -f dumper
 	chmod +x /etc/rc.d/rc.local
+	cat > /etc/system/config/display.conf <<EOF
+device \{
+        drivername=vpoutfb
+        vid=0x0
+        did=0x0
+        deviceindex=0
+        display \{
+            xres=1280
+            yres=1024
+            refresh=60
+            pixel_format=argb8888
+        \}
+\}
+EOF
+	awk -i inplace  '!/\(pnpbios\)/' /etc/system/enum/common
+	cp -v /usr/photon/config/crtc-settings /etc/system/config/crtc-settings
+	cat > /etc/system/config/vpoutfb.conf <<EOF
+# devg-vpoutfb.so parameters
+
+#	Elvees Salute EL24D1 configuration sample
+	base=0x38004000,size=0x1000,irq=69,memory=128,hdmi=IT66121:1:0x4c:100:0x38034000:0xc:14,verbose=warn
+EOF
 }
 
 [perms=u+x]start_services = {
-#!/proc/boot/ksh
+#!/proc/boot/sh
 	devc-ser8250-dw -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
 	io-usb -ddwcotg ioport=0x38002000,irq=64,nchan=16
 	for i in 0 1 2 3; do
@@ -228,23 +269,23 @@ chmod
 }
 
 [perms=u+x]sysinit = {
-#!/proc/boot/ksh
+#!/proc/boot/sh
 	waitfor /dev/con1 5
 	reopen /dev/con1
 	if [ -e "/etc/system/sysinit" ]; then
 		echo Запуск стартовых скриптов ...
 		rm -f /dev/shmem/xip/*
-		delay_start_services
+		setup_once
 		exec /etc/system/sysinit
 	else
 		HOME=/dev/shmem
 		echo Запуск оболочки ...
-		ontty /dev/con1 ksh -l
+		ontty /dev/con1 sh -l
 	fi
 }
 
 [perms=u+x]mount_all = {
-#!/proc/boot/ksh
+#!/proc/boot/sh
 	echo -ne "\\033[?25l"
 	echo Поиск доступных разделов ...
 	dname=/dev/hd
@@ -308,18 +349,21 @@ chmod
 ## Watchdog utility
 ###########################################################################
 wdtkick
-
-# io-pkt-ksz
-ksh
-/lib/dll/devg-vpoutfb.so=devg-vpoutfb.so
+#ifdef VARIANT_ksz
+io-pkt-ksz
+#endif
+sh
 i2c-designware
 devu-dwcotg.so
+devg-vpoutfb.so
 devnp-1892vm14-gemac.so
 
+#ifdef VARIANT_ksz
 ###########################################################################
 ## Программы КСЗ
 ###########################################################################
-# ${QNX_TARGET}/armle-v7/usr/ksz/bin/cksum_ksz
-# ${QNX_TARGET}/armle-v7/usr/ksz/bin/check_ksz
-# ${QNX_TARGET}/armle-v7/usr/ksz/bin/auditlogger_ksz
-# ${QNX_TARGET}/armle-v7/usr/ksz/bin/spooler_ksz
+${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/cksum_ksz
+${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/check_ksz
+${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/auditlogger_ksz
+${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/spooler_ksz
+#endif

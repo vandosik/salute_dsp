@@ -1,7 +1,7 @@
-# This is the top-level Makefile for all source packages.
+# This is the top level Makefile for all source packages. 
 # It makes all the code in the "src" directory, then installs it
-# in the "install" directory, then makes the images in
-# the images directory (if present).
+# to the "install" directory", then makes the images in
+# the images directory (if present)
 
 ROOT_DIR := $(notdir $(CURDIR))
 ifndef QCONFIG
@@ -42,7 +42,7 @@ links:
 	$(MAKE) make_links
 
 make_links:	
-	$(foreach file,$(wildcard install/*/boot/build/*),cd images;cp --no-clobber ../$(file) $(notdir $(file));cd ..; )
+	$(foreach file,$(wildcard install/*/boot/build/*),cd images;$(CP_HOST) -n ../$(file) $(notdir $(file));cd ..; )
 
 clean_links:	
 #	$(foreach file,$(wildcard install/*/boot/build/*),cd images;$(RM_HOST) $(notdir $(file));cd ..; )

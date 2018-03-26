@@ -82,6 +82,9 @@ init_cacheattr()
 	struct cacheattr_entry *cache;
 	unsigned	l2_base = MC1892VM14_PL310_BASE;
 
+
+	arm_v7_dcache_flush();
+
 	// disable L2 cache
 	out32(l2_base + L2_CTRL, 0);
 

@@ -89,7 +89,7 @@ main(int argc, char **argv, char **envv)
 	 */
 	select_debug(debug_devices, sizeof(debug_devices));
 	
-	kprintf( "KPDA Neutrino startup for the Salute EL24D1 board with Cortex-A9 MPCore\n" );
+	kprintf( "KPDA Neutrino startup for the Salute EL24PM1/OM1 board with Cortex-A9 MPCore\n" );
 
 	/*
 	 * Collect information on all free RAM in the system

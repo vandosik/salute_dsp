@@ -1,9 +1,7 @@
-BSP_NAME=bsp-kpda-elvees-salute-el24d1
+null :=
+space := ${null} ${null}
 
-BNAME=$(BSP_NAME)-bin-`date +%Y%m%d`.tar.gz
-SNAME=$(BSP_NAME)-src-`date +%Y%m%d`.zip
-
-all: bundle
+all: prebundle
 	@echo done
 
 strip:
@@ -11,8 +9,8 @@ strip:
 	$(eval distrib_files := $(shell find ./install))
 # 	@echo distrib_Files=$(distrib_files)
 	$(eval strip_status := $(shell for distr_file in $(shell ls $(distrib_files)); do \
-		if file $$distr_file | grep ELF >/dev/null; then \
-		ntoarm-strip -g -p $$distr_file; fi; done; echo -n $$?))
+		if file $$distr_file | grep 'ELF\|ar archive' >/dev/null; then \
+		ntoarmv7-strip -g -p $$distr_file; fi; done; echo -n $$?))
 	@if [ $(strip_status) -eq 0 ]; then \
 		echo Strip done; \
 	else \
@@ -22,21 +20,71 @@ strip:
 demo-bundle:
 	$(MAKE) QNX_TARGET=$(NEUTRINO_TARGET) -C. -f Makefile clean all
 	$(MAKE) -Cimages -f Makefile clean
-	$(MAKE) -C. -f Makefile.bundle strip
 	$(MAKE) NEUTRINO_TARGET="" -Cimages -f Makefile b=demo
 
+	$(MAKE) -C. -f Makefile.bundle strip
 	# Create 'binary-demo' BSP
 	tar --owner=root --group=root -zcf ../$(BNAME) install/armle-v7/boot/build/salute-el24d1-demo.build install/armle-v7/boot/sys/procnto-smp install/armle-v7/boot/sys/startup-salute-el24d1 install/armle-v7/lib/dll/devnp-1892vm14-gemac.so install/armle-v7/sbin/devc-ser8250 images/{salute-el24d1-demo.build,ifs-salute-el24d1-demo.bin,Makefile} --xform "s/-demo//"
 
+prebundle:
+	@cp -ar $(BSP_DIR) /dev/shm/$(BSP_BLD) || exit 1
+	$(MAKE) -C /dev/shm/$(BSP_BLD) -f Makefile.bundle bundle || exit 1
+	rm -rf /dev/shm/$(BSP_BLD)
+
 bundle:
+	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) ksz $(dir $(skel))/ksz-$(basename $(notdir $(skel)));)
+	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) noksz $(dir $(skel))/$(basename $(notdir $(skel)));)
+	@$(foreach board, $(BOARDS_PATH), $(if $(filter $(board), $(PACK_BOARDS_PATH)), , touch $(board)/Makefile.dnm;))
+
+	@echo -n "Removing SRCVERSION tags from source files... "
+# xargs way is 3 times faster than 'find -exec'
+	@find . -type f \( -iname '*.[chsS]' -o -iname '*.[ch]pp' -o -iname '*.cc' \
+		-o -iname '*.[ly]' -o -iname 'trace.h.unuse' \) \
+		! -name 'srcversion.h' ! -name 'pcm_core.c' -print | xargs sed -i '/^__SRCVERSION/d'
+	@find . -type f -name 'pcm_core.c' -exec sed -i '/^__SRCVERSION/,+1d' {} \;
+	@echo "done!"
+
 	$(MAKE) -C. -f Makefile clean all
+	$(MAKE) -C. -f Makefile.bundle strip
 	$(MAKE) -Cimages -f Makefile clean
 	
-	# Create 'binary' BSP
-	tar --owner=root --group=root -zcf ../$(BNAME) install prebuilt images
-	
-	# Cleanup and create 'source' BSP
+	@echo Create 'binary' BSP
+	@mkdir /dev/shm/$(BSP_NAME)
+	@cp -ar install images /dev/shm/$(BSP_NAME)
+	$(MAKE) -C/dev/shm/$(BSP_NAME)/images clean_all build_all
+	@cd /dev/shm/$(BSP_NAME)/images; sed -i -e '/build_all\|clean_all\|BUILDFILES/,+2 d' Makefile
+	@cd /dev/shm/$(BSP_NAME)/install; rm -rf usr
+	@cd /dev/shm; tar --owner=root --group=root -zcf $(BSP_DIR)/../$(BNAME) $(BSP_NAME)
+	@rm -rf /dev/shm/$(BSP_NAME)
+
+	@echo Cleanup and create 'source' BSP
+	@cd install; $(foreach prebuilt, $(PREBUILT), find . -iname $(prebuilt) -exec cp -v --parents {} ../prebuilt \; ;)
 	$(MAKE) -C. -f Makefile clean
 	rm images/*.build
-	zip -r ../$(SNAME) src install prebuilt images Makefile source.xml
+	@mkdir /dev/shm/$(BSP_NAME)
+	@cp -ar src install prebuilt images Makefile source.xml /dev/shm/$(BSP_NAME)
+	@cd /dev/shm/$(BSP_NAME)/images; sed -i -e '/build_all\|clean_all\|BUILDFILES/,+2 d' Makefile
+	-cd /dev/shm/$(BSP_NAME); sed -i -e 's|id=".*"|id="$(BSP_NAME)"|' -e 's|<title>.*</title>|<title>$(BSP_NAME)</title>|' source.xml
+	@cd /dev/shm/$(BSP_NAME); zip -FSr $(BSP_DIR)/../$(SNAME) * -x "*.skel" $(addsuffix "/*", $(EXCL_BOARDS_PATH) src/hardware/devu src/hardware/devg)
+	@cd /dev/shm; tar --owner=root --group=root --exclude="*.skel" --exclude=$(addprefix $(BSP_NAME)/, $(EXCL_BOARDS_PATH)) --exclude="src/hardware/devu" --exclude="src/hardware/devg" -zcf $(BSP_DIR)/../$(SNAME2) $(BSP_NAME)
+
+	@rm -rf /dev/shm/$(BSP_NAME)
+	@$(foreach skel, $(SKEL_BUILDFILES), rm -vf $(dir $(skel))/ksz-$(basename $(notdir $(skel)));)
+	@$(foreach skel, $(SKEL_BUILDFILES), rm -vf $(dir $(skel))/$(basename $(notdir $(skel)));)
+	@$(foreach board, $(BOARDS_PATH), $(if $(filter $(board), $(PACK_BOARDS_PATH)), ,rm -vf $(board)/Makefile.dnm;))
+	@cd prebuilt; $(foreach prebuilt, $(PREBUILT), find . -iname $(prebuilt) -exec rm -vf {} \; ;)
 	@echo done
+SKEL_BUILDFILES:=$(shell ls src/hardware/startup/boards/1892vm14/salute-el24*/*.build.skel)
+PREBUILT:=devu-dwcotg.so devg-vpoutfb.so
+PACK_BOARDS?=salute-el24d1
+AVAIL_BOARDS:=salute-el24d1 salute-el24pm1
+BOARDS_PATH:=$(addprefix src/hardware/startup/boards/1892vm14/, $(AVAIL_BOARDS))
+PACK_BOARDS_PATH:=$(addprefix src/hardware/startup/boards/1892vm14/, $(PACK_BOARDS))
+EXCL_BOARDS_PATH:=$(filter-out $(PACK_BOARDS_PATH), $(BOARDS_PATH))
+BSP_NAME:=bsp-kpda-elvees-$(subst ${space},"_",$(PACK_BOARDS))
+BSP_DIR:=$(PWD)
+BSP_BLD:=$(BSP_NAME)-bld-`date +%Y%m%d`
+BNAME=$(BSP_NAME)-bin-`date +%Y%m%d`.tar.gz
+SNAME=$(BSP_NAME)-src-`date +%Y%m%d`.zip
+SNAME2=$(BSP_NAME)-src-`date +%Y%m%d`.tar.gz
+

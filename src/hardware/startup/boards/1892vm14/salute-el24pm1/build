@@ -1,69 +1,70 @@
 ###################################################################################
 #
-# Neutrino trunk on the Elvees Salute EL24D1 board, based on ARM Cortex A9-MPCore 
+# Neutrino trunk on the Elvees Salute EL24PM1/OM1 board, based on ARM Cortex A9-MPCore 
 #
 ####################################################################################
 
+[uid=0 gid=0]
+[linker="qcc -bootstrap -nostdlib -Wl,--no-keep-memory -Vgcc_ntoarmv7 -EL %(h!=0, -Wl,-Ttext -Wl,0x%t%)%(d!=0, -Wl,-Tdata -Wl,0x%d%) -o%o %i%[M -L%^i -Wl,-uinit_%n -lmod_%n%]"]
 [image=0x40100000]
-[virtual=armle-v7,raw +compress] .bootstrap = {
+[virtual=${PROCESSOR},elf +compress] .bootstrap = {
 	# Watchdog can be enabled using '-W' startup option
-	startup-salute-el24d1 -vvv -Nel24d1
+	startup-salute-el24pm1 -vvv -Nel24pm1
 	# '-ae' startup option allows for unaligned memory accesses
-	PATH=/proc/boot procnto-smp -ae 
+	PATH=/proc/boot procnto-smp -v -ae
 }
 [+script] .script = {
-    # Initialise the console
-    procmgr_symlink ../../proc/boot/libc.so.3 /usr/lib/ldqnx.so.2
+	# Initialise the console
+	procmgr_symlink ../../proc/boot/libc.so.3 /usr/lib/ldqnx.so.2
 
-    confstr sysname KPDA
+	display_msg Welcome to KPDA on the Salute EL24PM1/OM1 board (ARM Cortex-A9 MPCore)
 
-    display_msg Welcome to KPDA on the Salute EL24D1 board (ARM Cortex-A9 MPCore)
-    slogger -s64k &
+	confstr sysname KPDA
 
-    wdtkick -p50 -e &
+	slogger -s64k &
 
-    #################################################################
-    ## Serial driver
-    #################################################################
-    devc-ser8250-dw -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
+	wdtkick -p50 -e &
 
-    #################################################################
-    ## I2C driver
-    #################################################################
-    i2c-designware -p0x3802c000 --u0 &
-    i2c-designware -p0x3802d000 --u1 &
-    i2c-designware -p0x3802e000 --u2 &
+	#################################################################
+	## Serial driver
+	#################################################################
+	devc-ser8250-dw -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
 
-    #################################################################
-    ## Graphics driver
-    #################################################################
-    waitfor /dev/i2c1 1
+	#################################################################
+	## I2C driver
+	#################################################################
+	i2c-designware -p0x3802c000 --u0 &
+	i2c-designware -p0x3802d000 --u1 &
+	i2c-designware -p0x3802e000 --u2 &
 
-    # Start some common servers
-    pipe &
+	# Start some common servers
+	pipe &
 
-#    network_setup -e 172.16.10.75 -t -i -q -d
+	network_setup -e 192.168.0.168 -t -i -q -d
 
-    devc-pty
-    waitfor /dev/ptyp0 4
+	devb-mmcsd-mcom blk cache=1M cam quiet mmcsd ioport=0x3800d000,irq=0x6F
 
-    # Start the main shell
-    SYSNAME=nto
-    TERM=qansi
-    HOME=/tmp
-    PATH=:/bin:/usr/bin:/sbin:/usr/sbin:/proc/boot
-    LD_LIBRARY_PATH=:/lib:/usr/lib:/lib/dll:/proc/boot
-    
-    waitfor /dev/ser1 5
-    reopen /dev/ser1
-    
-    [+session] ksh -l &
+	devc-pty
+	random -t
+	waitfor /dev/ptyp0 4
+
+	# Start the main shell
+	SYSNAME=nto
+	TERM=qansi
+	HOME=/tmp
+	PATH=:/bin:/usr/bin:/sbin:/usr/sbin:/proc/boot
+	LD_LIBRARY_PATH=:/lib:/usr/lib:/lib/dll:/proc/boot
+	
+	waitfor /dev/ser1 5
+	reopen /dev/ser1
+	
+	[+session] sh -l &
 }
 
 # Redirect console messages
-[type=link] /bin/sh=/proc/boot/ksh
-[type=link] /dev/console=/dev/ser1
-[type=link] /tmp=/dev/shmem
+[type=link] /bin/sh=../proc/boot/sh
+[type=link] /dev/console=ser1
+[type=link] /tmp=dev/shmem
 
 # Programs require the runtime linker (ldqnx.so) to be at a fixed location
 
@@ -77,34 +78,32 @@ libstdc++.so.6
 #######################################################################
 ## Networking libs and drivers
 #######################################################################
-#devnp-1892vm14-gemac.so
-#libsocket.so
-#libssl.so
-#libcrypto.so
-#libnbutil.so
-#lsm-qnet.so
-## lsm-qnet-ksz.so
-
+devnp-1892vm14-gemac.so
+libsocket.so
+libssl.so
+libcrypto.so
+libnbutil.so
+lsm-qnet.so
 
 ###########################################################################
 ## uncomment for USB HOST driver
 ###########################################################################
-#devu-dwcotg.so
-#libusbdi.so
-#devh-usb.so
-#libhiddi.so
+devu-dwcotg.so
+libusbdi.so
+devh-usb.so
+libhiddi.so
 
 ###########################################################################
 ## uncomment for BLOCK driver
 ## substitute cam-xxx.so and fs-xxx.so with the cam drivers and filesystems
 ## required
 ###########################################################################
-#libcam.so
-#io-blk.so
-#cam-disk.so
-#fs-qnx6.so
-#fs-qnx4.so
-#fs-dos.so
+libcam.so
+io-blk.so
+cam-disk.so
+fs-qnx6.so
+fs-qnx4.so
+fs-dos.so
 
 # Executables
 [data=c dperms=0755]
@@ -122,25 +121,25 @@ wdtkick
 #######################################################################
 ## Networking stuff
 #######################################################################
-#io-pkt-v4-hc
-#random
-#ping
-#route
-#ftp
-#telnet
-#inetd
-#telnetd
-#ftpd
-#ifconfig
-#netstat
-#nicinfo
+io-pkt-v4-hc
+random
+ping
+route
+ftp
+telnet
+inetd
+telnetd
+ftpd
+ifconfig
+netstat
+nicinfo
 #fs-nfs3
-#login
+login
 
 ###########################################################################
 ## uncomment for MMC/SD driver
 ###########################################################################
-#devb-mmcsd-mcom
+devb-mmcsd-mcom
 
 ###########################################################################
 ## uncomment for NAND driver
@@ -150,9 +149,9 @@ wdtkick
 ###########################################################################
 ## uncomment for USB HOST driver
 ###########################################################################
-#io-usb
-#usb
-#devb-umass
+io-usb
+usb
+devb-umass
 #devu-kbd
 
 ###########################################################################
@@ -180,7 +179,7 @@ cp
 confstr
 ls
 cat
-ksh
+sh
 sleep
 pidin
 uname
@@ -190,7 +189,8 @@ mount
 umount
 use
 date
-sd=shutdown
+shutdown
+[type=link] /proc/boot/sd=shutdown
 chmod
 ln
 rm
@@ -212,6 +212,14 @@ waitfor
 ntpd
 
 #hidview
+#######################################################################
+## Installer stuff
+#######################################################################
+fdisk
+mkqnx6fs
+tar
+gzip
+sync
 
 #######################################################################
 ## Debug stuff
@@ -223,11 +231,6 @@ pdebug
 
 /etc/profile = {
 export TZ=MSK-03
-}
-
-/etc/ntp.conf = {
-server 172.16.10.72
-driftfile /etc/ntp/ntp.drift
 }
 
 /etc/ftpusers = {
@@ -251,28 +254,31 @@ root:365095DDA5BA51F86587F9E4E9DA5084E149C01940DC6F56F8342DBCBBA3DF88B20E80375E8
 ###########################################################################
 ## SCRIPTS
 ###########################################################################
-[perms=u+x uid=0 gid=0] start_ntpd = {
-#!/proc/boot/ksh
-	ntpd -gq >/dev/null 2>&1
-	ntpd -c /etc/ntp.conf
+[perms=u+x] start_ntpd = {
+#!/bin/sh
+	echo "server $IP_NTPD_SERVER" > /tmp/ntp.conf
+	echo "driftfile /tmp/ntp.drift" >> /tmp/ntp.conf
+	ntpd -c /tmp/ntp.conf -gq >/dev/null 2>&1
+	ntpd -c /tmp/ntp.conf
 }
 
-[perms=u+x uid=0 gid=0] network_setup = {
-#!/proc/boot/ksh
+[perms=u+x] network_setup = {
+#!/bin/sh
 
-random >/dev/null 2>&1 &
 USE_QNET=0
 USE_QCONN=0
 USE_INETD=0
-USE_NFS=0
-USE_NTPD=0
+unset IP_ADDR_ETH IP_NTPD_SERVER FS_NFS_ARGS
 while getopts e:tqdin  opt $*; do
 	case $opt in
 		e)
 			IP_ADDR_ETH="$OPTARG"
 			;;
+		n)
+			FS_NFS_ARGS="$OPTARG"
+			;;
 		t)
-			USE_NTPD=1
+			IP_NTPD_SERVER="$OPTARG"
 			;;
 		q)
 			USE_QNET=1
@@ -283,9 +289,6 @@ while getopts e:tqdin  opt $*; do
 		i)
 			USE_INETD=1
 			;;
-		n)
-			USE_NFS=1
-			;;
 	esac
 done
 
@@ -295,18 +298,13 @@ if [ -e "/dev/socket" ]; then
 fi
 
 echo -n "Starting ethernet driver..."
-waitfor /dev/random 5
 waitfor /dev/slog 5
 io-pkt-v4-hc -ptcpip forward,stacksize=8192 > /tmp/net.log 2>&1
-# io-pkt-v4 -dcprio64 mac=005056c00018 -ptcpip forward -pqnet
-# io-pkt-v4 -dcprio64 -ptcpip forward -pqnet
-# io-pkt-v4 -d1890vm8-gbe receive=2048,transmit=2048 -ptcpip -pqnet
 waitfor /dev/bpf0 5 >> /tmp/net.log 2>&1
 waitfor /dev/socket 5 >> /tmp/net.log 2>&1
 
 if [ -e "/dev/socket" ]; then
-# 	mount -T io-pkt -o transmit=128,tx_reap=16 devnp-1892vm14-gemac.so >> /tmp/net.log 2>&1
-	mount -T io-pkt -o verbose,mac=e25eff95ac76,transmit=128 devnp-1892vm14-gemac.so >> /tmp/net.log 2>&1
+	mount -T io-pkt -o verbose devnp-1892vm14-gemac.so >> /tmp/net.log 2>&1
 	ret=$?
 	if [ $ret -eq 0 ]; then
 		echo " OK"
@@ -320,7 +318,6 @@ if [ -e "/dev/socket" ]; then
 	fi
 	if [ $USE_QNET -eq 1 ]; then
 		echo "Starting qnet..."
-# 		mount -Tio-pkt -oprotected=1 lsm-qnet-ksz.so
 		mount -Tio-pkt lsm-qnet.so
 	fi
 	if [ $USE_QCONN -eq 1 ]; then
@@ -331,20 +328,15 @@ if [ -e "/dev/socket" ]; then
 		echo "Starting inetd..."
 		inetd &
 	fi
-	if [ $USE_NTPD -eq 1 ]; then
+	if [ -n "$IP_NTPD_SERVER" ]; then
 		echo "Setup time..."
 		echo "127.0.0.1 localhost" > /tmp/hosts
 		ln -sP /tmp/hosts /etc/hosts
 		start_ntpd &
 	fi
-	if [ $USE_NFS -eq 1 ]; then
+	if [ -n "$FS_NFS_ARGS" ]; then
 		echo "Starting nfs..."
-# 		fs-nfs3 192.168.1.80:/armle-v7 /nfs &
-		waitfor /nfs 15
-		for path in /etc /var /root/ /usr/lib /usr/libexec; do
-			ln -sP /nfs$path $path
-		done
-		`which sshd`
+		fs-nfs3 $FS_NFS_ARGS &
 	fi
 else
 	echo " FAIL"
