@@ -148,14 +148,19 @@ void vpout_hw_disable( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw 
 
     /* Reset HDMI device */
         for ( pipe = 0; pipe < VPOUT_GPU_PIPES; pipe++ )
-        {
-            if ( (DISPLAY_PORT( vpout->display[pipe] ) == DISPLAY_PORT_TYPE_HDMI) &&
-                 (strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( vpout->display[pipe] )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0) )
+            if ( DISPLAY_PORT( vpout->display[pipe] ) == DISPLAY_PORT_TYPE_HDMI )
             {
-                it66121_reset( vpout, vpout_draw, DISPLAY_PORT_INDEX( vpout->display[pipe] ) );
-                it66121_remove( vpout, vpout_draw, DISPLAY_PORT_INDEX( vpout->display[pipe] ) );
+                /* IT66121 HDMI transmitter */
+                if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( vpout->display[pipe] )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0 )
+                {
+                    it66121_reset( vpout, vpout_draw, DISPLAY_PORT_INDEX( vpout->display[pipe] ) );
+                    it66121_remove( vpout, vpout_draw, DISPLAY_PORT_INDEX( vpout->display[pipe] ) );
+                }
+
+                /* TDA998x HDMI transmitter */
+                if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( vpout->display[pipe] )].transmitter, VPOUT_OPT_HDMI_TDA998x ) == 0 )
+                    tda998x_remove( vpout, vpout_draw, DISPLAY_PORT_INDEX( vpout->display[pipe] ) );
             }
-        }
 }
 
 
@@ -180,9 +185,16 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
         //~ *CMCTR_MMIO32( GATE_CORE_CTR ) |= VPOUT_EN;
 
     /* Prepare HDMI port */
-    if ( (DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI) &&
-         (strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0) )
-        it66121_probe( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ) );
+    if ( DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI )
+    {
+        /* IT66121 HDMI transmitter */
+        if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0 )
+            it66121_probe( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ) );
+
+        /* TDA998x HDMI transmitter */
+        if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_TDA998x ) == 0 )
+            tda998x_probe( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ) );
+    }
 
     /* vpoutfb_set_par() */
         /* If the device is currently on, clear FIFO and power it off */
@@ -261,8 +273,12 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
             if ( DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI )
                 mode = LCDMODE_VINV | LCDMODE_HINV;
 #else
-            mode = (settings->flags & DISP_SYNC_POLARITY_H_POS ? 0 : LCDMODE_HINV) |
-                   (settings->flags & DISP_SYNC_POLARITY_V_POS ? 0 : LCDMODE_VINV);
+            if ( VPOUT_LCD_SYNC_FIX( vpout ) )
+                mode = (settings->flags & DISP_SYNC_POLARITY_H_POS ? LCDMODE_HINV : 0) |
+                       (settings->flags & DISP_SYNC_POLARITY_V_POS ? 0 : LCDMODE_VINV);
+            else
+                mode = (settings->flags & DISP_SYNC_POLARITY_H_POS ? 0 : LCDMODE_HINV) |
+                       (settings->flags & DISP_SYNC_POLARITY_V_POS ? 0 : LCDMODE_VINV);
 #endif
 #ifdef ENABLE_HW_CURSOR
             mode |= LCDMODE_HWC_MODE | LCDMODE_HWC_MODE_64x64;
@@ -309,9 +325,42 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
             }
             *MMIO32( LCDCSR ) = CSR_RUN | CSR_EN;
 
-            if ( (DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI) &&
-                 (strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0) )
-                return it66121_init( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), hz_to_ps( settings->pixel_clock * 1000 ) );
+            if ( DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI )
+            {
+                /* IT66121 HDMI transmitter */
+                if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0 )
+                    return it66121_init( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), hz_to_ps( settings->pixel_clock * 1000 ) );
+
+                /* TDA998x HDMI transmitter */
+                if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_TDA998x ) == 0 )
+                {
+                    if ( !tda998x_init( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), hz_to_ps( settings->pixel_clock * 1000 ) ) )
+                        tda998x_encoder_mode_set( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), settings );
+                    else
+                        return (-1);
+                }
+            }
 
     return (0);
+}
+
+
+int vpout_hw_read_edid( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, int dispno, uint8_t *buf, int size )
+{
+    vpout_display_conf_t display = vpout->display[dispno];
+
+    if ( DISPLAY_PORT( display ) == DISPLAY_PORT_TYPE_HDMI )
+    {
+        /* IT66121 HDMI transmitter */
+        if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0 )
+            goto fail;
+
+        /* TDA998x HDMI transmitter */
+        if ( strcmp( vpout->hdmi[DISPLAY_PORT_INDEX( display )].transmitter, VPOUT_OPT_HDMI_TDA998x ) == 0 )
+            return tda998x_read_edid( vpout, vpout_draw, DISPLAY_PORT_INDEX( display ), buf, size );
+    }
+
+fail:
+    /* EDID reading not supported */
+    return (-1);
 }

@@ -12,10 +12,12 @@
 #include <graphics/vbios.h>
 #include <graphics/display.h>
 #include <graphics/disputil.h>
+#include <graphics/extra/devctl.h>
 #include <graphics/ffb.h>
 #include <graphics/rop.h>
 #include <sys/time.h>
 #include <hw/inout.h>
+#include <drm/drm_edid.h>
 
 
 /*************************************************/
@@ -57,12 +59,19 @@ extern int verbose;
 /* Compile with hw-cursor support */
 //#define ENABLE_HW_CURSOR
 
+/* Compile with DDC support */
+#define ENABLE_DDC
+
+/* Compile with "display-info" utility support */
+#define ENABLE_DISPLAY_INFO
+
 
 /*************************************************/
 /*                HW DEFINITIONS                 */
 /*************************************************/
 
 #define VPOUT_GPU_PIPES                             1
+#define VPOUT_GPU_LAYERS                            1
 #define VPOUT_HDMI_PORTS                            1
 #define VPOUT_DSI_PORTS                             1
 #define VPOUT_PORTS                                 2
@@ -106,6 +115,10 @@ extern int verbose;
 /* vpoutfb.conf::hdmi display configurations */
 #define CONFIG_DISPLAY_PORT_HDMI0                   (CONFIG_DISPLAY_PORT_TYPE_HDMI | CONFIG_DISPLAY_PORT_INDEX_0)
 
+/* vpoutfb.conf::enable */
+#define CONFIG_ENABLE_LCD_SYNC_FIX                  (1)
+#define VPOUT_LCD_SYNC_FIX( vpout )                 (vpout->enabled & CONFIG_ENABLE_LCD_SYNC_FIX)
+
 
 /*************************************************/
 /*                     TYPES                     */
@@ -145,11 +158,30 @@ typedef struct vpout_context
                 uint8_t     reg;
                 uint8_t     pin;
             }               it66121;
+
+            #define VPOUT_OPT_HDMI_TDA998x  "TDA998x"
+            struct vpout_hdmi_tda998x
+            {
+                /* I2C */
+                uint8_t     bus;
+                uint16_t    address;
+                uint32_t    speed;
+
+                /* Private device data */
+                uint16_t    revision;
+                bool        is_hdmi_sink;
+                uint8_t     current_page;
+                uint32_t    video_ports;
+                uint8_t     vip_cntrl_0;
+                uint8_t     vip_cntrl_1;
+                uint8_t     vip_cntrl_2;
+            }               tda998x;
         }                   device;
     }                       hdmi[VPOUT_HDMI_PORTS];
     uint8_t                 hdmi_count;                                     /* Current assigned HDMI ports count (see vpoutfb.conf::hdmi option) */
 
     /* Driver configuration */
+    uint32_t                enabled;
     disp_surface_t          display_surface;
     uint8_t                 display_surface_allocated;
     uint8_t                 display_count;                                  /* Displays configuration (see vpoutfb.conf) */
@@ -236,6 +268,7 @@ int vpout_get_modelist( disp_adapter_t *adapter, int dispno, disp_mode_t *list, 
 int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_crtc_settings_t *settings, disp_surface_t *surf, unsigned flags );
 int vpout_wait_vsync( disp_adapter_t *adapter, int dispno );
 int vpout_set_display_offset( disp_adapter_t *adapter, int dispno, unsigned offset, int wait_vsync );
+int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, void *data_in, int nbytes, void *data_out, int *out_buffer_size );
 
 /* vpout.c */
 struct sigevent * vpout_hw_isr( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw );
@@ -244,10 +277,13 @@ void vpout_hw_disable( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw 
 void vpout_hw_pipe_set_display_offset( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, int pipe, uint32_t offset );
 int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, disp_crtc_settings_t *settings,
                                 vpout_display_conf_t display, int pipe, disp_surface_t *surface, disp_mode_t mode );
+int vpout_hw_read_edid( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, int dispno, uint8_t *buf, int size );
 
 /* i2c.c */
-int i2c_read( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port, uint8_t addr, unsigned short offset, uint8_t *buf, unsigned count );
-int i2c_write( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port, uint8_t addr, unsigned short offset, uint8_t *buf, unsigned count );
+int i2c_read( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port, uint8_t bus, uint32_t speed, uint8_t addr, unsigned short offset, uint8_t *buf,
+              unsigned count );
+int i2c_write( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port, uint8_t bus, uint32_t speed, uint8_t addr, unsigned short offset, uint8_t *buf,
+               unsigned count );
 int i2c_init( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t bus_, uint8_t port );
 void i2c_fini( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port );
 
@@ -256,6 +292,14 @@ void it66121_probe( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, ui
 void it66121_reset( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index );
 void it66121_remove( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index );
 int it66121_init( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index, uint32_t pixel_clock );
+
+/* tda998x.c */
+void tda998x_probe( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index );
+void tda998x_reset( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index );
+void tda998x_remove( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index );
+int tda998x_init( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index, uint32_t pixel_clock );
+void tda998x_encoder_mode_set( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index, disp_crtc_settings_t *settings );
+int tda998x_read_edid( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, uint8_t port_index, uint8_t *buf, int size );
 
 /* options.c */
 int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filename );

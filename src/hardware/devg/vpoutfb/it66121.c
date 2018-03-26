@@ -12,7 +12,7 @@
 
 
 /*************************************************/
-/*                   FUNCTIONS                   */
+/*                 I2C FUNCTIONS                 */
 /*************************************************/
 
 
@@ -21,7 +21,8 @@ static int hdmi_read( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw, 
     int             ret  = 0;
     uint8_t         data = 0;
 
-    ret = i2c_read( vpout, vpout_draw, port, vpout->hdmi[port].device.it66121.address, offset, &data, 1 );
+    ret = i2c_read( vpout, vpout_draw, port, vpout->hdmi[port].device.it66121.bus, vpout->hdmi[port].device.it66121.speed, vpout->hdmi[port].device.it66121.address,
+                    offset, &data, 1 );
 
     if ( ret < 0 )
         return ret;
@@ -41,14 +42,15 @@ static int hdmi_write_masked( vpout_context_t *vpout, vpout_draw_context_t *vpou
 
     value = (value & mask) | ((uint8_t)ret & ~mask);
 
-    ret = i2c_write( vpout, vpout_draw, port, vpout->hdmi[port].device.it66121.address, offset, &value, 1 );
+    ret = i2c_write( vpout, vpout_draw, port, vpout->hdmi[port].device.it66121.bus, vpout->hdmi[port].device.it66121.speed, vpout->hdmi[port].device.it66121.address,
+                     offset, &value, 1 );
 
     return (ret < 0) ? ret : 0;
 }
 
 
 /*************************************************/
-/*                   FUNCTIONS                   */
+/*              INTERFACE FUNCTIONS              */
 /*************************************************/
 
 

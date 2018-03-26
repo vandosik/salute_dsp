@@ -3,6 +3,9 @@ Graphics driver for Elvees 1892VM14YA ARMv7 SoC (VPOUT display controller)
 
 Multiple displays support: 1
 Layers support:            -
-Acceleration support:      cursor
+Acceleration support:      -
 Color depths support:      15, 16, 24, 32 (supported by the Mali-300 GPU)
-Supported interfaces:      HDMI (ITE IT66121 I2C HDMI controller)
+Supported interfaces:      HDMI (ITE-IT66121/NXP-TDA998x I2C HDMI controllers)
+
+
+Compatibility:             display-info, display-screenshot, ddc, umc

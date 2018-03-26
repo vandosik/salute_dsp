@@ -328,6 +328,7 @@ typedef int		disp_fx_t;		/* Fixed point: S1:I15:F16 */
 #define DISP_CALLBACK_FREE_SURFACE		5
 #define DISP_CALLBACK_WAIT_VSYNC		6
 #define DISP_CALLBACK_DEVCTL    		7
+#define DISP_CALLBACK_SURFACE_SID		8
 
 typedef struct disp_adapter {
 	int		size;			/* size of structure */
@@ -466,6 +467,8 @@ typedef struct disp_module_info {
 #define DISP_SURFACE_SLOW_CPU_ACCESS		0x80000000	/* Surface memory access by CPU is expensive */
 #define DISP_SURFACE_SLOW_2D_ENGINE_ACCESS	0x40000000	/* Surface memory access by 2D engine is expensive */
 #define DISP_SURFACE_SLOW_3D_ENGINE_ACCESS	0x40000000	/* Surface memory access by 3D engine is expensive */
+
+#define DISP_SURFACE_RESPECT_BYTE_ORDER     0x10000000  /* respect DISP_SURFACE_BYTES_REVERSED flag when allocating surface */
 
 #define DISP_SURFACE_ZONE_MASK			0x0f000000
 #define	DISP_SURFACE_ZONE_SHIFT			24

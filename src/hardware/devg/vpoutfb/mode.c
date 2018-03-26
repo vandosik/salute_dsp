@@ -21,6 +21,7 @@ int devg_get_modefuncs( disp_adapter_t *adapter, disp_modefuncs_t *funcs, int ta
     DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_mode,                   vpout_set_mode,             tabsize );
     DISP_ADD_FUNC( disp_modefuncs_t, funcs, wait_vsync,                 vpout_wait_vsync,           tabsize );
     //DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_display_offset,         vpout_set_display_offset,   tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, devctl,                     vpout_devctl,               tabsize );
 
 #ifdef ENABLE_HW_CURSOR
     DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_hw_cursor,              vpout_set_hw_cursor,        tabsize );
@@ -119,7 +120,7 @@ int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_
             disp_printf( adapter, "[vpoutfb] Fatal: %s[%d] mode switch sequence failed", DISPLAY_PORT_NAME( vpout->display[pipe] ), pipe );
             return (-1);
         }
-        disp_printf_info( adapter, "[haswell] Info: %s[%d] mode set sequence finished successfully", DISPLAY_PORT_NAME( vpout->display[pipe] ), pipe );
+        disp_printf_info( adapter, "[vpoutfb] Info: %s[%d] mode set sequence finished successfully", DISPLAY_PORT_NAME( vpout->display[pipe] ), pipe );
     }
 
     /* Wait for the current pipe vsync */
@@ -211,4 +212,204 @@ int vpout_set_display_offset( disp_adapter_t *adapter, int dispno, unsigned offs
         adapter->callback( adapter->callback_handle, DISP_CALLBACK_WAIT_VSYNC, &dispno );
 
     return (0);
+}
+
+
+static inline uint32_t get_layer_format( uint32_t surface_format )
+{
+    uint32_t        layer_format = 0;
+
+    switch ( surface_format )
+    {
+        case DISP_SURFACE_FORMAT_BYTES:                     layer_format = DISP_LAYER_FORMAT_BYTES;           break;
+        case DISP_SURFACE_FORMAT_PAL8:                      layer_format = DISP_LAYER_FORMAT_PAL8;            break;
+        case DISP_SURFACE_FORMAT_ARGB1555:                  layer_format = DISP_LAYER_FORMAT_ARGB1555;        break;
+        case DISP_SURFACE_FORMAT_RGB565:                    layer_format = DISP_LAYER_FORMAT_RGB565;          break;
+        case DISP_SURFACE_FORMAT_RGB888:                    layer_format = DISP_LAYER_FORMAT_RGB888;          break;
+        case DISP_SURFACE_FORMAT_ARGB8888:                  layer_format = DISP_LAYER_FORMAT_ARGB8888;        break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_UYVY:            layer_format = DISP_LAYER_FORMAT_UYVY;            break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_YUY2:            layer_format = DISP_LAYER_FORMAT_YUY2;            break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_YVYU:            layer_format = DISP_LAYER_FORMAT_YVYU;            break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_V422:            layer_format = DISP_LAYER_FORMAT_V422;            break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_UYVY_INTERLACED: layer_format = DISP_LAYER_FORMAT_UYVY_INTERLACED; break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_YUY2_INTERLACED: layer_format = DISP_LAYER_FORMAT_YUY2_INTERLACED; break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_YVYU_INTERLACED: layer_format = DISP_LAYER_FORMAT_YVYU_INTERLACED; break;
+        case DISP_SURFACE_FORMAT_PACKEDYUV_V422_INTERLACED: layer_format = DISP_LAYER_FORMAT_V422_INTERLACED; break;
+    }
+
+    return layer_format;
+}
+
+
+int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, void *data_in, int nbytes, void *data_out, int *out_buffer_size )
+{
+    vpout_context_t       *vpout      = adapter->ms_ctx;
+    vpout_draw_context_t  *vpout_draw = adapter->gd_ctx;
+
+    switch ( cmd )
+    {
+#if defined( ENABLE_DDC )
+        #define DEVCTL_DDC_EXIT_STATUS( error ) {         \
+            if ( *out_buffer_size >= sizeof( uint32_t ) ) \
+                *((uint32_t *)data_out) = error;          \
+            *out_buffer_size = sizeof( uint32_t );        \
+            return (0);                                   \
+        }
+
+        case DEVCTL_DDC:
+        {
+            int                     size     = *out_buffer_size;
+            int                     port     = 0;
+            devctl_ddc_request_t    *request = (devctl_ddc_request_t *)data_in;
+
+            disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DDC received (isize=%d, osize=%d)", nbytes, size );
+
+            if ( nbytes != sizeof( devctl_ddc_request_t ) )
+            {
+                disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DDC failed (invalid request isize)" );
+                DEVCTL_DDC_EXIT_STATUS( EINVAL );
+            }
+
+            if ( request->mode == DEVCTL_DDC_MODE_DISPLAY )
+                port = dispno;
+            else {
+                switch ( request->bus )
+                {
+                    case 0: port = dispno; break;
+                    default:
+                        disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DDC failed (invalid bus)" );
+                        DEVCTL_DDC_EXIT_STATUS( ENODEV );
+                }
+            }
+
+            memset( data_out, 0, size );
+
+            size = vpout_hw_read_edid( vpout, vpout_draw, port, data_out, size );
+
+            if ( size <= 0 )
+                DEVCTL_DDC_EXIT_STATUS( EIO );
+
+            if ( DEBUG )
+            {
+                int         j = 0,
+                            i = 0;
+                uint8_t     *edid = data_out;
+                char        str[256];
+
+                sprintf( str, "EDID dump:         " );
+                for ( i = 0; i < 16; i++ )
+                    sprintf( str, "%s%X:    ", str, i );
+                disp_printf_debug( adapter, "[vpoutfb] Debug: %s", str );
+                
+                disp_printf_debug( adapter, "[vpoutfb]                         ----------------------------------------------------------------------------------------------" );
+                for ( i = 0; i < size / 16; i++ )
+                {
+                    sprintf( str, "           %02X: | ", i );
+                    for ( j = 0; j < 16; j++ )
+                        sprintf( str, "%s0x%02X  ", str, edid[i * 16 + j] );
+                    disp_printf_debug( adapter, "[vpoutfb]        %s", str );
+                }
+            }
+
+            *out_buffer_size = size;
+
+            break;
+        }
+#endif
+
+#if defined( ENABLE_DISPLAY_INFO )
+        case DEVCTL_DISPLAY_INFO:
+        {
+            devctl_display_mode_t           *buffer  = (devctl_display_mode_t *)data_in;
+            devctl_display_mode_request_t   *request = &((devctl_display_mode_t *)data_in)->request;
+            devctl_display_mode_reply_t     *reply   = &((devctl_display_mode_t *)data_out)->reply;
+            uint8_t                         mode     = request->mode;
+            uint8_t                         display  = request->display;
+            uint8_t                         layer    = request->layer;
+
+            disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DISPLAY_INFO received (isize=%d, osize=%d)", nbytes, *out_buffer_size );
+
+            *out_buffer_size = sizeof( devctl_display_mode_t );
+            memset( buffer, 0, sizeof( devctl_display_mode_t ) );
+
+            switch ( mode )
+            {
+                case DEVCTL_DISPLAY_INFO_LAYER:
+                    reply->status = DEVCTL_DISPLAY_INFO_STATUS_OK;
+                    if ( display < 0 || display >= VPOUT_GPU_PIPES )
+                    {
+                        reply->status = DEVCTL_DISPLAY_INFO_STATUS_FAIL;
+                        disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DISPLAY_INFO failed (invalid display index)" );
+                        break;
+                    }
+                    if ( layer < 0 || layer >= VPOUT_GPU_LAYERS )
+                    {
+                        reply->status = DEVCTL_DISPLAY_INFO_STATUS_FAIL;
+                        disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DISPLAY_INFO failed (invalid layer index)" );
+                        break;
+                    }
+
+                    reply->layer.id     = layer;
+                    reply->layer.format = -1;
+                    reply->layer.state  = vpout->xres > 0 ? DEVCTL_DISPLAY_INFO_STATE_ON : DEVCTL_DISPLAY_INFO_STATE_OFF;
+                    if ( reply->layer.state == DEVCTL_DISPLAY_INFO_STATE_ON )
+                    {
+                        reply->layer.sid                     = (uint32_t)adapter->callback( adapter->callback_handle, DISP_CALLBACK_SURFACE_SID, &vpout->display_surface );
+                        reply->layer.format                  = get_layer_format( vpout->display_surface.pixel_format );
+                        reply->layer.width                   = vpout->xres;
+                        reply->layer.height                  = vpout->yres;
+                        reply->layer.stride                  = vpout->display_surface.stride;
+                        reply->layer.x                       = 0;
+                        reply->layer.y                       = 0;
+                        reply->layer.addr                    = vpout->display_surface.paddr;
+                        reply->layer.viewport.source.x1      = 0;
+                        reply->layer.viewport.source.y1      = 0;
+                        reply->layer.viewport.source.x2      = vpout->xres - 1;
+                        reply->layer.viewport.source.y2      = vpout->yres - 1;
+                        reply->layer.viewport.destination.x1 = 0;
+                        reply->layer.viewport.destination.y1 = 0;
+                        reply->layer.viewport.destination.x2 = vpout->xres - 1;
+                        reply->layer.viewport.destination.y2 = vpout->yres - 1;
+                        reply->layer.chroma_key.color        = 0;
+                        reply->layer.chroma_key.mode         = DEVCTL_DISPLAY_INFO_CHROMA_NONE;
+
+                    }
+
+                case DEVCTL_DISPLAY_INFO_DISPLAY:
+                    reply->status = DEVCTL_DISPLAY_INFO_STATUS_OK;
+                    if ( display < 0 || display >= VPOUT_GPU_PIPES )
+                    {
+                        reply->status = DEVCTL_DISPLAY_INFO_STATUS_FAIL;
+                        disp_printf_debug( adapter, "[vpoutfb] Debug: DEVCTL_DISPLAY_INFO failed (invalid display index)" );
+                        break;
+                    }
+
+                    reply->display.id        = display;
+                    reply->display.state     = display < VPOUT_GPU_PIPES ? DEVCTL_DISPLAY_INFO_STATE_ON : DEVCTL_DISPLAY_INFO_STATE_OFF;
+                    reply->display.layers    = VPOUT_GPU_LAYERS;
+                    reply->display.interface = DEVCTL_DISPLAY_INFO_IFACE_NONE;
+
+                    if ( reply->display.state == DEVCTL_DISPLAY_INFO_STATE_ON )
+                    {
+                        reply->display.width     = vpout->xres;
+                        reply->display.height    = vpout->yres;
+                        reply->display.refresh   = vpout->refresh;
+                        reply->display.interface = DEVCTL_DISPLAY_INFO_IFACE_HDMI;
+                    }
+
+                case DEVCTL_DISPLAY_INFO_DISPLAYS:
+                    reply->status   = DEVCTL_DISPLAY_INFO_STATUS_OK;
+                    reply->displays = VPOUT_GPU_PIPES;
+                    break;
+            }
+
+            break;
+        }
+#endif
+
+        default:
+            return (-1);
+    }
+
+    return (EOK);
 }

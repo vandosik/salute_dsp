@@ -24,7 +24,9 @@ static char *vpout_opts[] = {
     "memory",
 #define VPOUT_OPT_HDMI                  5
     "hdmi",
-#define VPOUT_OPT_VERBOSE               6
+#define VPOUT_OPT_ENABLE                6
+    "enable",
+#define VPOUT_OPT_VERBOSE               7
     "verbose",
     NULL
 };
@@ -78,6 +80,7 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
         disp_printf( adapter, "[vpoutfb] Configuration: \"%s\"", filename );
 
     vpout->display[0]     = CONFIG_DISPLAY_PORT_HDMI0;
+    vpout->enabled        = 0;
     vpout->registers_size = 0x1000;
     vpout->aperture_size  = 2 * VPOUT_HW_PRIMARY_SURFACE_SIZE /* 128 Mb */;
 
@@ -143,13 +146,13 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
             case VPOUT_OPT_HDMI:
                 if ( strncmp( value, VPOUT_OPT_HDMI_IT66121":", strlen( VPOUT_OPT_HDMI_IT66121 ) + 1 ) == 0 )
                 {
-                    char        *name = value;
-                    int         bus;
-                    int         address;
-                    int         speed;
-                    int         base;
-                    int         reg;
-                    int         pin;
+                    char    *name = value;
+                    int     bus;
+                    int     address;
+                    int     speed;
+                    int     base;
+                    int     reg;
+                    int     pin;
 
                     value += strlen( VPOUT_OPT_HDMI_IT66121 );
                     *value= 0;
@@ -203,13 +206,71 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
                         vpout->hdmi[vpout->hdmi_count].device.it66121.pin     = pin;
                         vpout->hdmi_count++;
 
-                        disp_printf( adapter, "[vpoutfb] Configuration: HDMI[%d] \"%s\" I2C( bus=%d, address=0x%x, speed=%d )"
-                                     " GPIO( base=0x%x, reg=GPIO%X, pin=%d )", vpout->hdmi_count - 1, name, bus, address, speed * 1000,
-                                     base, reg, pin );
+                        disp_printf( adapter, "[vpoutfb] Configuration: HDMI[%d] - controller:%s I2C:bus=%d,address=0x%x,speed=%d GPIO:base=0x%x,reg=GPIO%X,pin=%d",
+                                     vpout->hdmi_count - 1, name, bus, address, speed * 1000, base, reg, pin );
                         break;
                     }
-                }
+                } else
+                    if ( strncmp( value, VPOUT_OPT_HDMI_TDA998x":", strlen( VPOUT_OPT_HDMI_TDA998x ) + 1 ) == 0 )
+                    {
+                        char    *name = value;
+                        int     bus;
+                        int     address;
+                        int     speed;
+                        int     video_ports = 0;
+
+                        value += strlen( VPOUT_OPT_HDMI_TDA998x );
+                        *value= 0;
+                        value++;
+
+                        if ( sscanf( value, "%d:0x%x:%d:0x%x", &bus, &address, &speed, &video_ports ) == 4 )
+                        {
+                            if ( bus < 0 || bus > 3 )
+                            {
+                                disp_printf( adapter, "[vpoutfb] Error: HDMI transmitter I2C bus invalid (see vpoutfb.conf)" );
+                                break;
+                            }
+
+                            if ( address < 0 || address > 0xffff )
+                            {
+                                disp_printf( adapter, "[vpoutfb] Error: HDMI transmitter I2C address invalid (see vpoutfb.conf)" );
+                                break;
+                            }
+
+                            if ( speed <= 0 )
+                            {
+                                disp_printf( adapter, "[vpoutfb] Error: HDMI transmitter I2C speed invalid (see vpoutfb.conf)" );
+                                break;
+                            }
+
+                            if ( vpout->hdmi_count >= VPOUT_HDMI_PORTS )
+                            {
+                                disp_printf( adapter, "[vpoutfb] Error: only %d HDMI ports supported", VPOUT_HDMI_PORTS );
+                                break;
+                            }
+
+                            vpout->hdmi[vpout->hdmi_count].assigned                   = true;
+                            strcpy( vpout->hdmi[vpout->hdmi_count].transmitter, name );
+                            vpout->hdmi[vpout->hdmi_count].device.tda998x.bus         = bus;
+                            vpout->hdmi[vpout->hdmi_count].device.tda998x.address     = address;
+                            vpout->hdmi[vpout->hdmi_count].device.tda998x.speed       = speed;
+                            vpout->hdmi[vpout->hdmi_count].device.tda998x.video_ports = video_ports;
+                            vpout->hdmi_count++;
+
+                            disp_printf( adapter, "[vpoutfb] Configuration: HDMI[%d] - controller:%s I2C:bus=%d,address=0x%x,speed=%d",
+                                         vpout->hdmi_count - 1, name, bus, address, speed * 1000 );
+                            break;
+                        }
+                    }
+
                 disp_printf( adapter, "[vpoutfb] Warning: unknown HDMI transmitter configuration (see vpoutfb.conf)" );
+                break;
+
+            case VPOUT_OPT_ENABLE:
+                if ( strstr( value, "lcd_sync_fix" ) != NULL ) {
+                    disp_printf( adapter, "[vpoutfb] Configuration: LCD sync generation fix enabled" );
+                    vpout->enabled |= CONFIG_ENABLE_LCD_SYNC_FIX;
+                }
                 break;
 
             case VPOUT_OPT_VERBOSE:

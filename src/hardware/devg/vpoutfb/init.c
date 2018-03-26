@@ -181,7 +181,7 @@ int vpout_init( disp_adapter_t *adapter, char *optstring )
 
     for ( i = 0; i < vpout->hdmi_count; i++ )
     {
-        if ( gpio_registers == NULL )
+        if ( (strcmp( vpout->hdmi[i].transmitter, VPOUT_OPT_HDMI_IT66121 ) == 0) && gpio_registers == NULL )
         {
             gpio_registers = (uint8_t *)mmap64( NULL, GPIO_REGISTERS_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE, MAP_PHYS, NOFD,
                                                 vpout->hdmi[i].device.it66121.base );
