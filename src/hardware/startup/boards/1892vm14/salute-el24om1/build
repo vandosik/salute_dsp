@@ -9,7 +9,7 @@
 [image=0x40100000]
 [virtual=${PROCESSOR},elf +compress] .bootstrap = {
 	# Watchdog can be enabled using '-W' startup option
-	startup-salute-el24pm1 -vvv -Nel24pm1
+	startup-salute-el24om1 -vvv -Nel24om1
 	# '-ae' startup option allows for unaligned memory accesses
 	PATH=/proc/boot procnto-smp -v -ae
 }
@@ -144,7 +144,7 @@ devb-mmcsd-mcom
 ###########################################################################
 ## uncomment for NAND driver
 ###########################################################################
-#fs-etfs-mcom
+fs-etfs-mcom
 
 ###########################################################################
 ## uncomment for USB HOST driver

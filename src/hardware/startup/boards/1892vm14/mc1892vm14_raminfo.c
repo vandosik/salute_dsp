@@ -30,8 +30,9 @@
 #include <arm/mc1892vm14.h>
 
 #define DDRMC_RAM_SIZE			1024
+static int user_memory_setup = 0;
 
-void mc1892vm14_init_raminfo(void)
+void mc1892vm14_init_raminfo(char *opts)
 {
 #if 0
 	unsigned	reg;
@@ -46,6 +47,21 @@ void mc1892vm14_init_raminfo(void)
 		add_ram(MC1892VM14_DDRMC1_BASE, MEG(DDRMC_RAM_SIZE));
 	}
 #else
-	add_ram(MC1892VM14_DDRMC0_BASE, MEG(DDRMC_RAM_SIZE));
+	if ( opts != NULL ) {
+		char *p;
+		paddr_t	start;
+		size_t	size;
+		start = getsize(opts, &p);
+		if(*p == ',') {
+			size = getsize(p + 1, &p);
+			if ( size != 0 ) {
+				add_ram(start ? start : MC1892VM14_DDRMC0_BASE, size);
+				user_memory_setup++;
+			}
+		}
+	} 
+	if ( !user_memory_setup ) {
+		add_ram(MC1892VM14_DDRMC0_BASE, MEG(DDRMC_RAM_SIZE));
+	}
 #endif
 }

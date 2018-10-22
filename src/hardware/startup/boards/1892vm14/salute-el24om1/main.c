@@ -71,12 +71,15 @@ main(int argc, char **argv, char **envv)
 
 	// common options that should be avoided are:
 	// "AD:F:f:I:i:K:M:N:o:P:R:S:Tvr:j:Z"
-	while ((opt = getopt(argc, argv, COMMON_OPTIONS_STRING "W")) != -1) {
+	while ((opt = getopt(argc, argv, COMMON_OPTIONS_STRING "Wm:")) != -1) {
 		switch (opt) {
 			case 'W':
 				/* Enable WDT */
 				mc1892vm14_wdg_reload();
 				mc1892vm14_wdg_enable();
+				break;
+			case 'm':
+				mc1892vm14_init_raminfo(optarg);
 				break;
 			default:
 				handle_common_option(opt);
@@ -88,13 +91,13 @@ main(int argc, char **argv, char **envv)
 	 * Initialize debugging output
 	 */
 	select_debug(debug_devices, sizeof(debug_devices));
-	
+
 	kprintf( "KPDA Neutrino startup for the Salute EL24PM1/OM1 board with Cortex-A9 MPCore\n" );
 
 	/*
 	 * Collect information on all free RAM in the system
 	 */
-	mc1892vm14_init_raminfo();
+	mc1892vm14_init_raminfo(NULL);
 	
 	/*
 	 * Get CPU frequency
@@ -137,7 +140,7 @@ main(int argc, char **argv, char **envv)
 	/* Initialize the Hwinfo section of the Syspage */
  	init_hwinfo();
 
-	add_typed_string(_CS_MACHINE, "el24pm1");
+	add_typed_string(_CS_MACHINE, "el24om1");
 
 	/*
 	 * Load bootstrap executables in the image file system and Initialise

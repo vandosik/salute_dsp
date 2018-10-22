@@ -65,7 +65,9 @@
 
 	waitfor /dev/io-usb 5
 	io-hid -d usb
+#ifdef VARIANT_mmc
 	mount_all
+#endif
 
 	sysinit
 }
@@ -208,7 +210,7 @@ chmod
 	to_rcd local export PHINPUT=/usr/photon/bin/inputtrap.sh
 	to_rcd local qconn
 	to_rcd local inetd
-	to_rcd local '\(waitfor /dev/random 5; ret=1; while [ $ret -ne 0 ]; do /usr/sbin/sshd 1>/dev/null 2>&1; ret=$?; sleep 0.5; done\)' \\&
+#	to_rcd local '\(waitfor /dev/random 5; ret=1; while [ $ret -ne 0 ]; do /usr/sbin/sshd 1>/dev/null 2>&1; ret=$?; sleep 0.5; done\)' \\&
 	to_rcd local ntpd -g -c /etc/ntp/ntp.conf \\&
 	to_rcd local slay -f dumper
 	chmod +x /etc/rc.d/rc.local
@@ -232,7 +234,7 @@ EOF
 # devg-vpoutfb.so parameters
 
 #	Elvees Salute EL24D1 configuration sample
-	base=0x38004000,size=0x1000,irq=69,memory=128,hdmi=IT66121:1:0x4c:100:0x38034000:0xc:14,verbose=warn
+base=0x38004000,size=0x1000,irq=69,memory=128,hdmi=IT66121:1:0x4c:100:0x38034000:0xc:14,verbose=warn
 EOF
 }
 
@@ -240,6 +242,7 @@ EOF
 #!/proc/boot/sh
 	devc-ser8250-dw -vvv -e -F -b115200 -c144000000/16 0x38028000^2,0x60 &
 	io-usb -ddwcotg ioport=0x38002000,irq=64,nchan=16
+#ifdef VARIANT_mmc
 	for i in 0 1 2 3; do
 		devb-mmcsd-mcom blk cache=1M cam quiet $HD_FSOPTS
 		waitfor /dev/hd0 0.5 >/dev/null 2>&1
@@ -260,6 +263,10 @@ EOF
 			done
 		fi
 	done
+#else
+	fs-etfs-mcom -m / > /dev/shmem/etfs.log 2>&1
+	waitfor /dev/etfs2 5 >/dev/null 2>&1
+#endif
 	#################################################################
 	## I2C driver
 	#################################################################
@@ -284,6 +291,7 @@ EOF
 	fi
 }
 
+#ifdef VARIANT_mmc
 [perms=u+x]mount_all = {
 #!/proc/boot/sh
 	echo -ne "\\033[?25l"
@@ -342,6 +350,7 @@ EOF
 	echo -ne "\\033[?25h"
 	
 }
+#endif
 
 [data=c]
 

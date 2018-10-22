@@ -32,8 +32,10 @@ prebundle:
 	rm -rf /dev/shm/$(BSP_BLD)
 
 bundle:
-	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) ksz $(dir $(skel))/ksz-$(basename $(notdir $(skel)));)
-	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) noksz $(dir $(skel))/$(basename $(notdir $(skel)));)
+	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) $(dir $(skel))/ksz-mmc$(basename $(notdir $(skel))) ksz mmc;)
+	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) $(dir $(skel))/ksz-nand$(basename $(notdir $(skel))) ksz nommc;)
+	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) $(dir $(skel))/mmc$(basename $(notdir $(skel))) noksz mmc;)
+	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) $(dir $(skel))/nand$(basename $(notdir $(skel))) noksz nommc;)
 	@$(foreach board, $(BOARDS_PATH), $(if $(filter $(board), $(PACK_BOARDS_PATH)), , touch $(board)/Makefile.dnm;))
 
 	@echo -n "Removing SRCVERSION tags from source files... "
@@ -53,6 +55,7 @@ bundle:
 	@cp -ar install images /dev/shm/$(BSP_NAME)
 	$(MAKE) -C/dev/shm/$(BSP_NAME)/images clean_all build_all
 	@cd /dev/shm/$(BSP_NAME)/images; sed -i -e '/build_all\|clean_all\|BUILDFILES/,+2 d' Makefile
+	@cd /dev/shm/$(BSP_NAME)/images; sed -i -e 's/el24d1/$(word 2, $(subst -, ,$(PACK_BOARDS)))/g' Makefile
 	@cd /dev/shm/$(BSP_NAME)/install; rm -rf usr
 	@cd /dev/shm; tar --owner=root --group=root -zcf $(BSP_DIR)/../$(BNAME) $(BSP_NAME)
 	@rm -rf /dev/shm/$(BSP_NAME)
@@ -64,6 +67,7 @@ bundle:
 	@mkdir /dev/shm/$(BSP_NAME)
 	@cp -ar src install prebuilt images Makefile source.xml /dev/shm/$(BSP_NAME)
 	@cd /dev/shm/$(BSP_NAME)/images; sed -i -e '/build_all\|clean_all\|BUILDFILES/,+2 d' Makefile
+	@cd /dev/shm/$(BSP_NAME)/images; sed -i -e 's/el24d1/$(word 2, $(subst -, ,$(PACK_BOARDS)))/g' Makefile
 	-cd /dev/shm/$(BSP_NAME); sed -i -e 's|id=".*"|id="$(BSP_NAME)"|' -e 's|<title>.*</title>|<title>$(BSP_NAME)</title>|' source.xml
 	@cd /dev/shm/$(BSP_NAME); zip -FSr $(BSP_DIR)/../$(SNAME) * -x "*.skel" $(addsuffix "/*", $(EXCL_BOARDS_PATH) src/hardware/devu src/hardware/devg)
 	@cd /dev/shm; tar --owner=root --group=root --exclude="*.skel" --exclude=$(addprefix $(BSP_NAME)/, $(EXCL_BOARDS_PATH)) --exclude="src/hardware/devu" --exclude="src/hardware/devg" -zcf $(BSP_DIR)/../$(SNAME2) $(BSP_NAME)
@@ -77,11 +81,11 @@ bundle:
 SKEL_BUILDFILES:=$(shell ls src/hardware/startup/boards/1892vm14/salute-el24*/*.build.skel)
 PREBUILT:=devu-dwcotg.so devg-vpoutfb.so
 PACK_BOARDS?=salute-el24d1
-AVAIL_BOARDS:=salute-el24d1 salute-el24pm1
+AVAIL_BOARDS:=salute-el24d1 salute-el24om1
 BOARDS_PATH:=$(addprefix src/hardware/startup/boards/1892vm14/, $(AVAIL_BOARDS))
 PACK_BOARDS_PATH:=$(addprefix src/hardware/startup/boards/1892vm14/, $(PACK_BOARDS))
 EXCL_BOARDS_PATH:=$(filter-out $(PACK_BOARDS_PATH), $(BOARDS_PATH))
-BSP_NAME:=bsp-kpda-elvees-$(subst ${space},"_",$(PACK_BOARDS))
+BSP_NAME?=bsp-kpda-elvees-$(subst ${space},"_",$(PACK_BOARDS))
 BSP_DIR:=$(PWD)
 BSP_BLD:=$(BSP_NAME)-bld-`date +%Y%m%d`
 BNAME=$(BSP_NAME)-bin-`date +%Y%m%d`.tar.gz

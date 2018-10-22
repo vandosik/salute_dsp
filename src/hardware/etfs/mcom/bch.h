@@ -29,6 +29,9 @@
 #include <inttypes.h>
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+ 	
+
+#ifndef __KPDA__
 
 static inline int fls(int x)
 {
@@ -59,6 +62,7 @@ static inline int fls(int x)
     return r;
 }
 
+#endif
 /*
  * represent a polynomial over GF(2^m)
  */

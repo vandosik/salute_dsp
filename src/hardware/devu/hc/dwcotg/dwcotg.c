@@ -528,6 +528,7 @@ static _uint32 endpoint_enable( st_USB_Hc *hc, st_DEVICE_DESCRIPTOR *ddesc, st_E
 						  ep->chnum, v, HW_Read32( xhc->IoBase, DWCOTG_HCSPLT( ep->chnum ) ));
                 HW_Write32( xhc->IoBase, DWCOTG_HCSPLT( ep->chnum ), v );
 				ep->do_split        = 1;
+				break;
             }
         }
     }

@@ -132,6 +132,7 @@ int					(*nand_wait) (struct chipio *cio, uint32_t mask, uint32_t usec);
 struct chip_info chip_list[] = 
 {
 	{0x2c, 0x48, "MICRON MT29F32G08AFACAWP", 4096, 4096, 224, 128, 8, 512},
+	{0x2c, 0x68, "MICRON MT29F32G08ABAAAWP", 4096, 4096, 224, 128, 8, 512},
 };
 
 
@@ -349,7 +350,7 @@ int nand_detect_chip( struct etfs_devio *dev, struct chipio * cio, uint8_t *id )
 	}
 	
 	for (i = 0; i < NUM_ELTS(chip_list); i++) {
-		if (id[0] == chip_list[i].vid && id[1] == chip_list[i].did) {
+		if ((id[0] & 0xF0) == (chip_list[i].vid & 0xF0) && id[1] == chip_list[i].did) {
 			chip = &chip_list[i];
 			break;
 		}
