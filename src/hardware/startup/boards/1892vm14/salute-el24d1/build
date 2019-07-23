@@ -9,7 +9,7 @@
 [image=0x40100000]
 [virtual=${PROCESSOR},elf +compress] .bootstrap = {
 	# Watchdog can be enabled using '-W' startup option
-	startup-salute-el24d1 -Nel24d1
+	startup-salute-el24d1 -Nel24d1 -a0x40000000
 #	startup-salute-el24d1 -Nel24d1 -M0xA0000000,1G
 	# '-ae' startup option allows for unaligned memory accesses
 	PATH=/proc/boot procnto-smp -v -ae
@@ -43,7 +43,7 @@
 
 	network_setup -e 192.168.0.168 -t -i -q -d
 
-	devb-mmcsd-mcom blk cache=1M cam quiet
+	devb-sdmmc-mcom blk cache=1M cam quiet
 
 	devc-pty
 	random -t
@@ -140,7 +140,8 @@ login
 ###########################################################################
 ## uncomment for MMC/SD driver
 ###########################################################################
-devb-mmcsd-mcom
+#devb-mmcsd-mcom
+devb-sdmmc-mcom
 
 ###########################################################################
 ## uncomment for NAND driver

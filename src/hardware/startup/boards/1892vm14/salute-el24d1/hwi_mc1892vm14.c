@@ -25,11 +25,17 @@
 #include "board.h"
 #include "hwinfo_private.h"
 #include <drvr/hwinfo.h>                // for hwi support routines in libdrvr
+#include "fdt_startup_func.h"
 
 /*
  * Add 1892VM14 SoC devices to the hardware info section of the syspage.
 */
-#define VM14_HWI_ENET	"enet"
+#define VM14_HWI_ENET			"enet"
+
+#define VM14_HWI_SDHC0			"sdhci0"
+#define VM14_HWI_SDHC1			"sdhci1"
+
+#define VM14_HWI_FDT_TO_IRQ		0x20
 
 void hwi_mc1892vm14()
 {
@@ -127,6 +133,100 @@ void hwi_mc1892vm14()
 		ASSERT(hwi_off != HWI_NULL_OFF);
 		hwitag_set_phyaddr(hwi_off, 0, 7);
 		hwi_add_synonym(hwi_find_device(VM14_HWI_ENET, 0), "arasan-gemac");
+	}
+	/* Add sdmc information */
+	{
+		hwi_alloc_item( HWI_TAG_INFO( bus ), HWI_ITEM_BUS_SDIO, HWI_NULL_OFF );
+		//set name
+		hwi_tag		*tag;
+		unsigned	string_idx = add_string(VM14_HWI_SDHC0);
+		tag = hwi_alloc_tag(HWI_TAG_INFO(dll));
+		tag->dll.name = string_idx;
+		//set irq
+		//hwi_add_irq(0x6e);
+
+		if (fdt_addr != NULL_PADDR32 && (fdt_flags & USE_FDT_SDMMC_CONFIG)) {
+			uintptr_t       base;
+			uint32_t        *fdt_data;
+			int             lenp = -1;
+
+			base = startup_io_map(fdt_size , fdt_addr );
+
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC0, "reg", &lenp);
+
+			if ( fdt_data != NULL) {
+				//set location of sdhc controller
+				hwi_add_location((paddr_t)convert_fdt32(fdt_data[0]), (paddr_t)convert_fdt32(fdt_data[1]), 0, 0);
+
+				kprintf( "fdt: ADD sdhc_base    addr: %x   size %x  \n", convert_fdt32(fdt_data[0]),
+						 convert_fdt32(fdt_data[1]) );
+			}
+			
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC0, "bus-width", &lenp);
+
+			if (fdt_data != NULL) {
+				//set bus width
+				tag = hwi_alloc_tag(HWI_TAG_INFO(busattr));
+				tag->busattr.width = convert_fdt32(fdt_data[0]);
+				kprintf( "fdt: ADD bus_width   width: %x  \n", convert_fdt32(fdt_data[0]));
+			}
+
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC0, "interrupts", &lenp);
+
+			if (fdt_data != NULL) {
+				hwi_add_irq(convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+				kprintf( "fdt: ADD interrupt  vector: %x  \n", convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+			}
+
+			startup_io_unmap(base);
+            
+			mc1892vm14_set_spll_clk_from_fdt();
+		}
+		hwi_add_inputclk( mc1892vm14_get_spll_clk(), 1);
+
+		//the second sdhc controller
+		hwi_alloc_item( HWI_TAG_INFO( bus ), HWI_ITEM_BUS_SDIO, HWI_NULL_OFF );
+		//set name
+		string_idx = add_string(VM14_HWI_SDHC1);
+		tag = hwi_alloc_tag(HWI_TAG_INFO(dll));
+		tag->dll.name = string_idx;
+		//set irq
+		//hwi_add_irq(0x6f);
+
+		if (fdt_addr != NULL_PADDR32 && (fdt_flags & USE_FDT_SDMMC_CONFIG)) {
+			uintptr_t       base;
+			uint32_t        *fdt_data;
+			int             lenp = -1;
+
+			base = startup_io_map(fdt_size , fdt_addr );
+
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC1, "reg", &lenp);
+
+			if ( fdt_data != NULL) {
+				hwi_add_location((paddr_t)convert_fdt32(fdt_data[0]), (paddr_t)convert_fdt32(fdt_data[1]), 0, 0);
+
+				kprintf( "fdt: ADD sdhc_base    addr: %x   size %x  \n", convert_fdt32(fdt_data[0]),
+						 convert_fdt32(fdt_data[1]) );
+			}
+
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC1, "bus-width", &lenp);
+
+			if (fdt_data != NULL) {
+				tag = hwi_alloc_tag(HWI_TAG_INFO(busattr));
+				tag->busattr.width = convert_fdt32(fdt_data[0]);
+				kprintf( "fdt: ADD bus_width   width: %x  \n", convert_fdt32(fdt_data[0]));
+			}
+
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC1, "interrupts", &lenp);
+
+			if (fdt_data != NULL) {
+				hwi_add_irq(convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+				kprintf( "fdt: ADD interrupt  vector: %x  \n", convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+			}
+
+			startup_io_unmap(base);
+		}
+		hwi_add_inputclk( mc1892vm14_get_spll_clk(), 1);
 	}
 	/* TODO Add peripherals */
 }

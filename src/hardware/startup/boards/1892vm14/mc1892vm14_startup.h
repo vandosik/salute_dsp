@@ -32,7 +32,11 @@
 #endif
 
 void mc1892vm14_init_raminfo(char *);
+void mc1892vm14_set_cpu_clk( uint32_t );
+void mc1892vm14_set_cpu_clk_from_fdt(void);
 uint32_t mc1892vm14_get_cpu_clk(void);
+void mc1892vm14_set_spll_clk( uint32_t );
+void mc1892vm14_set_spll_clk_from_fdt(void);
 uint32_t mc1892vm14_get_spll_clk(void);
 uint32_t mc1892vm14_get_l1_clk(unsigned spll_clk);
 uint32_t mc1892vm14_get_l2_clk(unsigned l1_clk);

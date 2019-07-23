@@ -27,6 +27,7 @@
  *	Tell syspage about our RAM configuration
  */
 #include "startup.h"
+#include "fdt_startup_func.h"
 #include <arm/mc1892vm14.h>
 
 #define DDRMC_RAM_SIZE			1024
@@ -61,7 +62,31 @@ void mc1892vm14_init_raminfo(char *opts)
 		}
 	} 
 	if ( !user_memory_setup ) {
-		add_ram(MC1892VM14_DDRMC0_BASE, MEG(DDRMC_RAM_SIZE));
+		if (fdt_addr != NULL_PADDR32 && (fdt_flags & USE_FDT_MEM_CONFIG)) {
+			uintptr_t       base;
+			uint32_t        *fdt_data;
+			int             lenp = -1;
+			int             i = 0;
+			
+			
+			base = startup_io_map(fdt_size , fdt_addr );
+			
+			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, "memory", "reg", &lenp);
+			
+			if ( fdt_data != NULL)
+			{
+				for (i = 0; i< lenp/sizeof(uint32_t); i += 2)
+				{  
+					add_ram( convert_fdt32(fdt_data[i]), convert_fdt32( fdt_data[i + 1] ) );
+					
+					kprintf( "fdt: ADD RAM    addr: %x   size %x  \n", convert_fdt32(fdt_data[i]), convert_fdt32(fdt_data[i+1]) );
+				}
+			}
+			startup_io_unmap(base);
+		}
+		else {
+			add_ram(MC1892VM14_DDRMC0_BASE, MEG(DDRMC_RAM_SIZE));
+		}
 	}
 #endif
 }

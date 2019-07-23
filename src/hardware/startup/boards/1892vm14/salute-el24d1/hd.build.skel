@@ -10,7 +10,7 @@
 [linker="qcc -bootstrap -nostdlib -Wl,--no-keep-memory -Vgcc_ntoarmv7 -EL %(h!=0, -Wl,-Ttext -Wl,0x%t%)%(d!=0, -Wl,-Tdata -Wl,0x%d%) -o%o %i%[M -L%^i -Wl,-uinit_%n -lmod_%n%]"]
 [image=0x40100000]
 [virtual=${PROCESSOR},elf +compress] .bootstrap = {
-	startup-salute-el24d1 -Nel24d1
+	startup-salute-el24d1 -Nel24d1 -a0x40000000
 #	startup-salute-el24d1 -Nel24d1 -M0xA0000000,1G
 	# Раскомментируйте один вариант запуска микроядра
 
@@ -136,7 +136,8 @@ devc-ser8250-dw
 ###########################################################################
 ## uncomment for MMC/SD driver
 ###########################################################################
-devb-mmcsd-mcom
+#devb-mmcsd-mcom
+devb-sdmmc-mcom
 
 ###########################################################################
 ## uncomment for MMC/SD driver
@@ -244,18 +245,18 @@ EOF
 	io-usb -ddwcotg ioport=0x38002000,irq=64,nchan=16
 #ifdef VARIANT_mmc
 	for i in 0 1 2 3; do
-		devb-mmcsd-mcom blk cache=1M cam quiet $HD_FSOPTS
+		devb-sdmmc-mcom blk cache=1M cam quiet $HD_FSOPTS
 		waitfor /dev/hd0 0.5 >/dev/null 2>&1
 		if [ -e /dev/hd0 ]; then
 			break
 		else
-			slay -f devb-mmcsd-mcom
+			slay -f devb-sdmmc-mcom
 			k=0
-			while pidin -P devb-mmcsd-mcom | grep devb-mmcsd-mcom >/dev/null; do
+			while pidin -P devb-sdmmc-mcom | grep devb-sdmmc-mcom >/dev/null; do
 				sleep 0.1
 				((k++))
 				if [ $k -gt 5 ]; then
-					slay -f -9 devb-mmcsd-mcom
+					slay -f -9 devb-sdmmc-mcom
 				fi
 				if [ $k -gt 10 ]; then
 					exit 1
@@ -371,8 +372,9 @@ devnp-1892vm14-gemac.so
 ###########################################################################
 ## Программы КСЗ
 ###########################################################################
-${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/cksum_ksz
-${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/check_ksz
-${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/auditlogger_ksz
-${QNX_TARGET}/${PROCESSOR}/usr/ksz/bin/spooler_ksz
+[search=${NEUTRINO_TARGET}/${PROCESSOR}/usr/ksz/bin]
+cksum_ksz
+check_ksz
+auditlogger_ksz
+spooler_ksz
 #endif

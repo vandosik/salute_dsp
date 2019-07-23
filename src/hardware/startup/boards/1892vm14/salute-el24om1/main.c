@@ -27,6 +27,7 @@
 #include "startup.h"
 #include <time.h>
 #include "board.h"
+#include "fdt_startup_func.h"
 
 extern struct callout_rtn reboot_mc1892vm14;
 
@@ -68,15 +69,25 @@ main(int argc, char **argv, char **envv)
 	
 
 	add_callout_array(callouts, sizeof(callouts));
+    
+	/*
+	* Parse fdt options and init fdt functions
+	*/
+    
+	if (!process_fdt(argc, argv)) {
+		//return -1;
+	}
 
 	// common options that should be avoided are:
 	// "AD:F:f:I:i:K:M:N:o:P:R:S:Tvr:j:Z"
-	while ((opt = getopt(argc, argv, COMMON_OPTIONS_STRING "Wm:")) != -1) {
+	while ((opt = getopt(argc, argv, COMMON_OPTIONS_STRING "Wm:a:")) != -1) {
 		switch (opt) {
 			case 'W':
 				/* Enable WDT */
 				mc1892vm14_wdg_reload();
 				mc1892vm14_wdg_enable();
+				break;
+			case 'a':
 				break;
 			case 'm':
 				mc1892vm14_init_raminfo(optarg);
@@ -93,7 +104,6 @@ main(int argc, char **argv, char **envv)
 	select_debug(debug_devices, sizeof(debug_devices));
 
 	kprintf( "KPDA Neutrino startup for the Salute EL24PM1/OM1 board with Cortex-A9 MPCore\n" );
-
 	/*
 	 * Collect information on all free RAM in the system
 	 */
@@ -102,8 +112,15 @@ main(int argc, char **argv, char **envv)
 	/*
 	 * Get CPU frequency
 	 */
-	if (cpu_freq == 0)
-		cpu_freq = mc1892vm14_get_cpu_clk();
+	if (cpu_freq != 0) {
+		mc1892vm14_set_cpu_clk(cpu_freq);
+	}
+	/*fdt rewrites clk*/
+	if( (fdt_flags &  USE_FDT_CPU_PLL) && fdt_addr != NULL_PADDR32) {
+		mc1892vm14_set_cpu_clk_from_fdt();
+	}
+
+	cpu_freq = mc1892vm14_get_cpu_clk();
 
 	/*
 	 * Remove RAM used by modules in the image
