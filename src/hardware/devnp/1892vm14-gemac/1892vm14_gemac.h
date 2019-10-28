@@ -32,9 +32,15 @@
 #include <sys/cache.h>
 #include <sys/callout.h>
 #include <hw/inout.h>
+#if _KPDA_VERSION >= 1901
+#include <netdrvr/mdi.h>
+#include <netdrvr/eth.h>
+#include <netdrvr/nicsupport.h>
+#else
 #include <drvr/mdi.h>
 #include <drvr/eth.h>
 #include <drvr/nicsupport.h>
+#endif
 #include <hw/nicinfo.h>
 #include <sys/device.h>
 #include <siglock.h>

@@ -77,6 +77,7 @@
 #define GPU_CORE_SKYLAKE                            (0x00000100)
 #define GPU_CORE_BROXTON                            (0x00000200)
 #define GPU_CORE_KABYLAKE                           (0x00000400)
+#define GPU_CORE_COFFEELAKE                         (0x00000800 | GPU_CORE_KABYLAKE)
 #define GPU_CORE_MAX                                (0x000007ff)
 /* GPU Core Subfamily */
 #define GPU_CORE_IS_ULTRA                           (INTELGPU_3D_GET_CONTEXT_PTR->gpu_id & GPU_CORE_ATTR_ULTRA)
@@ -84,6 +85,7 @@
 #define GPU_CORE_IS_BROADWELL_ULTRA                 (GPU_IS_BROADWELL && GPU_CORE_IS_ULTRA)
 #define GPU_CORE_IS_SKYLAKE_ULTRA                   (GPU_IS_SKYLAKE && GPU_CORE_IS_ULTRA)
 #define GPU_CORE_IS_KABYLAKE_ULTRA                  (GPU_IS_KABYLAKE && GPU_CORE_IS_ULTRA)
+#define GPU_CORE_IS_COFFEELAKE_ULTRA                (GPU_IS_COFFEELAKE && GPU_CORE_IS_ULTRA)
 #define GPU_CORE_IS_ULX                             (INTELGPU_3D_GET_CONTEXT_PTR->gpu_id & GPU_CORE_ATTR_ULX)
 #define GPU_CORE_IS_HASWELL_ULX                     (GPU_IS_HASWELL && GPU_CORE_IS_ULX)
 #define GPU_CORE_IS_BROADWELL_ULX                   (GPU_IS_BROADWELL && GPU_CORE_IS_ULX)
@@ -121,9 +123,9 @@
 #define GPU_CORE_GEN                                (INTELGPU_3D_GET_CONTEXT_PTR->gpu_gen)
 #define GPU_CORE_DEVID                              (INTELGPU_3D_GET_CONTEXT_PTR->gpu_did)
 #define GPU_CORE_REVID                              (INTELGPU_3D_GET_CONTEXT_PTR->gpu_rev)
-#define GPU_CORE_NUM_PIPES                          ((GPU_IS_IRONLAKE || GPU_IS_SANDYBRIDGE || GPU_IS_VALLEYVIEW) ? 2 : \
-                                                    ((GPU_IS_IVYBRIDGE || GPU_IS_HASWELL || GPU_IS_BROADWELL || GPU_IS_CHERRYVIEW || GPU_IS_SKYLAKE || \
-                                                      GPU_IS_BROXTON || GPU_IS_KABYLAKE) ? 3 : 0))
+#define GPU_CORE_NUM_PIPES                          ((GPU_IS_IVYBRIDGE || GPU_IS_HASWELL || GPU_IS_BROADWELL || GPU_IS_CHERRYVIEW || GPU_IS_SKYLAKE || \
+                                                      GPU_IS_BROXTON || GPU_IS_KABYLAKE || GPU_IS_COFFEELAKE) ? 3 :                                                         \
+                                                     (GPU_IS_IRONLAKE || GPU_IS_SANDYBRIDGE || GPU_IS_VALLEYVIEW ? 2 : 0))
 #define GPU_CORE_NUM_PLANES( pipe )                 (INTELGPU_3D_GET_CONTEXT_PTR->info.num_sprites[pipe])
 #define GPU_CORE_NUM_THREADS_PER_EU                 (7)     /* Skylake/Volume 4 - Configurations.pdf */
 #define GPU_CORE_NUM_FPUS_PER_EU                    (8)     /* see wiki "en.wikipedia.org/wiki/List_of_Intel_graphics_processing_units": "Each EU contains 2 x SIMD-4 FPUs" */
@@ -139,11 +141,12 @@
 #define GPU_IS_SKYLAKE                              (INTELGPU_3D_GET_CONTEXT_PTR->gpu_id & GPU_CORE_SKYLAKE)
 #define GPU_IS_BROXTON                              (INTELGPU_3D_GET_CONTEXT_PTR->gpu_id & GPU_CORE_BROXTON)
 #define GPU_IS_KABYLAKE                             (INTELGPU_3D_GET_CONTEXT_PTR->gpu_id & GPU_CORE_KABYLAKE)
+#define GPU_IS_COFFEELAKE                           ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_id & GPU_CORE_MAX) == GPU_CORE_COFFEELAKE)
 #define GPU_IS_GEN5                                 (GPU_IS_IRONLAKE)
 #define GPU_IS_GEN6                                 (GPU_IS_SANDYBRIDGE)
 #define GPU_IS_GEN7                                 (GPU_IS_IVYBRIDGE || GPU_IS_HASWELL || (GPU_IS_VALLEYVIEW && !GPU_IS_CHERRYVIEW))
 #define GPU_IS_GEN8                                 (GPU_IS_BROADWELL || GPU_IS_CHERRYVIEW)
-#define GPU_IS_GEN9                                 (GPU_IS_SKYLAKE || GPU_IS_BROXTON || GPU_IS_KABYLAKE)
+#define GPU_IS_GEN9                                 (GPU_IS_SKYLAKE || GPU_IS_BROXTON || GPU_IS_KABYLAKE || GPU_IS_COFFEELAKE)
 #define GPU_CORE_SHORT_NAME                         (GPU_IS_i965        ? "i965 [unsupported]" : \
                                                      GPU_IS_IRONLAKE    ? "Ironlake" : \
                                                      GPU_IS_SANDYBRIDGE ? "SandyBridge" : \
@@ -154,6 +157,7 @@
                                                      GPU_IS_CHERRYVIEW  ? "CherryView" : \
                                                      GPU_IS_SKYLAKE     ? "Skylake" : \
                                                      GPU_IS_BROXTON     ? "Broxton (Apollo Lake)" : \
+                                                     GPU_IS_COFFEELAKE  ? "Coffee Lake" : \
                                                      GPU_IS_KABYLAKE    ? "Kabylake" : "unknown")
 #define GPU_IS_SKYLAKE_REVID_A0                     (GPU_IS_SKYLAKE && (GPU_CORE_REVID == GPU_CORE_SKYLAKE_REVID_A0))
 #define GPU_IS_SKYLAKE_REVID_B0                     (GPU_IS_SKYLAKE && (GPU_CORE_REVID == GPU_CORE_SKYLAKE_REVID_B0))
@@ -175,11 +179,12 @@
 #define GPU_IS_BROXTON_REVID( since, until )        (GPU_IS_BROXTON  && GPU_IS_REVID( since, until ))
 #define GPU_IS_KABYLAKE_REVID( since, until )       (GPU_IS_KABYLAKE && GPU_IS_REVID( since, until ))
 #define GPU_IS_IVB_GT1                              (GPU_CORE_DEVID == 0x0156 || GPU_CORE_DEVID == 0x0152 || GPU_CORE_DEVID == 0x015a)
+#define GPU_IS_CFL_ULT                              (GPU_IS_COFFEELAKE && GPU_CORE_IS_ULTRA)
 /* Available GPU Functions */
-#define GPU_HAS_DDI                                 (GPU_IS_HASWELL || GPU_IS_BROADWELL || GPU_IS_SKYLAKE || GPU_IS_BROXTON || GPU_IS_KABYLAKE)
+#define GPU_HAS_DDI                                 (GPU_IS_HASWELL || GPU_IS_BROADWELL || GPU_IS_SKYLAKE || GPU_IS_BROXTON || GPU_IS_KABYLAKE || GPU_IS_COFFEELAKE)
 #define GPU_HAS_DP_MST                              (GPU_IS_HASWELL || GPU_IS_BROADWELL || GPU_CORE_GEN >= 9)
 #define GPU_HAS_PSR                                 (GPU_IS_HASWELL    || GPU_IS_BROADWELL  || GPU_IS_VALLEYVIEW || GPU_IS_CHERRYVIEW || \
-                                                     GPU_IS_SKYLAKE || GPU_IS_KABYLAKE) /* Panel Self Refresh (PSR) - power saving feature */
+                                                     GPU_IS_SKYLAKE || GPU_IS_KABYLAKE || GPU_IS_COFFEELAKE) /* Panel Self Refresh (PSR) - power saving feature */
 #define GPU_HAS_DRRS                                (GPU_CORE_GEN >= 7) /* Display Refresh Rate Switching (Intel DRRS) - dynamic slowdown - see http://www.intel.com/content/dam/doc/white-paper/power-management-technologies-for-processor-graphics-display-and-memory-paper.pdf */
 #define GPU_HAS_AUX_IRQ                             (GPU_CORE_GEN >= 5) /* DisplayPort AUX Channel IRQ */
 #define GPU_HAS_GMBUS_IRQ                           (GPU_CORE_GEN >= 5) /* GMBUS IRQ */
@@ -191,9 +196,9 @@
 #define GPU_HAS_EDRAM                               (!!(INTELGPU_3D_GET_CONTEXT_PTR->edram_cap & EDRAM_ENABLED))  /* eLLC EDRAM memory */
 #endif
 #define GPU_HAS_L3_DPF                              (GPU_IS_IVYBRIDGE || GPU_IS_HASWELL)        /* DPF = dynamic parity feature */
-#define GPU_HAS_FPGA_DBG_UNCLAIMED                  (GPU_IS_HASWELL   || GPU_IS_BROADWELL || GPU_IS_SKYLAKE || GPU_IS_BROXTON || GPU_IS_KABYLAKE)
+#define GPU_HAS_FPGA_DBG_UNCLAIMED                  (GPU_IS_HASWELL   || GPU_IS_BROADWELL || GPU_IS_SKYLAKE || GPU_IS_BROXTON || GPU_IS_KABYLAKE || GPU_IS_COFFEELAKE)
 #define GPU_HAS_RUNTIME_PM                          (GPU_IS_GEN6 || GPU_IS_HASWELL || GPU_IS_BROADWELL || GPU_IS_VALLEYVIEW || GPU_IS_SKYLAKE || \
-                                                     GPU_IS_BROXTON || GPU_IS_KABYLAKE) /* Runtime power management */
+                                                     GPU_IS_BROXTON || GPU_IS_KABYLAKE || GPU_IS_COFFEELAKE) /* Runtime power management */
 #define GPU_HAS_CSR                                 (GPU_IS_GEN9)
 #define GPU_HAS_GUC                                 (GPU_IS_GEN9)   /* For now, anything with a GuC requires uCode loading, and then supports command submission once
                                                                      * loaded. But these are logically independent properties, so we have separate macros to test them.*/
@@ -210,7 +215,7 @@
 /* PCH Device ID */
 
 /* PCH ID */
-#define INTEL_PCH_DEVICE_ID_MASK                    (0xff00)
+#define INTEL_PCH_DEVICE_ID_MASK                    (0xff80)
 #define INTEL_PCH_TYPE_NONE                         (0x0000)
 #define INTEL_PCH_TYPE_NOP                          (0x0100)
 #define INTEL_PCH_TYPE_IBX                          (0x3b00)    /* Ibex Peak PCH (PCI DID mask)       - GPU_IS_GEN5 */
@@ -220,7 +225,9 @@
 #define INTEL_PCH_TYPE_LPT_LP                       (0x9c00)    /* LynxPoint LP PCH (PCI DID mask)    - GPU_CORE_HASWELL( ultra )  || GPU_CORE_BROADWELL( ultra ) */
 #define INTEL_PCH_TYPE_SPT                          (0xA100)    /* SunrisePoint PCH (PCI DID mask)    - GPU_CORE_SKYLAKE || GPU_CORE_KABYLAKE */
 #define INTEL_PCH_TYPE_SPT_LP                       (0x9D00)    /* SunrisePoint LP PCH (PCI DID mask) - GPU_CORE_SKYLAKE || GPU_CORE_KABYLAKE */
-#define INTEL_PCH_TYPE_KBP                          (0xA200)    /* KabyPoint PCH (PCI DID mask)       - GPU_CORE_KABYLAKE */
+#define INTEL_PCH_TYPE_KBP                          (0xA280)    /* KabyPoint PCH (PCI DID mask)       - GPU_CORE_KABYLAKE || GPU_CORE_COFFEELAKE */
+#define INTEL_PCH_TYPE_CNP                          (0xA300)    /* Cannon Lake PCH (PCI DID mask)     - GPU_CORE_COFFEELAKE */
+#define INTEL_PCH_TYPE_CNP_LP                       (0x9D80)    /* Cannon Lake LP PCH (PCI DID mask)  - GPU_CORE_COFFEELAKE */
 /* PCH Tests */
 #define GPU_PCH_IS_IBX                              ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_IBX)
 #define GPU_PCH_IS_CPT                              ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_CPT)
@@ -230,6 +237,8 @@
 #define GPU_PCH_IS_SPT                              ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_SPT)
 #define GPU_PCH_IS_SPT_LP                           ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_SPT_LP)
 #define GPU_PCH_IS_KBP                              ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_KBP)
+#define GPU_PCH_IS_CNP                              ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_CNP)
+#define GPU_PCH_IS_CNP_LP                           ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_CNP_LP)
 #define GPU_PCH_IS_NOP                              ((INTELGPU_3D_GET_CONTEXT_PTR->gpu_pch & INTEL_PCH_DEVICE_ID_MASK) == INTEL_PCH_TYPE_NOP)
 #define GPU_PCH_IS_SUPPORTED                        (GPU_PCH_IS_IBX || GPU_PCH_IS_CPT || GPU_PCH_IS_PPT || GPU_PCH_IS_LPT || GPU_PCH_IS_LPT_LP || \
                                                      GPU_PCH_IS_SPT || GPU_PCH_IS_SPT_LP || GPU_PCH_IS_KBP)
@@ -244,6 +253,7 @@
 #define GPU_HAS_PCH_LPT_H                           (GPU_PCH_IS_LPT)
 #define GPU_HAS_PCH_SPT                             (GPU_PCH_IS_SPT || GPU_PCH_IS_SPT_LP)
 #define GPU_HAS_PCH_KBP                             (GPU_PCH_IS_KBP)
+#define GPU_HAS_PCH_CNP                             (GPU_PCH_IS_CNP || GPU_PCH_IS_CNP_LP)
 #define GPU_HAS_PCH_SPLIT                           (GPU_PCH_IS_SUPPORTED)  /* GPU function splitted between PCH- (PCI class = ISA Bridge) and GPU-
                                                                              * (PCI class = Display) PCI devices */
 
@@ -814,6 +824,11 @@ typedef struct intelgpu_drm_3d
             uint8_t             has_slice_pg:1;
             uint8_t             has_subslice_pg:1;
             uint8_t             has_eu_pg:1;
+
+            /* Obsolete (gen8) slice/subslice/EU info */
+            uint8_t             slice_total;
+            uint8_t             subslice_total;
+            uint8_t             subslice_per_slice;
         }                       sseu;
 
         struct color_luts {
@@ -923,6 +938,9 @@ void intelgpu_ggtt_unbind_buffer( uint32_t domain, uint64_t addr, uint64_t offse
 
 /* Vsync polling support */
 uint32_t intelgpu_vblank_poll( void *drm_device, int pipe );
+
+/* DDC/EDID */
+int intelgpu_dp_get_edid( void *drm_device, int pipe, void *buf, int size );
 
 /* Cursor plane */
 int intelgpu_display_update_cursor_plane( void *drm_device, int pipe, bool enable, bool move_event, uint32_t format /* 2 = 64x64x2bit / 64/128/256 = XxXx32bit */,

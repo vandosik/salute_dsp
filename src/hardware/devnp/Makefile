@@ -6,5 +6,5 @@
 # Note: EARLY_DIRS needs to include early dirs required for both dev_qnx and dev_nda
 #
 LIST=DEVNP
-EARLY_DIRS=ath_hal lib
+EARLY_DIRS=lib
 include recurse.mk

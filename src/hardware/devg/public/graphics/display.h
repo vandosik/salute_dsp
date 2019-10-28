@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #endif
 
-#ifndef _WIN32
 #ifdef __QNXNTO__
 #ifndef __INTTYPES_H_INCLUDED
 #include <inttypes.h>
@@ -45,75 +44,46 @@
 #ifndef __MMAN_H_INCLUDED
 #include <sys/mman.h>
 #endif
-#endif /* _WIN32 */
 
 #ifndef _STDIO_H_INCLUDED
 #include <stdio.h>
 #endif
 
-#ifndef _WIN32
 #ifndef	_PM_H_INCLUDED
 #include <sys/pm.h>
 #endif
-#endif /* _WIN32 */
 
 #ifndef _GRAPHICS_ROP_H_INCLUDED
 #include <graphics/rop.h>
 #endif
 
-#ifndef _WIN32
 #include <semaphore.h>
-#endif
 
-#ifdef _WIN32
-	#include <gfpr/gfpr.h>
-	#ifdef _MSC_VER // Win32 Visual C++
-		#ifdef WINSIM_EXPORTS
-	    	#define WINSIM_API __declspec(dllexport)
-		#else
-			#define WINSIM_API __declspec(dllimport)
-		#endif
-	
-		#ifdef SOFT3D_EXPORTS
-			#define SOFT3D_API __declspec(dllexport)
-		#else
-			#define SOFT3D_API __declspec(dllimport)
-		#endif
-	#else // Win32 mingw32
-		#include <stdint.h>
-		#define WINSIM_API
-  		#define SOFT3D_API
-	#endif
-	typedef uint32_t		disp_paddr_t;
-	typedef uint32_t		pm_power_mode_t;
-	typedef uint64_t		paddr_t;
+#define WINSIM_API
+#define SOFT3D_API
+#ifndef __QNXNTO__
+    #include <sys/cdefs.h>
+    #ifndef _INTTYPES_H_INCLUDED
+        typedef char				int8_t;
+        typedef short				int16_t;
+        typedef short				int16_t;
+        typedef unsigned char			uint8_t;
+        typedef unsigned short			uint16_t;
+        typedef unsigned long			uint32_t;	/* This line may have to be omitted, depending on which version of the QNX4 header files you build against */
+        typedef int8_t				_int8;
+        typedef int16_t				_int16;
+        typedef uint8_t				_uint8;
+        typedef uint16_t			_uint16;
+        typedef uint32_t			_uint32;
+    #endif
+    typedef uint32_t			disp_paddr_t;
+    typedef uint32_t			uintptr_t;
 #else
-	#define WINSIM_API
-  	#define SOFT3D_API
-	#ifndef __QNXNTO__
-		#include <sys/cdefs.h>
-		#ifndef _INTTYPES_H_INCLUDED
-			typedef char				int8_t;
-			typedef short				int16_t;
-			typedef short				int16_t;
-			typedef unsigned char			uint8_t;
-			typedef unsigned short			uint16_t;
-			typedef unsigned long			uint32_t;	/* This line may have to be omitted, depending on which version of the QNX4 header files you build against */
-			typedef int8_t				_int8;
-			typedef int16_t				_int16;
-			typedef uint8_t				_uint8;
-			typedef uint16_t			_uint16;
-			typedef uint32_t			_uint32;
-		#endif
-		typedef uint32_t			disp_paddr_t;
-		typedef uint32_t			uintptr_t;
-	#else
-		typedef uint64_t			disp_paddr_t;
-	#endif
-	#ifndef _HW_INOUT_INCLUDED
-		#include <hw/inout.h>
-	#endif
-#endif /* _WIN32 */
+    typedef uint64_t			disp_paddr_t;
+#endif
+#ifndef _HW_INOUT_INCLUDED
+    #include <hw/inout.h>
+#endif
 
 #define DISP_MAX_MODES			72
 
@@ -308,7 +278,6 @@ typedef int		disp_fx_t;		/* Fixed point: S1:I15:F16 */
 #define DISP_CAP_3D_ACCEL		0x00000004
 #define DISP_CAP_NO_IO_PRIVITY		0x00000008	/* 2D/3D entry points can be called without I/O privity */
 #define DISP_CAP_DYNAMIC_MODESWITCH	0x00000010	/* Display modeswitches can occur without damaging any surfaces, or disturbing the layer state  */
-#define DISP_CAP_VG_ACCEL		0x00000020	/* driver has some form of VG acceleration support */
 
 /* disp_adapter.bus_type */
 #define DISP_BUS_TYPE_UNKNOWN			0x00000000
@@ -354,7 +323,7 @@ typedef struct disp_adapter {
 			void		*pci_dev_handle;	/* Used internally by disputil */
 #else
 			unsigned	pci_bus;		/* Used internally by disputil */
-			unsigned	pci_devfunc;		/* Used internally by disputil */
+			uintptr_t	pci_devfunc;		/* Used internally by disputil */
 #endif
 			unsigned short	pci_vendor_id;		/* Devices PCI vendor ID (0 if not applicable) */
 			unsigned short	pci_device_id;		/* Devices PCI device ID */
@@ -369,7 +338,7 @@ typedef struct disp_adapter {
 		} pci;
 		struct {
 			unsigned	reserved1;
-			unsigned	reserved2;
+			uintptr_t	reserved2;
 			unsigned short	vendor_id;	/* Devices vendor ID (0 if not applicable) */
 			unsigned short	device_id;	/* Devices device ID */
 			short		index;		/* Together, {vendor_id, deviceid, index} uniquely identify a device in the system */
@@ -459,8 +428,6 @@ typedef struct disp_module_info {
 #define DISP_SURFACE_RECT			0x00040000
 #define DISP_SURFACE_STRIDE_ALIGNED		0x00080000
 #define DISP_SURFACE_DRIVER_PRIVATE		0x00100000	/* Has surface been specially mapped for the given process */
-#define DISP_SURFACE_VG_READABLE			0x00200000	/* surface is read-accessible by VG engine */
-#define DISP_SURFACE_VG_TARGETABLE		0x00400000	/* VG engine can render into surface */
 #define DISP_SURFACE_UMA_MEM				0x00800000	/* surface is allocated by UMA GPU through an aperature */
 
 /* Hint flags - mutually exclusive */

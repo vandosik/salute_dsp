@@ -78,8 +78,9 @@ void mc1892vm14_init_raminfo(char *opts)
 				for (i = 0; i< lenp/sizeof(uint32_t); i += 2)
 				{  
 					add_ram( convert_fdt32(fdt_data[i]), convert_fdt32( fdt_data[i + 1] ) );
-					
-					kprintf( "fdt: ADD RAM    addr: %x   size %x  \n", convert_fdt32(fdt_data[i]), convert_fdt32(fdt_data[i+1]) );
+					if (debug_flag > 1) {
+						kprintf( "fdt: ADD RAM addr: %x size %x\n", convert_fdt32(fdt_data[i]), convert_fdt32(fdt_data[i+1]) );
+					}
 				}
 			}
 			startup_io_unmap(base);

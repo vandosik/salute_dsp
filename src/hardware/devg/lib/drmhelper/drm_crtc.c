@@ -188,7 +188,7 @@ int drm_encoder_init(struct drm_device *dev,
 		      const struct drm_encoder_funcs *funcs,
 		      int encoder_type, const char *name, ...)
 {
-	int ret;
+	int ret = 0;
 	static unsigned lastid = 0;
 
 #ifndef __QNX__

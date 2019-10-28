@@ -15,6 +15,9 @@
  * for other proprietary rights or license notices, as well as the QNX Development 
  * Suite License Guide at http://licensing.qnx.com/license-guide/ for other information.
  */
+/* KPDA has no GLES headers */
+#if 0
+
 #ifndef _GRAPHICS_3D_H_INCLUDED
 #define _GRAPHICS_3D_H_INCLUDED
 
@@ -31,11 +34,6 @@
 
 #ifndef _GRAPHICS_REND_H_INCLUDED
 #include <graphics/rend.h>
-#endif
-
-#ifdef _MSC_VER
-#define near d_near
-#define far d_far
 #endif
 
 /* Sizes of the matrix stacks */
@@ -769,5 +767,7 @@ extern SOFT3D_API int devg_get_rendfuncs(disp_adapter_t *adapter,
 __END_DECLS
 
 #endif /* _GRAPHICS_3D_H_INCLUDED */
+
+#endif /* disabled in KPDA */
 
 __SRCVERSION( "$URL: http://community.qnx.com/svn/repos/internal-outsourcing/trunk/hardware/devg/public/graphics/3d.h $ $Rev: 1624 $" )

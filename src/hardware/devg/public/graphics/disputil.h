@@ -29,7 +29,7 @@
 #ifndef __TYPES_H_INCLUDED
 #include <sys/types.h>
 #endif
-#ifndef _WIN32
+
 #ifndef __INTTYPES_H_INCLUDED
 #ifdef __QNXNTO__
 #include <inttypes.h>
@@ -43,7 +43,6 @@
 #endif
 #ifndef __MMAN_H_INCLUDED
 #include <sys/mman.h>
-#endif
 #endif
 
 /* Flags for disp_pci_init() */
@@ -126,7 +125,11 @@ int disp_pci_dev_write_config(unsigned bus, unsigned devfunc, unsigned offset,
 
 /* Memory management */
 void *disp_mmap_device_memory(disp_paddr_t base, size_t len, int prot, int flags);
+#ifndef __64__
 unsigned long disp_mmap_device_io(size_t len, disp_paddr_t base);
+#else
+unsigned int disp_mmap_device_io(size_t len, disp_paddr_t base);
+#endif
 void disp_munmap_device_memory(void volatile * addr, size_t len);
 int disp_munmap_device_io(uintptr_t io, size_t len);
 disp_paddr_t disp_phys_addr(void *addr);
@@ -141,7 +144,7 @@ disp_surface_t * disp_vm_alloc_surface_external(disp_adapter_t *adapter,
     int width, int height, unsigned flags);
 void disp_vm_free_surface_external(disp_adapter_t *adapter,
     disp_surface_t *surf);
-unsigned long disp_vm_mem_avail(pool_handle_t pool);
+unsigned int disp_vm_mem_avail(pool_handle_t pool);
 pool_handle_t disp_vm_create_pool(disp_adapter_t *adapter,
     disp_surface_t *surf, int bytealign);
 int disp_vm_destroy_pool(disp_adapter_t *adapter,
@@ -169,6 +172,12 @@ int disp_release_vga_resources(disp_adapter_t *adapter);
 
 void disp_vga_restore_state(disp_adapter_t *ctx, disp_vga_state_t *state);
 void disp_vga_save_state(disp_adapter_t *ctx, disp_vga_state_t *state);
+
+/* VGA font support */
+int disp_vgafont_load(char *fp, int char_count, int char_start);
+int disp_vgafont_save(char *fp, int char_count, int char_start);
+int disp_vgafont_push(void);
+int disp_vgafont_pop(void);
 
 __END_DECLS
 

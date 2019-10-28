@@ -13,15 +13,19 @@
 extern unsigned int __sw_hweight8(unsigned int w);
 extern unsigned int __sw_hweight16(unsigned int w);
 extern unsigned int __sw_hweight32(unsigned int w);
+#ifndef __QNX4__
 extern unsigned long __sw_hweight64(u64 w);
+#endif  /* __QNX4__ */
 
 /*
  * Include this here because some architectures need generic_ffs/fls in
  * scope
  */
-#if !defined( __QNX__ ) || defined( __X86__ )
+#if !defined( __QNX__ ) || (defined( __X86__ ) && !defined( __QNX4__ ))
+#include <strings.h>
 #include <asm/bitops.h>
 #else
+#include <strings.h>
 #include <asm-generic/bitops/bitops.h>
 #endif
 
@@ -47,10 +51,12 @@ extern unsigned long __sw_hweight64(u64 w);
 	     (bit) < (size);					\
 	     (bit) = find_next_zero_bit((addr), (size), (bit) + 1))
 
+#ifndef __QNX4__
 static __always_inline unsigned long hweight_long(unsigned long w)
 {
         return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
 }
+#endif  /* __QNX4__ */
 
 static inline int get_count_order(unsigned int count)
 {

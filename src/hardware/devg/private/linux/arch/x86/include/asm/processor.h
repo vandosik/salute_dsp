@@ -131,17 +131,34 @@ extern struct cpuinfo_x86	boot_cpu_data;
 extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 
+#ifndef __QNX4__
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 				unsigned int *ecx, unsigned int *edx)
 {
 	/* ecx is often an input as well as an output. */
 #if defined( __QNX__ ) && defined( __PIC__ )
-    asm volatile("xchg %%ebx, %%esi; cpuid; xchg %%esi, %%ebx;"
-        : "=a" (*eax),
-          "=S" (*ebx),
-          "=d" (*edx)
-        : "0" (*eax)
-        : "cx");
+    uint32_t  __FUNC = *eax, __SUBFUNC = *ecx, __EAX, __ECX, __EDX;
+    uint64_t __BX;
+
+    __asm__ __volatile__ (
+#if defined( __i386__ )
+            "xchgl %%ebx, %k1; cpuid; xchgl %%ebx, %k1;"
+#elif defined( __x86_64__ ) || (defined( __X86__ ) && defined( __64__ ))
+            "xchgq %%rbx, %q1; cpuid; xchgq %%rbx, %q1;"
+#else
+#error "Unexpected CPU architecture"
+#endif
+            : "=a" (__EAX),
+              "=&r"(__BX),
+              "=c" (__ECX),
+              "=d" (__EDX)
+            : "a"  (__FUNC),
+              "c"  (__SUBFUNC));
+
+    *eax = __EAX;
+    *ebx = __BX;
+    *ecx = __ECX;
+    *edx = __EDX;
 #else
 	asm volatile("cpuid"
 	    : "=a" (*eax),
@@ -221,5 +238,6 @@ static inline unsigned int cpuid_edx(unsigned int op)
 
 	return edx;
 }
+#endif  /* __QNX4__ */
 
 #endif /* _ASM_X86_PROCESSOR_H */

@@ -21,13 +21,6 @@
 
 
 
-#ifdef _MSC_VER
-#define __inline__
-#define __attribute__(a)
-typedef unsigned short uint16_t;
-#endif
-
-
 /* Optimized inline routines for low-level graphics operations */
 
 #ifndef _GRAPHICS_DINLINE_H_INCLUDED

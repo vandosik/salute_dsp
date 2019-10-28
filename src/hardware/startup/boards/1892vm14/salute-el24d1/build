@@ -243,7 +243,7 @@ ftp        stream tcp nowait root  /proc/boot/ftpd           in.ftpd -l
 telnet     stream tcp nowait root  /proc/boot/telnetd        in.telnetd
 }
 
-/etc/services = ${QNX_TARGET}/etc/services
+/etc/services = ${KPDA_TARGET}/etc/services
 
 /etc/passwd = {
 root:x:0:0:Superuser:/tmp:/bin/sh

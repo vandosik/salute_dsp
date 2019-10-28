@@ -319,6 +319,9 @@ typedef struct disp_modefuncs {
 	int (*layer_flushrect)(disp_adapter_t *adapter, int dispno,
 	    int layer_idx, int x1, int y1, int x2, int y2);
 	    
+	int (*layer_set_palette)(disp_adapter_t *adapter, int dispno,
+	    int layer_idx, int index, int count, disp_color_t *pal);
+	    
 	void (*reserved1[1])();
 } disp_modefuncs_t;
 

@@ -146,24 +146,11 @@ int vpout_init( disp_adapter_t *adapter, char *optstring )
     vpout_draw->registers = vpout->registers;
 
     /* Get aperture metrics */
-    vpout->aperture       = (uint8_t *)mmap64( NULL, vpout->aperture_size, PROT_READ | PROT_WRITE | PROT_NOCACHE, MAP_PHYS | MAP_ANON, NOFD, 0 );
-    if ( vpout->aperture == MAP_FAILED || vpout->aperture == NULL )
-    {
-        disp_printf( adapter, "[vpoutfb] Fatal: can't mmap aperture" );
-        goto fail2;
-    }
-    if ( mem_offset64( vpout->aperture, NOFD, vpout->aperture_size, (off64_t *)&vpout->aperture_base, NULL ) == -1 )
-    {
-        disp_printf( adapter, "[vpoutfb] Fatal: can't allcoate GPU memory" );
-        goto fail3;
-    }
-    disp_printf( adapter, "[vpoutfb] GPU memory size: %d Mb", vpout->aperture_size / 1024 / 1024 );
-
     vpout->cmctr_registers = (uint8_t *)mmap64( NULL, CMCTR_REGISTERS_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE, MAP_PHYS, NOFD, CMCTR_REGISTERS_BASE );
     if ( vpout->cmctr_registers == MAP_FAILED || vpout->cmctr_registers == NULL )
     {
         disp_printf( adapter, "[vpoutfb] Fatal: can't mmap CMCTR registers" );
-        goto fail3;
+        goto fail2;
     }
     /* Check PLLs */
     if ( (*CMCTR_MMIO32( SEL_CPLL ) & SEL_CPLL_LOCK) || ((*CMCTR_MMIO32( SEL_CPLL ) & SEL_CPLL_SEL) == 0) )
@@ -195,8 +182,8 @@ int vpout_init( disp_adapter_t *adapter, char *optstring )
         vpout->hdmi[i].device.it66121.registers = gpio_registers;
     }
 
-    adapter->adapter_ram  = vpout->aperture_size;
-    adapter->caps        |= DISP_CAP_NO_IO_PRIVITY;
+    adapter->adapter_ram  = 0;
+    adapter->caps         = DISP_CAP_NO_IO_PRIVITY;
 
     /* Setup ISR */
     if ( vpout_isr_setup( adapter, vpout, vpout_draw ) == -1 )
@@ -209,8 +196,6 @@ int vpout_init( disp_adapter_t *adapter, char *optstring )
 
 fail4:
     munmap( vpout->cmctr_registers, CMCTR_REGISTERS_SIZE );
-fail3:
-    munmap( vpout->aperture, vpout->aperture_size );
 fail2:
     munmap( vpout_draw->registers, vpout->registers_size );
 fail1:
@@ -250,7 +235,6 @@ void vpout_fini( disp_adapter_t *adapter )
         }
     munmap( vpout->cmctr_registers, CMCTR_REGISTERS_SIZE  );
     munmap( vpout->registers,       vpout->registers_size );
-    munmap( vpout->aperture,        vpout->aperture_size  );
 
     /* Free draw-context */
     free( vpout_draw );

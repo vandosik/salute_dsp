@@ -31,6 +31,7 @@
 unsigned	startup_smp_start;
 unsigned	startup_reset_vec;
 unsigned	startup_reset_vec_addr;
+unsigned	board_smp_new = 0;
 
 unsigned board_smp_num_cpu()
 {
@@ -57,6 +58,10 @@ void board_smp_init(struct smp_entry *smp, unsigned num_cpus)
 #define SPRAM_ADDR_OFFSET				0xFFF4
 #define SMP_START_MAGIC					0xDEADBEEF
 
+extern char mcom02_secondary_trampoline;
+extern char mcom02_secondary_trampoline_end;
+extern unsigned long mcom02_secondary_boot_vector;
+extern void mcom02_secondary_startup(void);
 int board_smp_start(unsigned cpu, void(*start)(void))
 {
 	
@@ -64,16 +69,47 @@ int board_smp_start(unsigned cpu, void(*start)(void))
 		kprintf("board_smp_start: cpu%d -> %x\n", cpu, start);
 	}
 
-	/* 
-	 * FIXME: Support hack used in u-boot.
-	 * Core1 always poll for magic value in SPRAM and when it will 
-	 * receive it jumps to the start addr stored in SPRAM.
-	 * So we have to write magic and core1 start addr to SPRAM.
-	 *
-	 */
-	out32(MC1892VM14_SPRAM_START + SPRAM_MAGIC_OFFSET, SMP_START_MAGIC);
-	out32(MC1892VM14_SPRAM_START + SPRAM_ADDR_OFFSET, start);
-	
+	if ( !board_smp_new ) {
+		/* 
+		* FIXME: Support hack used in u-boot.
+		* Core1 always poll for magic value in SPRAM and when it will 
+		* receive it jumps to the start addr stored in SPRAM.
+		* So we have to write magic and core1 start addr to SPRAM.
+		*
+		*/
+		out32(MC1892VM14_SPRAM_START + SPRAM_MAGIC_OFFSET, SMP_START_MAGIC);
+		out32(MC1892VM14_SPRAM_START + SPRAM_ADDR_OFFSET, start);
+		return 1;
+	}
+
+	if (debug_flag > 1) {
+		kprintf("board_smp_start: cpu%d -> %x\n", cpu, start);
+	}
+	uint32_t trampoline_sz = &mcom02_secondary_trampoline_end -
+			    &mcom02_secondary_trampoline;
+	if (debug_flag > 1) {
+		kprintf("board_smp_start: trampoline_sz %d\n", trampoline_sz);
+		kprintf("board_smp_start: mcom02_secondary_boot_vector %d\n", mcom02_secondary_boot_vector);
+	}
+	mcom02_secondary_boot_vector = (unsigned long)mcom02_secondary_startup;
+	if (debug_flag > 1) {
+		kprintf("board_smp_start: mcom02_secondary_boot_vector %d\n", mcom02_secondary_boot_vector);
+	}
+	void *mc1892vm14_spram_start = (void *)MC1892VM14_SPRAM_START;
+	memcpy(mc1892vm14_spram_start, &mcom02_secondary_trampoline, trampoline_sz);
+
+	/* Remap BOOT so that CPU1 boots from SPRAM where the boot
+	 * vector is stored */
+	if (debug_flag > 1) {
+		kprintf("board_smp_start: Remap BOOT\n");
+	}
+	out32(MC1892VM14_SMCTR_BASE + SMCTR_BOOT_REMAP, SMCTR_BOOT_REMAP_SPRAM);
+
+	/* Turn on power domain for CPU1 */
+	if (debug_flag > 1) {
+		kprintf("board_smp_start: Turn on power domain for CPU1 %d\n", (1 << (cpu + 1)));
+	}
+	out32(MC1892VM14_PMCTR_BASE + MC1892VM14_PMCTR_SYS_PWR_UP, (1 << (cpu + 1)));
 	return 1;
 }
 

@@ -20,13 +20,11 @@ static char *vpout_opts[] = {
     "size",
 #define VPOUT_OPT_IRQ                   3
     "irq",
-#define VPOUT_OPT_MEMORY                4
-    "memory",
-#define VPOUT_OPT_HDMI                  5
+#define VPOUT_OPT_HDMI                  4
     "hdmi",
-#define VPOUT_OPT_ENABLE                6
+#define VPOUT_OPT_ENABLE                5
     "enable",
-#define VPOUT_OPT_VERBOSE               7
+#define VPOUT_OPT_VERBOSE               6
     "verbose",
     NULL
 };
@@ -53,11 +51,12 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
     {
         int                 fd       = 0;
 
-        strcpy( path, "/usr/photon/config/vpoutfb.conf" );
+        strcpy( path, "/etc/system/config/vpoutfb.conf" );
         fd = open( path, O_RDONLY );
         if ( fd == -1 )
         {
-            strcpy( path, "/etc/system/config/vpoutfb.conf" );
+#if 0
+            strcpy( path, "/usr/photon/config/vpoutfb.conf" );
             fd = open( path, O_RDONLY );
             if ( fd != -1 )
             {
@@ -65,6 +64,7 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
 
                 filename = path;
             }
+#endif
         } else {
             close( fd );
 
@@ -82,7 +82,6 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
     vpout->display[0]     = CONFIG_DISPLAY_PORT_HDMI0;
     vpout->enabled        = 0;
     vpout->registers_size = 0x1000;
-    vpout->aperture_size  = 2 * VPOUT_HW_PRIMARY_SURFACE_SIZE /* 128 Mb */;
 
     if ( fin == NULL )
     {
@@ -131,16 +130,6 @@ int parse_options( disp_adapter_t *adapter, vpout_context_t *vpout, char *filena
             case VPOUT_OPT_IRQ:
                 vpout->irq = strtoul( value, NULL, 0 );
                 disp_printf( adapter, "[vpoutfb] Configuration: display controller interrupt - %d", vpout->irq );
-                break;
-
-            case VPOUT_OPT_MEMORY:
-                tmp = strtoul( value, NULL, 0 );
-                if ( tmp < (VPOUT_HW_PRIMARY_SURFACE_SIZE >> 20) || tmp > 2048 )
-                    disp_printf( adapter, "[vpoutfb] Error: invalid video memory size (default value used, see vpoutfb.conf)" );
-                else {
-                    vpout->aperture_size = tmp << 20;
-                    disp_printf( adapter, "[vpoutfb] Configuration: video memory size - %d Mb", vpout->aperture_size );
-                }
                 break;
 
             case VPOUT_OPT_HDMI:

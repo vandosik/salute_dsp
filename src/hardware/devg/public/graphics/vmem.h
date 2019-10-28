@@ -36,7 +36,6 @@
 #define DISP_VMEM_HINT_USAGE_2D			0x00000002
 #define DISP_VMEM_HINT_USAGE_3D			0x00000003
 #define DISP_VMEM_HINT_USAGE_3D_BACKBUFFER	0x00000004
-#define DISP_VMEM_HINT_USAGE_VG			0x00000005
 
 /* disp_aperture.flags */
 #define DISP_APER_NOCACHE			0x00000001	/* Aperture must be mapped with PROT_NOCACHE */
@@ -106,7 +105,8 @@ typedef struct disp_memfuncs {
 	    int surface_index, int width, int height,
 	    unsigned sflags, unsigned hint_flags, disp_alloc_info_t *info);
    	int (*submit_alloced_info)(disp_adapter_t *adapter, disp_surface_t *surf, unsigned flags);
-   	void	(*reserved[4])(void);
+    int (*submit_freed_shmem)(disp_adapter_t *adapter, disp_surface_t *surf);
+   	void	(*reserved[3])(void);
 } disp_memfuncs_t;
 
 /* Main memory manager entry point */

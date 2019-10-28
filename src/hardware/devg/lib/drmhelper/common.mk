@@ -8,6 +8,14 @@ include $(QCONFIG)
 INSTALLDIR=/dev/null
 
 
+OS_VERSION=$(shell uname -v)
+OS_NAME=$(shell uname -s)
+ifeq (425,$(OS_VERSION))
+# Exclude QNX6 only objects
+EXCLUDE_OBJS += drm_cache.o
+endif
+
+
 SO_VERSION = 2
 
 include $(MKFILES_ROOT)/qmacros.mk
@@ -22,9 +30,10 @@ CCFLAGS += -D__KERNEL__
 
 
 ifeq ($(OS), qnx4)
-CCFLAGS += -Otax -D__X86__ -D__LITTLENDIAN__
+CCFLAGS += -Otax -D__X86__ -D__LITTLENDIAN__ -D__QNX4__
 INCVPATH += $(PRODUCT_ROOT)/emu86/qnx4/emu86 $(PRODUCT_ROOT)/emu86/qnx4/glue $(PRODUCT_ROOT)/emu86/qnx4/include
 else
+CCFLAGS += -Wno-unused-variable
 ifeq ($(origin NDEBUG),undefined)
 CCFLAGS += -O0
 endif

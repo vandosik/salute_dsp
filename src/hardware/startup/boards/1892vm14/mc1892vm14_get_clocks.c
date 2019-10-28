@@ -32,7 +32,9 @@ void mc1892vm14_set_cpu_clk( uint32_t clk )
 	uint32_t apll_div;
 
 	apll_div = clk / EL24D1_XTI_FREQ;
-	kprintf( "Apll_div znach_manual: %x  \n", apll_div );
+	if (debug_flag > 1) {
+		kprintf( "Apll_div manual: %x  \n", apll_div );
+	}
 
 	out32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_APLL_REG , apll_div - 1);
 }
@@ -50,7 +52,9 @@ void mc1892vm14_set_cpu_clk_from_fdt(void)
 
 	if ( apll_div != NULL )
 	{
-		kprintf( "Apll_div znach_fdt: %x  \n", convert_fdt32(*apll_div) );
+		if (debug_flag > 1) {
+			kprintf( "Apll_div: %x\n", convert_fdt32(*apll_div) );
+		}
 		out32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_APLL_REG , convert_fdt32(*apll_div) - 1);
 	}
 
@@ -70,7 +74,9 @@ void mc1892vm14_set_spll_clk( uint32_t clk )
 	uint32_t spll_div;
 
 	spll_div = clk / EL24D1_XTI_FREQ;
-	kprintf( "Spll_div znach_manual: %x  \n", spll_div );
+	if (debug_flag > 1) {
+		kprintf( "Spll_div manual: %x\n", spll_div );
+	}
 
 	out32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_SPLL_REG , spll_div - 1);
 }
@@ -88,7 +94,9 @@ void mc1892vm14_set_spll_clk_from_fdt(void)
 
 	if ( spll_div != NULL )
 	{
-		kprintf( "Spll_div znach_fdt: %x  \n", convert_fdt32(*spll_div) );
+		if (debug_flag > 1) {
+			kprintf( "Spll_div: %x\n", convert_fdt32(*spll_div) );
+		}
 		out32(MC1892VM14_CMCTR_BASE + MC1892VM14_CMCTR_SEL_SPLL_REG , convert_fdt32(*spll_div) - 1);
 	}
 

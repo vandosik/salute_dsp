@@ -68,6 +68,7 @@
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
+#ifndef __QNX4__
 static __always_inline void
 set_bit(long nr, volatile unsigned long *addr)
 {
@@ -441,6 +442,8 @@ static __always_inline int ffs(int x)
 	return r + 1;
 }
 
+/* modern KPDA libc has its own fls*() */
+#ifndef __KPDA__
 /**
  * fls - find last set bit in word
  * @x: the word to search
@@ -481,6 +484,7 @@ static __always_inline int fls(int x)
 #endif
 	return r + 1;
 }
+#endif
 
 /**
  * fls64 - find last set bit in a 64-bit word
@@ -524,4 +528,5 @@ static __always_inline int fls64(__u64 x)
 //#include <asm-generic/bitops/ext2-atomic-setbit.h>
 
 #endif /* __KERNEL__ */
+#endif  /* __QNX4__ */
 #endif /* _ASM_X86_BITOPS_H */

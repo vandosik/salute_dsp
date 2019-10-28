@@ -10,6 +10,7 @@
 #endif
 //#include <asm/nops.h>
 
+#ifndef  __QNX4__
 static inline void clflushopt(volatile void *__p)
 {
 	alternative_io(".byte " __stringify(NOP_DS_PREFIX) "; clflush %P0",
@@ -17,6 +18,7 @@ static inline void clflushopt(volatile void *__p)
 		       X86_FEATURE_CLFLUSHOPT,
 		       "+m" (*(volatile char __force *)__p));
 }
+#endif  /* __QNX4__ */
 
 #endif /* __KERNEL__ */
 

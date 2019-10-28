@@ -12,7 +12,11 @@
 #include <net/ifdrvcom.h>
 #include <sys/sockio.h>
 
+#if _KPDA_VERSION >= 1901
+#include <netdrvr/nicsupport.h>
+#else
 #include <drvr/nicsupport.h>
+#endif
 
 
 static void set_prom_mcast(vm14_gemac_dev_t *vm14_gemac, int set)

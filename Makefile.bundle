@@ -1,3 +1,4 @@
+export CPULIST=arm
 null :=
 space := ${null} ${null}
 
@@ -18,9 +19,9 @@ strip:
 	fi
 
 demo-bundle:
-	$(MAKE) QNX_TARGET=$(NEUTRINO_TARGET) -C. -f Makefile clean all
+	$(MAKE) -C. -f Makefile clean all
 	$(MAKE) -Cimages -f Makefile clean
-	$(MAKE) NEUTRINO_TARGET="" -Cimages -f Makefile b=demo
+	$(MAKE) -Cimages -f Makefile b=demo
 
 	$(MAKE) -C. -f Makefile.bundle strip
 	# Create 'binary-demo' BSP
@@ -28,7 +29,7 @@ demo-bundle:
 
 prebundle:
 	@[ -e $(BUILD_DIR) ] || mkdir -p $(BUILD_DIR)
-	@rsync --exclude='$(BSP_DIR)' -a $(BSP_DIR)/ $(BUILD_DIR)/$(BSP_BLD) || exit 1
+	@rsync --exclude='$(BSP_DIR)' --exclude='.git' --exclude='.gitignore' -a $(BSP_DIR)/ $(BUILD_DIR)/$(BSP_BLD) || exit 1
 	$(MAKE) -C $(BUILD_DIR)/$(BSP_BLD) -f Makefile.bundle bundle || exit 1
 	rm -rf $(BUILD_DIR)/$(BSP_BLD)
 
@@ -46,6 +47,10 @@ bundle:
 		! -name 'srcversion.h' ! -name 'pcm_core.c' -print | xargs sed -i '/^__SRCVERSION/d'
 	@find . -type f -name 'pcm_core.c' -exec sed -i '/^__SRCVERSION/,+1d' {} \;
 	@echo "done!"
+	
+	@echo -n "Removing DNM sources... "
+	@find . -type f -name 'Makefile.dnm' -execdir sh -c 'rm -rf "$$PWD"' 2>/dev/null \; || true
+	@echo -n "done!"
 
 	$(MAKE) -C. -f Makefile clean all
 	$(MAKE) -C. -f Makefile.bundle strip

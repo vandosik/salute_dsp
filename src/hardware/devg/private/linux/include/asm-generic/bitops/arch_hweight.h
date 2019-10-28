@@ -1,7 +1,7 @@
 #ifndef _ASM_GENERIC_BITOPS_ARCH_HWEIGHT_H_
 #define _ASM_GENERIC_BITOPS_ARCH_HWEIGHT_H_
 
-#if !defined( __QNX__ ) || defined( __X86__ )
+#if !defined( __QNX__ ) || (defined( __X86__ ) && !defined( __QNX4__ ))
 #include <asm/types.h>
 #else
 #include <asm-generic/types.h>

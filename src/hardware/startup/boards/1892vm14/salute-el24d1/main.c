@@ -62,6 +62,8 @@ const struct debug_device debug_devices[] = {
  * 2. It (optionally) turns on the MMU and starts the next program
  *    in the image file system.
  */
+extern unsigned board_smp_new;
+
 int
 main(int argc, char **argv, char **envv)
 {
@@ -80,7 +82,7 @@ main(int argc, char **argv, char **envv)
 
 	// common options that should be avoided are:
 	// "AD:F:f:I:i:K:M:N:o:P:R:S:Tvr:j:Z"
-	while ((opt = getopt(argc, argv, COMMON_OPTIONS_STRING "Wm:a:")) != -1) {
+	while ((opt = getopt(argc, argv, COMMON_OPTIONS_STRING "Wm:a:s")) != -1) {
 		switch (opt) {
 			case 'W':
 				/* Enable WDT */
@@ -91,6 +93,9 @@ main(int argc, char **argv, char **envv)
 				break;
 			case 'm':
 				mc1892vm14_init_raminfo(optarg);
+				break;
+			case 's':
+				board_smp_new = 1;
 				break;
 			default:
 				handle_common_option(opt);

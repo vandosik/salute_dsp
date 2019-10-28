@@ -22,6 +22,7 @@ typedef unsigned char           bool;
 #include <errno.h>
 
 /* linux int types */
+#if 0	// conflicts with linux headers
 #ifndef s8
 #define s8 int8_t
 #endif
@@ -45,6 +46,7 @@ typedef unsigned char           bool;
 #endif
 #ifndef u64
 #define u64 uint64_t
+#endif
 #endif
 
 struct i2c_msg {

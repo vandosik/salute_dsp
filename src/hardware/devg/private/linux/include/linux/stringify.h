@@ -6,7 +6,9 @@
  * converts to "bar".
  */
 
+#ifndef __QNX4__
 #define __stringify_1(x...)	#x
 #define __stringify(x...)	__stringify_1(x)
+#endif  /* __QNX4__ */
 
 #endif	/* !__LINUX_STRINGIFY_H */

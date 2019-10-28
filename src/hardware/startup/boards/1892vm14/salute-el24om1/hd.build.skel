@@ -191,6 +191,21 @@ chmod
 		exit 0
 	fi
 	rm -f /etc/rc.d/rc.devices
+	echo devi-hid mouse kbd > /etc/system/trap/input
+	TAB="$(printf '\\t')"
+	cat >/usr/photon/bin/inputtrap.sh<<-EOF
+	#!/bin/sh
+	inputf=/etc/system/trap/input.`hostname`
+	if [ ! -f "\\$inputf" ]; then
+	$\{TAB\}if [ -f /etc/system/trap/input ]; then
+	$\{TAB\}$\{TAB\}inputf=/etc/system/trap/input
+	$\{TAB\}else
+	$\{TAB\}$\{TAB\}exit 1
+	$\{TAB\}fi
+	fi
+	sh "\\$inputf"
+	EOF
+	chmod +x /usr/photon/bin/inputtrap.sh
 	to_rcd devices enum-devices \\&
 	to_rcd devices waitfor /dev/random 5
 	to_rcd devices waitfor /dev/slog 5
@@ -229,12 +244,11 @@ device \{
 \}
 EOF
 	awk -i inplace  '!/\(pnpbios\)/' /etc/system/enum/common
-	cp -v /usr/photon/config/crtc-settings /etc/system/config/crtc-settings
 	cat > /etc/system/config/vpoutfb.conf <<EOF
 # devg-vpoutfb.so parameters
 
 #	Elvees Salute EL24OM1 configuration sample
-base=0x38004000,size=0x1000,irq=69,memory=128,hdmi=TDA998x:0:0x70:100:0x234501,enable=lcd_sync_fix,verbose=debug
+base=0x38004000,size=0x1000,irq=69,hdmi=TDA998x:0:0x70:100:0x234501,enable=lcd_sync_fix,verbose=debug
 EOF
 }
 
@@ -313,6 +327,7 @@ EOF
 						77|78|79|177|178|179)
 							if [ -z "$target_root" ]; then
 								target_root=$\{dname\}$\{i\}t$\{ftype\}
+								target_boot=""
 							fi
 							;;
 						*)
@@ -371,7 +386,7 @@ devnp-1892vm14-gemac.so
 ###########################################################################
 ## Программы КСЗ
 ###########################################################################
-[search=${NEUTRINO_TARGET}/${PROCESSOR}/usr/ksz/bin]
+[search=${KPDA_TARGET}/${PROCESSOR}/usr/ksz/bin]
 cksum_ksz
 check_ksz
 auditlogger_ksz

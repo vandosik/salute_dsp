@@ -157,9 +157,10 @@ void hwi_mc1892vm14()
 			if ( fdt_data != NULL) {
 				//set location of sdhc controller
 				hwi_add_location((paddr_t)convert_fdt32(fdt_data[0]), (paddr_t)convert_fdt32(fdt_data[1]), 0, 0);
-
-				kprintf( "fdt: ADD sdhc_base    addr: %x   size %x  \n", convert_fdt32(fdt_data[0]),
+				if (debug_flag > 1) {
+					kprintf( "fdt: ADD sdhc_base addr: %x size %x  \n", convert_fdt32(fdt_data[0]),
 						 convert_fdt32(fdt_data[1]) );
+				}
 			}
 			
 			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC0, "bus-width", &lenp);
@@ -168,14 +169,18 @@ void hwi_mc1892vm14()
 				//set bus width
 				tag = hwi_alloc_tag(HWI_TAG_INFO(busattr));
 				tag->busattr.width = convert_fdt32(fdt_data[0]);
-				kprintf( "fdt: ADD bus_width   width: %x  \n", convert_fdt32(fdt_data[0]));
+				if (debug_flag > 1) {
+					kprintf( "fdt: ADD bus_width width: %x\n", convert_fdt32(fdt_data[0]));
+				}
 			}
 
 			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC0, "interrupts", &lenp);
 
 			if (fdt_data != NULL) {
 				hwi_add_irq(convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
-				kprintf( "fdt: ADD interrupt  vector: %x  \n", convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+				if (debug_flag > 1) {
+					kprintf( "fdt: ADD interrupt vector: %x\n", convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+				}
 			}
 
 			startup_io_unmap(base);
@@ -204,9 +209,10 @@ void hwi_mc1892vm14()
 
 			if ( fdt_data != NULL) {
 				hwi_add_location((paddr_t)convert_fdt32(fdt_data[0]), (paddr_t)convert_fdt32(fdt_data[1]), 0, 0);
-
-				kprintf( "fdt: ADD sdhc_base    addr: %x   size %x  \n", convert_fdt32(fdt_data[0]),
+				if (debug_flag > 1) {
+					kprintf( "fdt: ADD sdhc_base addr: %x size %x\n", convert_fdt32(fdt_data[0]),
 						 convert_fdt32(fdt_data[1]) );
+				}
 			}
 
 			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC1, "bus-width", &lenp);
@@ -214,14 +220,18 @@ void hwi_mc1892vm14()
 			if (fdt_data != NULL) {
 				tag = hwi_alloc_tag(HWI_TAG_INFO(busattr));
 				tag->busattr.width = convert_fdt32(fdt_data[0]);
-				kprintf( "fdt: ADD bus_width   width: %x  \n", convert_fdt32(fdt_data[0]));
+				if (debug_flag > 1) {
+					kprintf( "fdt: ADD bus_width width: %x\n", convert_fdt32(fdt_data[0]));
+				}
 			}
 
 			fdt_data = (uint32_t*)recurse_deep_search((const void *)base, 0, VM14_HWI_SDHC1, "interrupts", &lenp);
 
 			if (fdt_data != NULL) {
 				hwi_add_irq(convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
-				kprintf( "fdt: ADD interrupt  vector: %x  \n", convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+				if (debug_flag > 1) {
+					kprintf( "fdt: ADD interrupt vector: %x\n", convert_fdt32(fdt_data[1]) | VM14_HWI_FDT_TO_IRQ);
+				}
 			}
 
 			startup_io_unmap(base);

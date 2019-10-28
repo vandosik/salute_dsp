@@ -67,6 +67,7 @@
  */
 
 #define MC1892VM14_SPRAM_START			0x20000000
+#define MC1892VM14_SPRAM_SIZE			0x10000
 #define MC1892VM14_PL310_BASE			0x39004000
 
 
@@ -160,12 +161,27 @@
 
 /*
  * -------------------------------------------------------------------------
- * PMCTR - power managment controller
+ * PMCTR - power management controller
  * -------------------------------------------------------------------------
  */
 #define MC1892VM14_PMCTR_BASE			0x38095000
-#define MC1892VM14_PMCTR_SIZE			0x100
+#define MC1892VM14_PMCTR_SIZE			0x1000
+#define MC1892VM14_PMCTR_SYS_PWR_UP		0x00
 #define MC1892VM14_PMCTR_SW_RST_REG		0x40
+
+/*
+ * -------------------------------------------------------------------------
+ * SMCTR - common management controller
+ * -------------------------------------------------------------------------
+ */
+#define MC1892VM14_SMCTR_BASE			0x38096000
+#define MC1892VM14_SMCTR_SIZE			0x1000
+#define SMCTR_BOOT_REMAP				0x04
+
+#define SMCTR_BOOT_REMAP_NORMPORT		0x0
+#define SMCTR_BOOT_REMAP_SPRAM			0x1
+#define SMCTR_BOOT_REMAP_SPL			0x2
+#define SMCTR_BOOT_REMAP_BOOTROM		0x3
 
 
 /* -------------------------------------

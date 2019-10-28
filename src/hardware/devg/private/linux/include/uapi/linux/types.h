@@ -1,7 +1,7 @@
 #ifndef _UAPI_LINUX_TYPES_H
 #define _UAPI_LINUX_TYPES_H
 
-#if !defined( __QNX__ ) || defined( __X86__ )
+#if !defined( __QNX__ ) || (defined( __X86__ ) && !defined( __QNX4__ ))
 #include <asm/types.h>
 #else
 #include <asm-generic/types.h>

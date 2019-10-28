@@ -263,8 +263,8 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
             *MMIO32( LCDVT1 ) = ((vlen  << LCDHT1_VLEN_SHIFT)  & LCDHT1_VLEN_MASK) |
                                 ((vgate << LCDHT1_VGATE_SHIFT) & LCDHT1_VGATE_MASK);
             *MMIO32( LCDDIV ) = div;
-            *MMIO32( LCDAB0 ) = vpout->aperture_base;
-            *MMIO32( LCDAB1 ) = vpout->aperture_base;
+            *MMIO32( LCDAB0 ) = surface->offset;
+            *MMIO32( LCDAB1 ) = surface->offset;
             *MMIO32( LCDOF0 ) = 0;
             *MMIO32( LCDOF1 ) = 0;
 
@@ -280,16 +280,22 @@ int vpout_hw_configure_display( vpout_context_t *vpout, vpout_draw_context_t *vp
                 mode = (settings->flags & DISP_SYNC_POLARITY_H_POS ? 0 : LCDMODE_HINV) |
                        (settings->flags & DISP_SYNC_POLARITY_V_POS ? 0 : LCDMODE_VINV);
 #endif
-#ifdef ENABLE_HW_CURSOR
-            mode |= LCDMODE_HWC_MODE | LCDMODE_HWC_MODE_64x64;
-#endif
+
             switch( surface->pixel_format )
             {
+                case DISP_SURFACE_FORMAT_BYTES:
+                    mode |= LCDMODE_INSIZE_RGB332;
+                    break;
+                case DISP_SURFACE_FORMAT_PAL8:
+                    mode |= LCDMODE_INSIZE_INDEXED_8BIT;
+                    break;
                 case DISP_SURFACE_FORMAT_ARGB1555:
                     mode |= LCDMODE_INSIZE_ARGB1555;
+                    mode |= LCDMODE_CCM;
                     break;
                 case DISP_SURFACE_FORMAT_RGB565:
                     mode |= LCDMODE_INSIZE_RGB565;
+                    mode |= LCDMODE_CCM;
                     break;
                 case DISP_SURFACE_FORMAT_RGB888:
                     mode |= LCDMODE_INSIZE_RGB888;

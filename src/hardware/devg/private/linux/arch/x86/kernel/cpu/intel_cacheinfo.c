@@ -292,7 +292,7 @@ unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c)
 #endif
 
 	if (c->cpuid_level > 3) {
-		static int is_initialized;
+		static int is_initialized = 0;
 
 		if (is_initialized == 0) {
 			/* Init num_cache_leaves from boot CPU */

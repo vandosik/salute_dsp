@@ -67,9 +67,11 @@
 	".popsection"
 
 /* Like alternative_input, but with a single output argument */
+#ifndef __QNX4__
 #define alternative_io(oldinstr, newinstr, feature, output, input...)	\
 	asm volatile (ALTERNATIVE(oldinstr, newinstr, feature)		\
 		: output : "i" (0), ## input)
+#endif  /* __QNX4__ */
 
 #endif /* __ASSEMBLY__ */
 

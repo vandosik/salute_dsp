@@ -149,10 +149,13 @@ int intel_dp_is_edp( struct intelgpu_drm_3d *ctx, uint32_t port_config );
 intelgpu_dp_descriptor_t * intelgpu_dp_init( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, uint32_t port_config, int pipe, uint32_t output_reg,
                                              uint32_t pp_status_reg, uint32_t port_ /* see PORT_* */,
                                              void (*vlv_hw_write_dp_link_train)( disp_adapter_t *adapter, int pipe, uint32_t port_config, uint32_t demph_reg_value,
-                                                                                 uint32_t uniqtranscale_reg_value, uint32_t preemph_reg_value ) );
+                                                                                 uint32_t uniqtranscale_reg_value, uint32_t preemph_reg_value ),
+                                             void (*chv_hw_write_dp_link_train)( disp_adapter_t *adapter, int pipe, uint32_t port_config, uint32_t demph_reg_value,
+                                                                                 uint32_t margin_reg_value, bool uniq_trans_scale ) );
 void intelgpu_dp_fini( intelgpu_dp_descriptor_t *dp );
 void intel_dp_encoder_destroy( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp );
 int intel_dp_detect( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp );
+uint8_t intelgpu_get_lane_count( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, int port, intelgpu_dp_descriptor_t *dp );
 bool intel_dp_compute_config( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp, uint32_t pixel_clock, uint32_t *pipe_bpp,
                               char *common_debug_label, int debug_common );
 void intelgpu_dp_force_edp( struct intelgpu_drm_3d *ctx, uint32_t port_config );
@@ -162,7 +165,8 @@ void intelgpu_dp_enable( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, i
                          int (*vlv_wait_digital_port)( disp_adapter_t *adapter, uint32_t port_config ) );
 void intelgpu_dp_disable( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp );
 void intelgpu_dp_enable_hw( struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp );
-void intelgpu_dp_disable_hw( struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp );
+void intelgpu_dp_disable_hw( struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp,
+                             void (*chv_hw_disable_dp_link_train)( disp_adapter_t *adapter, int pipe, uint32_t port ) );
 void intelgpu_dp_prepare( disp_adapter_t *adapter, struct intelgpu_drm_3d *ctx, intelgpu_dp_descriptor_t *dp, int vpol, int hpol );
 void intelgpu_dp_set_configuration( disp_adapter_t *adapter, intelgpu_dp_descriptor_t *dp, uint32_t *n, uint32_t *m1, uint32_t *m2, uint32_t *p1, uint32_t *p2,
                                     uint32_t *tu, uint32_t *gmch_m, uint32_t *gmch_n, uint32_t *link_m, uint32_t *link_n, 

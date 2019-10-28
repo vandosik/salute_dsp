@@ -2,7 +2,9 @@
 #define _LINUX_TYPES_H
 
 //#define __EXPORTED_HEADERS__
+#ifdef __QNXNTO__
 #include <stdbool.h>
+#endif
 
 #include <uapi/linux/types.h>
 

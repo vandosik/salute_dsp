@@ -24,9 +24,15 @@
 #include <net/netbyte.h>
 
 #include <drvr/hwinfo.h>
+#if _KPDA_VERSION >= 1901
+#include <netdrvr/mdi.h>
+#include <netdrvr/eth.h>
+#include <netdrvr/nicsupport.h>
+#else
 #include <drvr/mdi.h>
 #include <drvr/eth.h>
 #include <drvr/nicsupport.h>
+#endif
 // #include <drvr/common.h>
 #include "1892vm14_gemac.h"
 

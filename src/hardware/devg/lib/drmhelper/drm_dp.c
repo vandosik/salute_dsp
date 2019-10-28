@@ -255,7 +255,7 @@ static int drm_dp_aux_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 		msg.size = 0;
 
 		ret = aux->transfer( aux, &msg );
-		if (ret)
+		if (ret <= 0)
 			return ret;
 		else
 			return num;
@@ -285,7 +285,7 @@ static int drm_dp_aux_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 			msg.reply = 0;
 			msg.size = current_count;
 			ret = aux->transfer( aux, &msg );
-			if (ret)
+			if (ret <= 0)
 				return ret;
 			remaining -= current_count;
 			buffer_offset += current_count;

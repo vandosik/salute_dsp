@@ -11,6 +11,9 @@
 #ifndef __QNX__
 #include <asm/bitsperlong.h>
 #else
+#ifdef  __QNX4__
+#include <qnx4_helpers.h>
+#endif  /* __QNX4__ */
 #include <asm-generic/bitsperlong.h>
 #endif
 

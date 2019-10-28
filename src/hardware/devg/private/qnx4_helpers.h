@@ -16,6 +16,8 @@ typedef unsigned char           bool;
 #define false                   (0)
 #endif
 
+#define __signed__              signed
+#define __always_inline
 
 #endif  /* _QNX4_HELPERS_H */
 

@@ -1,6 +1,9 @@
 #ifndef _ASM_GENERIC_BITOPS_FLS_H_
 #define _ASM_GENERIC_BITOPS_FLS_H_
 
+
+/* modern KPDA libc has its own fls*() */
+#ifndef __KPDA__
 /**
  * fls - find last (most-significant) bit set
  * @x: the word to search
@@ -37,5 +40,7 @@ static __always_inline int fls(int x)
 	}
 	return r;
 }
+#endif /* __KPDA__ */
+
 
 #endif /* _ASM_GENERIC_BITOPS_FLS_H_ */

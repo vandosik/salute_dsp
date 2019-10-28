@@ -16,12 +16,11 @@ void vpout_enable_hw_cursor( disp_adapter_t *adapter, int dispno )
 {
     vpout_context_t         *vpout        = adapter->ms_ctx;
     vpout_draw_context_t    *vpout_draw   = adapter->gd_ctx;
-    int                     pipe          = dispno;
-
-    if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
-        return;
-
-    //~ 
+    uint32_t mode;
+    
+    mode = *MMIO32( LCDMODE );
+    mode |= LCDMODE_HWCEN | LCDMODE_HWC_MODE_64x64;
+    *MMIO32( LCDMODE ) = mode;
 }
 
 
@@ -29,14 +28,11 @@ void vpout_disable_hw_cursor( disp_adapter_t *adapter, int dispno )
 {
     vpout_context_t         *vpout        = adapter->ms_ctx;
     vpout_draw_context_t    *vpout_draw   = adapter->gd_ctx;
-    int                     pipe          = dispno;
+    uint32_t mode;
 
-    if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
-        return;
-
-    pipe = dispno;
-
-    //~ 
+    mode = *MMIO32( LCDMODE );
+    mode &= ~LCDMODE_HWCEN;
+    *MMIO32( LCDMODE ) = mode;
 }
 
 
@@ -44,22 +40,13 @@ void vpout_set_hw_cursor_pos( disp_adapter_t *adapter, int dispno, int x, int y 
 {
     vpout_context_t         *vpout        = adapter->ms_ctx;
     vpout_draw_context_t    *vpout_draw   = adapter->gd_ctx;
-    int                     pipe          = dispno;
-    int                     ox            = 0;
-    int                     oy            = 0;
 
-    ox = x - vpout->cursor_hs_x;
-    oy = y - vpout->cursor_hs_y;
+    if ( x < 0 )
+        x = -x | 0x8000;
+    if ( y < 0 )
+        y = -y | 0x8000;
 
-    if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
-        return;
-
-    if ( ox < 0 )
-        ox = -ox | 0x8000;
-    if ( oy < 0 )
-        oy = -oy | 0x8000;
-
-    //~ 
+    *MMIO32( LCDXY ) = (x & 0xFFFF) | (y << 16);
 }
 
 
@@ -68,7 +55,6 @@ int vpout_set_hw_cursor( disp_adapter_t *adapter, int dispno, uint8_t *bmp0, uin
 {
     vpout_context_t         *vpout         = adapter->ms_ctx;
     vpout_draw_context_t    *vpout_draw    = adapter->gd_ctx;
-    int                     pipe           = dispno;
     uint8_t                 *cursor_ptr    = NULL;
     int                     x              = 0,
                             y              = 0,
@@ -76,20 +62,21 @@ int vpout_set_hw_cursor( disp_adapter_t *adapter, int dispno, uint8_t *bmp0, uin
                             bit            = 0,
                             code           = 0;
     uint32_t                cursor_sz      = 0;
-
-    if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
-        return (-1);
+    unsigned cursor_stride;
+    uint32_t mode;
 
     /* Fallback into software if we can't handle oversized cursor */
     if ( size_x > 64 || size_y > 64 )
         return (-1);
 
     cursor_sz              = 64;
+    
+    /* Need to enable cursor before updating it's contents */
+    mode = *MMIO32( LCDMODE );
+    mode |= LCDMODE_HWCEN | LCDMODE_HWC_MODE_64x64;
+    *MMIO32( LCDMODE ) = mode;
 
-    vpout->cursor_hs_x = hotspot_x;
-    vpout->cursor_hs_y = hotspot_y;
-    cursor_ptr = (uint8_t *)((unsigned int)vpout_draw->system_buf_vptr /*+ vpout->cursor_base*/ + 0);
-
+    cursor_ptr = (uint8_t *)(MMIO32(HWC_MEM));
     
     for ( y = 0; y < cursor_sz; y++ )
     {
@@ -98,34 +85,20 @@ int vpout_set_hw_cursor( disp_adapter_t *adapter, int dispno, uint8_t *bmp0, uin
 
         for ( x = 0; x < cursor_sz; x++ )
         {
-            code = 2;
+            unsigned off;
+            code = 0;
 
             if ( y < size_y && x < size_x )
             {
                 if ( bmp0[byte] & bit )
-                    code = 0;
+                    code = 2;
                 if ( bmp1[byte] & bit )
-                    code = 1;
+                    code = 3;
             }
 
-            switch ( code )
-            {
-                case 0:
-                     /* color 0 */
-                     cursor_ptr[(y * 128 + x) >> 3]             &= ~bit;
-                     cursor_ptr[(y * 128 + cursor_sz + x) >> 3] &= ~bit;
-                     break;
-                case 1:
-                     /* color 1 */
-                     cursor_ptr[(y * 128 + x) >> 3]             &= ~bit;
-                     cursor_ptr[(y * 128 + cursor_sz + x) >> 3] |= bit;
-                     break;
-                case 2:
-                     /* transparent */
-                     cursor_ptr[(y * 128 + x) >> 3]             |= bit;
-                     cursor_ptr[(y * 128 + cursor_sz + x) >> 3] &= ~bit;
-                     break;
-            }
+            off = (x & 3) * 2;
+            cursor_ptr[(y * cursor_sz + x) >> 2] &= ~(3 << off);
+            cursor_ptr[(y * cursor_sz + x) >> 2] |= (code << off);
 
             bit >>= 1;
             if ( bit == 0 )
@@ -136,7 +109,9 @@ int vpout_set_hw_cursor( disp_adapter_t *adapter, int dispno, uint8_t *bmp0, uin
         }
     }
 
-    //~ 
+    *MMIO32( LCDCOLOR0 ) = color0;
+    *MMIO32( LCDCOLOR1 ) = color1;
+    *MMIO32( LCDXYP ) = hotspot_x | (hotspot_y << 16);
 
     return (0);
 }

@@ -57,7 +57,7 @@ extern int verbose;
 #define ENABLE_IRQ
 
 /* Compile with hw-cursor support */
-//#define ENABLE_HW_CURSOR
+#define ENABLE_HW_CURSOR
 
 /* Compile with DDC support */
 #define ENABLE_DDC
@@ -82,7 +82,7 @@ extern int verbose;
 #define VPOUT_HW_CURSOR_64x64x2_SIZE                (64 * 64 * 2)                   /* 2 pages (64x64 2bpp) */
 #define VPOUT_HW_CURSOR_SIZE                        VPOUT_HW_CURSOR_64x64x2_SIZE
 
-#define VPOUT_ALIGN64BYTES_STRIDE( stride )         ((stride & ~0x3f) + 0x3f + 1)
+#define ALIGN_64BIT( x )                            (((x) + 0x3f) & ~0x3f)
 
 #define VPOUT_XTI_FREQUENCY                         24 /* MHz */
 
@@ -182,8 +182,6 @@ typedef struct vpout_context
 
     /* Driver configuration */
     uint32_t                enabled;
-    disp_surface_t          display_surface;
-    uint8_t                 display_surface_allocated;
     uint8_t                 display_count;                                  /* Displays configuration (see vpoutfb.conf) */
     vpout_display_conf_t    display[VPOUT_PORTS];                           /* Display port configuration (see vpoutfb.conf) */
 
@@ -193,16 +191,14 @@ typedef struct vpout_context
     uint64_t                registers_size;
     uint8_t                 *cmctr_registers;
 
-    /* [video ptr] Video memory global aperture */
-    uint8_t                 *aperture;
-    uint64_t                aperture_base;
-    uint32_t                aperture_size;
-
     /* Custom mode switcher */
     int                     xres;
     int                     yres;
     int                     bpp;
     int                     refresh;
+    uint64_t                display_paddr;
+    unsigned                display_stride;
+    unsigned                display_format;
 
     /* IRQ processing */
     uint8_t                 irq_polling;
@@ -241,19 +237,6 @@ typedef struct vpout_draw_context
 int vpout_init( disp_adapter_t *adapter, char *optstring );
 void vpout_fini( disp_adapter_t *adapter );
 
-/* mem.c */
-int vpout_mem_init( disp_adapter_t *adapter, char *optstring );
-void vpout_mem_fini( disp_adapter_t *adapter );
-int vpout_mem_reset( disp_adapter_t *adapter, disp_surface_t *surf_ );
-disp_surface_t* vpout_alloc_surface( disp_adapter_t *adapter,  int width, int height, unsigned format, unsigned flags, unsigned user_flags );
-int vpout_free_surface( disp_adapter_t *adapter, disp_surface_t *surf );
-unsigned long vpout_mem_avail( disp_adapter_t *adapter, unsigned flags );
-int vpout_query_apertures( disp_adapter_t *adapter, disp_aperture_t *ap );
-int vpout_query_surface( disp_adapter_t *adapter, disp_surface_t *surf, disp_surface_info_t *info );
-int vpout_get_alloc_info( disp_adapter_t *adapter, int width, int height, unsigned format, unsigned flags, unsigned user_flags, disp_alloc_info_t *info );
-int vpout_get_alloc_layer_info( disp_adapter_t *adapter, int dispno[], int layer[], int nlayers, unsigned format, int surface_index,
-                                int width, int height, unsigned sflags, unsigned hint_flags, disp_alloc_info_t *info );
-
 /* misc.c */
 int vpout_misc_wait_idle( disp_adapter_t *adapter );
 int vpout_draw_init( disp_adapter_t *adapter, char *opt );
@@ -262,13 +245,12 @@ void vpout_module_info( disp_adapter_t *adapter, disp_module_info_t *info );
 int vpout_attach_external( disp_adapter_t *adapter, disp_aperture_t aper[] );
 int vpout_detach_external( disp_adapter_t *adapter );
 
-/* mode.c */
-int vpout_get_modeinfo( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_mode_info_t *info );
-int vpout_get_modelist( disp_adapter_t *adapter, int dispno, disp_mode_t *list, int index, int size );
-int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_crtc_settings_t *settings, disp_surface_t *surf, unsigned flags );
-int vpout_wait_vsync( disp_adapter_t *adapter, int dispno );
-int vpout_set_display_offset( disp_adapter_t *adapter, int dispno, unsigned offset, int wait_vsync );
-int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, void *data_in, int nbytes, void *data_out, int *out_buffer_size );
+/* cursor.c */
+void vpout_enable_hw_cursor( disp_adapter_t *adapter, int dispno );
+void vpout_disable_hw_cursor( disp_adapter_t *adapter, int dispno );
+void vpout_set_hw_cursor_pos( disp_adapter_t *adapter, int dispno, int x, int y );
+int vpout_set_hw_cursor( disp_adapter_t *adapter, int dispno, uint8_t *bmp0, uint8_t *bmp1, unsigned color0, unsigned color1,
+                         int hotspot_x, int hotspot_y, int size_x, int size_y, int bmp_stride );
 
 /* vpout.c */
 struct sigevent * vpout_hw_isr( vpout_context_t *vpout, vpout_draw_context_t *vpout_draw );

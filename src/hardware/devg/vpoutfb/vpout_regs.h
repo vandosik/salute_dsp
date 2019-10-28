@@ -23,8 +23,8 @@
 
 
 /* Common registers interface */
-#define MMIO64( offset )                ((uint64_t *)(vpout_draw->registers + (offset)))
-#define MMIO32( offset )                ((uint32_t *)(vpout_draw->registers + (offset)))
+#define MMIO64( offset )                ((volatile uint64_t *)(vpout_draw->registers + (offset)))
+#define MMIO32( offset )                ((volatile uint32_t *)(vpout_draw->registers + (offset)))
 
 /* CMCTR registers interface */
 #define CMCTR_MMIO64( offset )          ((uint64_t *)(vpout->cmctr_registers + (offset)))
@@ -66,7 +66,7 @@
 #define     LCDMODE_HWC_MODE_64x64              (1 << 5)
 #define     LCDMODE_HWCEN                   (1 << 4)                            /* Enable hardware cursor */
 #define     LCDMODE_INSIZE                  (0xf << 0)
-#define     LCDMODE_INSIZE_PAL8                 (0 << 0)
+#define     LCDMODE_INSIZE_RGB332               (0 << 0)
 #define     LCDMODE_INSIZE_RGB444               (1 << 0)
 #define     LCDMODE_INSIZE_ARGB1555             (2 << 0)
 #define     LCDMODE_INSIZE_RGB565               (3 << 0)
@@ -102,6 +102,14 @@
 #define     LCDHT1_VGATE_MASK               (0xffff << 0)
 #define     LCDHT1_VGATE_SHIFT              (0)
 
+#define LCDXY                           (0x1c)
+
+#define LCDXYP                          (0x20)
+
+#define LCDCOLOR0                       (0x24)
+
+#define LCDCOLOR1                       (0x28)
+
 #define LCDAB0                          (0x2c)                                  /* LCD primary buffer address */
 
 #define LCDAB1                          (0x30)                                  /* LCD secondary buffer address */
@@ -117,6 +125,10 @@
 #define     INTERRUPT_OUT_FIFO              (1 << 2)
 #define     INTERRUPT_DMA_FIFO_EMPTY        (1 << 1)
 #define     INTERRUPT_DMA_DONE              (1 << 0)
+
+#define HWC_MEM                        (0x400)
+
+#define PAL_MEM                        (0x800)							/* Palette memory offset */
 
 
 /*************************************************/

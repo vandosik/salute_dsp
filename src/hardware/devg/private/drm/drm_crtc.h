@@ -167,6 +167,13 @@ struct drm_crtc_helper_funcs;
 struct drm_encoder_helper_funcs;
 struct drm_plane_helper_funcs;
 
+enum drm_connector_force {
+	DRM_FORCE_UNSPECIFIED,
+	DRM_FORCE_OFF,
+	DRM_FORCE_ON,         /* force on analog part normally */
+	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
+};
+
 /**
  * struct drm_crtc_state - mutable CRTC state
  * @crtc: backpointer to the CRTC
@@ -1010,7 +1017,7 @@ struct drm_connector
 
 	/* forced on connector */
 	//struct drm_cmdline_mode cmdline_mode;
-	//enum drm_connector_force force;
+	enum drm_connector_force force;
 	//bool override_edid;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	struct drm_encoder *encoder; /* currently active encoder */

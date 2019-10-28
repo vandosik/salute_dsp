@@ -11,30 +11,7 @@
 /*************************************************/
 
 
-int devg_get_modefuncs( disp_adapter_t *adapter, disp_modefuncs_t *funcs, int tabsize )
-{
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, init,                       vpout_init,                 tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, fini,                       vpout_fini,                 tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, module_info,                vpout_module_info,          tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, get_modeinfo,               vpout_get_modeinfo,         tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, get_modelist,               vpout_get_modelist,         tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_mode,                   vpout_set_mode,             tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, wait_vsync,                 vpout_wait_vsync,           tabsize );
-    //DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_display_offset,         vpout_set_display_offset,   tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, devctl,                     vpout_devctl,               tabsize );
-
-#ifdef ENABLE_HW_CURSOR
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_hw_cursor,              vpout_set_hw_cursor,        tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, enable_hw_cursor,           vpout_enable_hw_cursor,     tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, disable_hw_cursor,          vpout_disable_hw_cursor,    tabsize );
-    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_hw_cursor_pos,          vpout_set_hw_cursor_pos,    tabsize );
-#endif
-
-    return (0);
-}
-
-
-int vpout_get_modeinfo( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_mode_info_t *info )
+static int vpout_get_modeinfo( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_mode_info_t *info )
 {
     info->caps = DISP_MCAP_SET_DISPLAY_OFFSET | DISP_MCAP_VIRTUAL_PANNING | DISP_MCAP_DPMS_SUPPORTED;
 
@@ -52,23 +29,24 @@ int vpout_get_modeinfo( disp_adapter_t *adapter, int dispno, disp_mode_t mode, d
      * define are simply the number of bits per pixel for the mode */
     switch ( mode )
     {
+        case 8:  info->pixel_format = DISP_SURFACE_FORMAT_PAL8;     break;
         case 15: info->pixel_format = DISP_SURFACE_FORMAT_ARGB1555; break;
         case 16: info->pixel_format = DISP_SURFACE_FORMAT_RGB565;   break;
         case 24: info->pixel_format = DISP_SURFACE_FORMAT_RGB888;   break;
         case 32: info->pixel_format = DISP_SURFACE_FORMAT_ARGB8888; break;
         default:
-            return (-1);
+            return -1;
     }
 
     info->flags = DISP_MODE_GENERIC;
 
-    return (0);
+    return 0;
 }
 
 
-int vpout_get_modelist( disp_adapter_t *adapter, int dispno, disp_mode_t *list, int index, int size )
+static int vpout_get_modelist( disp_adapter_t *adapter, int dispno, disp_mode_t *list, int index, int size )
 {
-    static unsigned modes[] = { 15, 16, 24, 32 };
+    static unsigned modes[] = { 8, 15, 16, 24, 32 };
     int             i = 0;
     int             j = 0;
 
@@ -77,15 +55,18 @@ int vpout_get_modelist( disp_adapter_t *adapter, int dispno, disp_mode_t *list, 
 
     list[j] = DISP_MODE_LISTEND;
 
-    return (0);
+    return 0;
 }
 
 
-int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_crtc_settings_t *settings, disp_surface_t *surf, unsigned flags )
+static int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_crtc_settings_t *settings, disp_surface_t *surf, unsigned flags )
 {
     vpout_context_t         *vpout      = adapter->ms_ctx;
     vpout_draw_context_t    *vpout_draw = adapter->gd_ctx;
     int                     pipe        = dispno;
+    disp_mode_info_t        mi = { 0 };
+    
+    vpout_get_modeinfo( adapter, dispno, mode, &mi );
 
     disp_printf_info( adapter, "[vpoutfb] Info: mode switch sequence started [%d:%d@%d %dbpp]", settings->xres, settings->yres, settings->refresh, mode );
     disp_printf_info( adapter, "[vpoutfb] Info: mode switcher surface [ptr=0x%x(phys=0x%x)]", (unsigned int)surf->vidptr, (unsigned int)surf->paddr );
@@ -94,7 +75,7 @@ int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_
     if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
     {
         disp_printf( adapter, "[vpoutfb] Fatal: too much display sections in the display.conf" );
-        return (-1);
+        return -1;
     }
 
     /* Disable sequence only at the first display mode set */
@@ -110,6 +91,15 @@ int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_
     vpout->xres    = settings->xres;
     vpout->yres    = settings->yres;
     vpout->refresh = settings->refresh;
+    
+    /* Only width, height and stride are set. Update fake surface data */
+    surf->vidptr = NULL;
+    surf->stride = ALIGN_64BIT(surf->stride);
+    surf->offset = surf->paddr = 0x40000000;    /* TODO: hardcoded RAM start to make DMA happy */
+    surf->pixel_format = mi.pixel_format;
+    surf->flags = DISP_SURFACE_DISPLAYABLE | DISP_SURFACE_PAGE_ALIGNED |
+        DISP_SURFACE_CPU_LINEAR_READABLE | DISP_SURFACE_CPU_LINEAR_WRITEABLE |
+        DISP_SURFACE_2D_READABLE | DISP_SURFACE_2D_TARGETABLE;
 
     /* Mode set sequences */
     disp_printf_debug( adapter, "[vpoutfb] Debug: %s[%d] configuration = 0x%08x", DISPLAY_PORT_NAME( vpout->display[pipe] ), pipe, vpout->display[pipe] );
@@ -118,10 +108,14 @@ int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_
         if ( vpout_hw_configure_display( vpout, vpout_draw, settings, vpout->display[pipe], pipe, surf, mode ) != 0 )
         {
             disp_printf( adapter, "[vpoutfb] Fatal: %s[%d] mode switch sequence failed", DISPLAY_PORT_NAME( vpout->display[pipe] ), pipe );
-            return (-1);
+            return -1;
         }
         disp_printf_info( adapter, "[vpoutfb] Info: %s[%d] mode set sequence finished successfully", DISPLAY_PORT_NAME( vpout->display[pipe] ), pipe );
     }
+    
+    vpout->display_paddr = surf->paddr;
+    vpout->display_stride = surf->stride;
+    vpout->display_format = surf->pixel_format;
 
     /* Wait for the current pipe vsync */
     vpout_hw_pipe_wait_for_vblank( vpout, vpout_draw, pipe );
@@ -129,18 +123,18 @@ int vpout_set_mode( disp_adapter_t *adapter, int dispno, disp_mode_t mode, disp_
     if ( VPOUT_DISPMODE_LAST_PIPE( pipe ) )
         disp_printf_debug( adapter, "[vpoutfb] Debug: HW enabled" );
 
-    return (0);
+    return 0;
 }
 
 
-int vpout_wait_vsync( disp_adapter_t *adapter, int dispno )
+static int vpout_wait_vsync( disp_adapter_t *adapter, int dispno )
 {
     vpout_context_t         *vpout      = adapter->ms_ctx;
     vpout_draw_context_t    *vpout_draw = adapter->gd_ctx;
     int                     pipe          = dispno;
 
     if ( VPOUT_DISPMODE_BAD_PIPE( pipe ) )
-        return (-1);
+        return -1;
 
     if ( adapter->callback )
         adapter->callback( adapter->callback_handle, DISP_CALLBACK_UNLOCK, NULL );
@@ -196,24 +190,37 @@ int vpout_wait_vsync( disp_adapter_t *adapter, int dispno )
     if ( adapter->callback )
         adapter->callback( adapter->callback_handle, DISP_CALLBACK_LOCK, NULL );
 
-    return (0);
+    return 0;
 }
 
 
-int vpout_set_display_offset( disp_adapter_t *adapter, int dispno, unsigned offset, int wait_vsync )
+static int vpout_set_display_offset( disp_adapter_t *adapter, int dispno, unsigned offset, int wait_vsync )
 {
     vpout_context_t       *vpout        = adapter->ms_ctx;
     vpout_draw_context_t  *vpout_draw   = adapter->gd_ctx;
     int                     pipe        = dispno;
 
+    //disp_printf_debug( adapter, "[vpoutfb] Debug: set display offset 0x%.8x", offset );
     vpout_hw_pipe_set_display_offset( vpout, vpout_draw, pipe, offset );
-
-    if ( wait_vsync && adapter->callback )
+    vpout->display_paddr = offset;
+    
+     if ( wait_vsync && adapter->callback )
         adapter->callback( adapter->callback_handle, DISP_CALLBACK_WAIT_VSYNC, &dispno );
 
-    return (0);
+    return 0;
 }
 
+static int vpout_set_palette(disp_adapter_t *adapter, int dispno, int index, int count, disp_color_t *pal)
+{
+    vpout_draw_context_t  *vpout_draw = adapter->gd_ctx;
+
+    vpout_wait_vsync(adapter, dispno);
+
+    for (; count--; index++, pal++)
+        MMIO32(PAL_MEM)[index] = *pal;
+
+    return 0;
+}
 
 static inline uint32_t get_layer_format( uint32_t surface_format )
 {
@@ -241,7 +248,7 @@ static inline uint32_t get_layer_format( uint32_t surface_format )
 }
 
 
-int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, void *data_in, int nbytes, void *data_out, int *out_buffer_size )
+static int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, void *data_in, int nbytes, void *data_out, int *out_buffer_size )
 {
     vpout_context_t       *vpout      = adapter->ms_ctx;
     vpout_draw_context_t  *vpout_draw = adapter->gd_ctx;
@@ -253,7 +260,7 @@ int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, v
             if ( *out_buffer_size >= sizeof( uint32_t ) ) \
                 *((uint32_t *)data_out) = error;          \
             *out_buffer_size = sizeof( uint32_t );        \
-            return (0);                                   \
+            return 0;                                   \
         }
 
         case DEVCTL_DDC:
@@ -354,14 +361,14 @@ int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, v
                     reply->layer.state  = vpout->xres > 0 ? DEVCTL_DISPLAY_INFO_STATE_ON : DEVCTL_DISPLAY_INFO_STATE_OFF;
                     if ( reply->layer.state == DEVCTL_DISPLAY_INFO_STATE_ON )
                     {
-                        reply->layer.sid                     = (uint32_t)adapter->callback( adapter->callback_handle, DISP_CALLBACK_SURFACE_SID, &vpout->display_surface );
-                        reply->layer.format                  = get_layer_format( vpout->display_surface.pixel_format );
+                        /*reply->layer.sid                     = (uint32_t)adapter->callback( adapter->callback_handle, DISP_CALLBACK_SURFACE_SID, &vpout->display_surface ); can't be computed without layer functions */
+                        reply->layer.format                  = get_layer_format( vpout->display_format );
                         reply->layer.width                   = vpout->xres;
                         reply->layer.height                  = vpout->yres;
-                        reply->layer.stride                  = vpout->display_surface.stride;
+                        reply->layer.stride                  = vpout->display_stride;
                         reply->layer.x                       = 0;
                         reply->layer.y                       = 0;
-                        reply->layer.addr                    = vpout->display_surface.paddr;
+                        reply->layer.addr                    = vpout->display_paddr;
                         reply->layer.viewport.source.x1      = 0;
                         reply->layer.viewport.source.y1      = 0;
                         reply->layer.viewport.source.x2      = vpout->xres - 1;
@@ -408,8 +415,31 @@ int vpout_devctl( disp_adapter_t *adapter, int dispno, disp_mode_devctl_t cmd, v
 #endif
 
         default:
-            return (-1);
+            return -1;
     }
 
-    return (EOK);
+    return EOK;
+}
+
+int devg_get_modefuncs( disp_adapter_t *adapter, disp_modefuncs_t *funcs, int tabsize )
+{
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, init,                       vpout_init,                 tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, fini,                       vpout_fini,                 tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, module_info,                vpout_module_info,          tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, get_modeinfo,               vpout_get_modeinfo,         tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, get_modelist,               vpout_get_modelist,         tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_mode,                   vpout_set_mode,             tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, wait_vsync,                 vpout_wait_vsync,           tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_display_offset,         vpout_set_display_offset,   tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_palette,                vpout_set_palette,          tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, devctl,                     vpout_devctl,               tabsize );
+
+#ifdef ENABLE_HW_CURSOR
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_hw_cursor,              vpout_set_hw_cursor,        tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, enable_hw_cursor,           vpout_enable_hw_cursor,     tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, disable_hw_cursor,          vpout_disable_hw_cursor,    tabsize );
+    DISP_ADD_FUNC( disp_modefuncs_t, funcs, set_hw_cursor_pos,          vpout_set_hw_cursor_pos,    tabsize );
+#endif
+
+    return 0;
 }
