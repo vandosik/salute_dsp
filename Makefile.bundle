@@ -2,30 +2,49 @@ export CPULIST=arm
 null :=
 space := ${null} ${null}
 
+LIST_DIR = $(shell find $(1) -mindepth 1 -maxdepth 1 -type d -printf "$(2) \"%p$(3)\" ")
+
+EXCLUDE_TAR := $(call LIST_DIR,src/hardware,--exclude) \
+	$(call LIST_DIR,src/lib,--exclude) \
+	$(call LIST_DIR,src/utils,--exclude)
+
+# EXCLUDE_ZIP := $(call LIST_DIR,src/hardware,-x,"/*") \
+# 	$(call LIST_DIR,src/lib,-x,"/*") \
+# 	$(call LIST_DIR,src/utils,-x,"/*")
+
+EXCLUDE_ZIP := "src/hardware/devu/*" "src/hardware/devg/*"
+
 all: prebundle
 	@echo done
 
 strip:
 	$(info Strip binary files)
-	$(eval distrib_files := $(shell find ./install))
+	$(eval distrib_files := $(shell find $(target)))
 # 	@echo distrib_Files=$(distrib_files)
 	$(eval strip_status := $(shell for distr_file in $(shell ls $(distrib_files)); do \
 		if file $$distr_file | grep 'ELF\|ar archive' >/dev/null; then \
-		ntoarmv7-strip -g -p $$distr_file; fi; done; echo -n $$?))
+		nto$(arch)-strip --strip-unneeded -p $$distr_file; fi; done; echo -n $$?))
 	@if [ $(strip_status) -eq 0 ]; then \
 		echo Strip done; \
 	else \
 		echo Strip fail; \
 	fi
 
-demo-bundle:
-	$(MAKE) -C. -f Makefile clean all
-	$(MAKE) -Cimages -f Makefile clean
-	$(MAKE) -Cimages -f Makefile b=demo
+clean_src:
+	@echo -n "Removing SRCVERSION tags from source files... "
+	@find . -type f \( -iname '*.[chsS]' -o -iname '*.[ch]pp' -o -iname '*.cc' \
+		-o -iname '*.[ly]' -o -iname 'trace.h.unuse' \) \
+		! -name 'srcversion.h' -print | \
+	while read fil; do \
+		unifdef -U__USESRCVERSION "$${fil}" > /dev/shm/clean_srcversion 2>/dev/null; \
+		[ $$? -eq 1 ] && mv /dev/shm/clean_srcversion "$${fil}"; \
+		sed -i -e 's/.*__SRCVERSION.*//' -e 's/#include\s*<sys\/srcversion\.h>.*//' "$${fil}"; \
+	done
+	@echo "done!"
 
-	$(MAKE) -C. -f Makefile.bundle strip
-	# Create 'binary-demo' BSP
-	tar --owner=root --group=root -zcf $(BUILD_DIR)/$(BNAME) install/armle-v7/boot/build/salute-el24d1-demo.build install/armle-v7/boot/sys/procnto-smp install/armle-v7/boot/sys/startup-salute-el24d1 install/armle-v7/lib/dll/devnp-1892vm14-gemac.so install/armle-v7/sbin/devc-ser8250 images/{salute-el24d1-demo.build,ifs-salute-el24d1-demo.bin,Makefile} --xform "s/-demo//"
+	@echo -n "Removing DNM sources... "
+	@find . -type f -name 'Makefile.dnm' -execdir sh -c 'rm -rf "$$PWD"' 2>/dev/null \; || true
+	@echo -n "done!"
 
 prebundle:
 	@[ -e $(BUILD_DIR) ] || mkdir -p $(BUILD_DIR)
@@ -40,30 +59,22 @@ bundle:
 	@$(foreach skel, $(SKEL_BUILDFILES), ./unifdef.sh $(skel) $(dir $(skel))/nand$(basename $(notdir $(skel))) noksz nommc;)
 	@$(foreach board, $(BOARDS_PATH), $(if $(filter $(board), $(PACK_BOARDS_PATH)), , touch $(board)/Makefile.dnm;))
 
-	@echo -n "Removing SRCVERSION tags from source files... "
-# xargs way is 3 times faster than 'find -exec'
-	@find . -type f \( -iname '*.[chsS]' -o -iname '*.[ch]pp' -o -iname '*.cc' \
-		-o -iname '*.[ly]' -o -iname 'trace.h.unuse' \) \
-		! -name 'srcversion.h' ! -name 'pcm_core.c' -print | xargs sed -i '/^__SRCVERSION/d'
-	@find . -type f -name 'pcm_core.c' -exec sed -i '/^__SRCVERSION/,+1d' {} \;
-	@echo "done!"
-	
-	@echo -n "Removing DNM sources... "
-	@find . -type f -name 'Makefile.dnm' -execdir sh -c 'rm -rf "$$PWD"' 2>/dev/null \; || true
-	@echo -n "done!"
+	$(MAKE) -f Makefile.bundle clean_src
 
-	$(MAKE) -C. -f Makefile clean all
-	$(MAKE) -C. -f Makefile.bundle strip
+	$(MAKE) -C. -f Makefile clean
+	$(MAKE) -C. -f Makefile all
+	$(MAKE) -C. -f Makefile.bundle strip target=install arch=armv7
 	$(MAKE) -Cimages -f Makefile clean
 	
 	@echo Create 'binary' BSP
 	@mkdir $(BUILD_DIR)/$(BSP_NAME) 
-	@cp -ar install images $(BUILD_DIR)/$(BSP_NAME)
+	@cp -ar install/* prebuilt/
+	@cp -ar install prebuilt images src Makefile $(BUILD_DIR)/$(BSP_NAME)
 	$(MAKE) -C$(BUILD_DIR)/$(BSP_NAME)/images clean_all build_all
 	@cd $(BUILD_DIR)/$(BSP_NAME)/images; sed -i -e '/build_all\|clean_all\|BUILDFILES/,+2 d' Makefile
 	@cd $(BUILD_DIR)/$(BSP_NAME)/images; sed -i -e 's/el24d1/$(word 2, $(subst -, ,$(PACK_BOARDS)))/g' Makefile
 	@cd $(BUILD_DIR)/$(BSP_NAME)/install; rm -rf usr
-	@cd $(BUILD_DIR); tar --owner=root --group=root --exclude='.gitignore' -zcf $(BUILD_DIR)/$(BNAME) $(BSP_NAME)
+	@cd $(BUILD_DIR); tar --owner=root --group=root --exclude='.gitignore' $(EXCLUDE_TAR) -zcf $(BUILD_DIR)/$(BNAME) $(BSP_NAME)
 	@rm -rf $(BUILD_DIR)/$(BSP_NAME)
 
 	@echo Cleanup and create 'source' BSP
@@ -75,8 +86,7 @@ bundle:
 	@cd $(BUILD_DIR)/$(BSP_NAME)/images; sed -i -e '/build_all\|clean_all\|BUILDFILES/,+2 d' Makefile
 	@cd $(BUILD_DIR)/$(BSP_NAME)/images; sed -i -e 's/el24d1/$(word 2, $(subst -, ,$(PACK_BOARDS)))/g' Makefile
 	-cd $(BUILD_DIR)/$(BSP_NAME); sed -i -e 's|id=".*"|id="$(BSP_NAME)"|' -e 's|<title>.*</title>|<title>$(BSP_NAME)</title>|' source.xml
-	@cd $(BUILD_DIR)/$(BSP_NAME); zip -FSr $(BUILD_DIR)/$(SNAME) * -x "*.skel" "*.gitignore" $(addsuffix "/*", $(EXCL_BOARDS_PATH) src/hardware/devu src/hardware/devg)
-	@cd $(BUILD_DIR); tar --owner=root --group=root --exclude='.gitignore' --exclude="*.skel" --exclude=$(addprefix $(BSP_NAME)/, $(EXCL_BOARDS_PATH)) --exclude="src/hardware/devu" --exclude="src/hardware/devg" -zcf $(BUILD_DIR)/$(SNAME2) $(BSP_NAME)
+	cd $(BUILD_DIR)/$(BSP_NAME); zip -FSr $(BUILD_DIR)/$(SNAME) * -x "*.skel" "*.gitignore" $(EXCLUDE_ZIP) $(addsuffix "/*", $(EXCL_BOARDS_PATH))
 
 	@rm -rf $(BUILD_DIR)/$(BSP_NAME)
 	@$(foreach skel, $(SKEL_BUILDFILES), rm -vf $(dir $(skel))/ksz-$(basename $(notdir $(skel)));)
@@ -98,4 +108,4 @@ BSP_DIR:=$(PWD)
 BSP_BLD:=$(BSP_NAME)-bld-`date +%Y%m%d`
 BNAME=$(BSP_NAME)-bin-`date +%Y%m%d`.tar.gz
 SNAME=$(BSP_NAME)-src-`date +%Y%m%d`.zip
-SNAME2=$(BSP_NAME)-src-`date +%Y%m%d`.tar.gz
+
