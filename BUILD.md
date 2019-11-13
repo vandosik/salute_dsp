@@ -7,13 +7,12 @@ KPDA Development Kit 2018
 ## BUILD FOR CUSTOMER
 
 ```
-make -f Makefile.bundle
+make -j $(nproc) -f Makefile.bundle
 ```
 
 ## Archives for customer
 
-- bsp-kpda-elvees-salute-bin-<date>.tar.gz
-- bsp-kpda-elvees-salute-src-<date>.tar.gz
-- bsp-kpda-elvees-salute-src-<date>.zip
+- .build/bsp-kpda-elvees-salute-bin-<date>.tar.gz
+- .build/bsp-kpda-elvees-salute-src-<date>.zip
 
 Build has been tested at Linux host.
