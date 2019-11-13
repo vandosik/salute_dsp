@@ -28,7 +28,7 @@
 #include <pthread.h>
 #include <sys/neutrino.h>
 #include <sys/syspage.h>
-#include "vm14timer.h"
+#include "hw/vm14timer.h"
 
 #define LCC_MAX 100
 

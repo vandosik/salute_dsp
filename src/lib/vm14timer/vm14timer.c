@@ -30,7 +30,7 @@
 #include <sys/neutrino.h>
 #include <hw/inout.h>
 
-#include "vm14timer.h"
+#include "hw/vm14timer.h"
 #include <drvr/hwinfo.h>
 
 static uint32_t *timer_addr;
