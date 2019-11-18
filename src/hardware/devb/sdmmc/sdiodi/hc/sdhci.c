@@ -301,6 +301,11 @@ static int sdhci_intr_event( sdio_hc_t *hc )
 		if( ( sts & SDHCI_INTR_TC ) ) {
 			cs = CS_CMD_CMP;
 			cmd->rsp[0] = sdhci_in32( base + SDHCI_RESP0 );
+
+#if defined (VARIANT_mcom)
+			goto out_tc;
+#endif
+
 		}
 		else if( ( sts & SDHCI_INTR_DMA ) ) {	// restart on dma boundary
 			sdhci_out32( base + SDHCI_SDMA_ARG2, sdhci_in32( base + SDHCI_SDMA_ARG2 ) );
@@ -316,6 +321,10 @@ static int sdhci_intr_event( sdio_hc_t *hc )
 			}
 		}
 	}
+
+#if defined (VARIANT_mcom)
+	out_tc:
+#endif
 
 	if( ( sts & SDHCI_INTR_CREM ) ) {
 		cs = CS_CARD_REMOVED;
