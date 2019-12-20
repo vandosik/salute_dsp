@@ -25,7 +25,7 @@
 #include "proto.h"
 
 static int _elcore_register_interface(void *data)
-{
+{printf("%s()\n", __func__);
 	elcore_dev_t		*dev = data;
 	ELCORE_DEV			*drvhdl;
 	resmgr_attr_t		rattr;
@@ -69,7 +69,7 @@ failed1:
 }
 
 static void* _elcore_driver_thread(void *data)
-{
+{printf("%s()\n", __func__);
 	elcore_dev_t	*dev = data;
 
 	if (_elcore_register_interface(data) != EOK)
@@ -86,7 +86,7 @@ static void* _elcore_driver_thread(void *data)
 }
 
 int _elcore_create_instance(elcore_dev_t *dev)
-{
+{printf("%s()\n", __func__);
 	pthread_attr_t		pattr;
 	struct sched_param	param;
 

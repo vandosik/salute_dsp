@@ -29,7 +29,7 @@ static char                     *buffer = "Hello world\n";
 
 int
 _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
-{
+{printf("%s()\n", __func__);
 // 	uint8_t		*buf;
 // 	int			nbytes;
 // 	int			nonblock = 0;
@@ -103,7 +103,7 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
 
     if (nbytes > 0) {
         /* set up the return data IOV */
-        SETIOV (ctp->iov, buffer + ocb->hdr.offset, nbytes);
+        //SETIOV (ctp->iov, buffer + ocb->hdr.offset, nbytes);
 
         /* set up the number of bytes (returned by client's read()) */
         _IO_SET_READ_NBYTES (ctp, nbytes);
@@ -132,6 +132,6 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
     if (msg->i.nbytes > 0)
         ocb->hdr.attr->flags |= IOFUNC_ATTR_ATIME;
 
-    return (_RESMGR_NPARTS (nparts));
+    return (_RESMGR_PTR(ctp, buffer, nbytes));
 }
 

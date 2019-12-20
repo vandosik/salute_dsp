@@ -37,7 +37,7 @@
 
 
 int main(int argc, char *argv[])
-{
+{printf("%s()\n", __func__);
 	elcore_dev_t	*head = NULL, *tail = NULL, *dev;
 	void		*drventry, *dlhdl;
 	siginfo_t	info;
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
         perror("dev allocation error");
         goto cleanup;
     }
-    
+
     if (argv[1] == NULL || *argv[0] == '-')
     {
         dev->opts = NULL;
@@ -116,11 +116,18 @@ int main(int argc, char *argv[])
     {
         dev->opts = strdup(argv[optind]);
     }
-//     dev->funcs = (elcore_funcs_t*)NULL;
-    dev->funcs->init = elcore_func_init;
-    dev->funcs->fini = elcore_func_fini;
-    dev->devnum = devnum++;
+    printf("%s()\n", __func__);
+
+    static elcore_funcs_t elcore_funcs = { 
+        elcore_func_init,
+        elcore_func_fini
+    };
     
+//     dev->funcs->init = elcore_func_init;
+//     dev->funcs->fini = elcore_func_fini;
+    dev->funcs = &elcore_funcs;    
+    dev->devnum = devnum++;
+   
     stat = _elcore_create_instance(dev);
     
     if (dev->opts)

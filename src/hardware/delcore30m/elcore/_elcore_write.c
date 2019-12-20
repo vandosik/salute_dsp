@@ -26,7 +26,7 @@
 
 int
 _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
-{
+{printf("%s()\n", __func__);
 // 	uint8_t		*buf;
 // 	int			nonblock;
 // 	int			nbytes, status;

@@ -30,7 +30,7 @@ resmgr_connect_funcs_t	_elcore_connect_funcs;
 iofunc_mount_t			_elcore_mount = { 0, 0, 0, 0, &_elcore_ocb_funcs };
 
 int _elcore_init_iofunc(void)
-{
+{printf("%s()\n", __func__);
 	iofunc_func_init(_RESMGR_CONNECT_NFUNCS, &_elcore_connect_funcs, _RESMGR_IO_NFUNCS, &_elcore_io_funcs);
 	_elcore_io_funcs.read      = _elcore_read;
 	_elcore_io_funcs.write     = _elcore_write;

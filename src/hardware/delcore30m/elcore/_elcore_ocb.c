@@ -26,7 +26,7 @@
 
 elcore_ocb_t *
 _elcore_ocb_calloc(resmgr_context_t *ctp, IOFUNC_ATTR_T *attr)
-{
+{printf("%s()\n", __func__);
 	elcore_ocb_t	*ocb;
 //	SPIDEV		*drvhdl = (SPIDEV *)attr;
 //	spi_dev_t	*dev = (spi_dev_t *)drvhdl->hdl;
@@ -41,6 +41,6 @@ _elcore_ocb_calloc(resmgr_context_t *ctp, IOFUNC_ATTR_T *attr)
 
 void
 _elcore_ocb_free(IOFUNC_OCB_T *ocb)
-{
+{printf("%s()\n", __func__);
 	free(ocb);
 }
