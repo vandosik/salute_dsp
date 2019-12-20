@@ -1,0 +1,9 @@
+
+%C - DSP driver
+
+Syntax:
+%C [-u unit]
+
+Options:
+-u unit    Set spi unit number (default: 0).
+-d         driver module name

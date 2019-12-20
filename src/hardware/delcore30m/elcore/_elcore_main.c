@@ -19,16 +19,16 @@
  * $ 
  */
  
-#ifdef __USAGE
-%C - SPI driver
-
-Syntax:
-%C [-u unit]
-
-Options:
--u unit    Set spi unit number (default: 0).
--d         driver module name
-#endif
+// #ifdef __USAGE
+// %C - SPI driver
+// 
+// Syntax:
+// %C [-u unit]
+// 
+// Options:
+// -u unit    Set spi unit number (default: 0).
+// -d         driver module name
+// #endif
 
 
 #include <sys/procmgr.h>
@@ -38,71 +38,108 @@ Options:
 
 int main(int argc, char *argv[])
 {
-	spi_dev_t	*head = NULL, *tail = NULL, *dev;
+	elcore_dev_t	*head = NULL, *tail = NULL, *dev;
 	void		*drventry, *dlhdl;
 	siginfo_t	info;
 	sigset_t	set;
-	int			i, c, devnum = 0;
+	int			stat, c, devnum = 0;
 
 	if (ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
 		perror("ThreadCtl");
 		return (!EOK);
 	}
 
-	_spi_init_iofunc();
+	_elcore_init_iofunc();
 
-	while ((c = getopt(argc, argv, "u:d:")) != -1) {
-		switch (c) {
-			case 'u':
-				devnum = strtol(optarg, NULL, 0);
-				break;
-			case 'd':
-				if ((drventry = _spi_dlload(&dlhdl, optarg)) == NULL) {
-					perror("spi_load_driver() failed");
-					return (-1);
-				}
+// 	while ((c = getopt(argc, argv, "u:d:")) != -1) {
+// 		switch (c) {
+// 			case 'u':
+// 				devnum = strtol(optarg, NULL, 0);
+// 				break;
+// 			case 'd':
+// 				if ((drventry = _spi_dlload(&dlhdl, optarg)) == NULL) {
+// 					perror("spi_load_driver() failed");
+// 					return (-1);
+// 				}
+// 
+// 				do {
+// 					if ((dev = calloc(1, sizeof(elcore_dev_t))) == NULL)
+// 						goto cleanup;
+// 	
+// 					if (argv[optind] == NULL || *argv[optind] == '-')
+// 						dev->opts = NULL;
+// 					else
+// 						dev->opts = strdup(argv[optind]);
+// 					++optind;
+// 					dev->funcs  = (spi_funcs_t *)drventry;
+// 					dev->devnum = devnum++;
+// 					dev->dlhdl  = dlhdl;
+// 
+// 					stat = _spi_create_instance(dev);
+// 					if (dev->opts)
+// 						free(dev->opts);
+// 
+// 					if (stat != EOK) {
+// 						perror("spi_create_instance() failed");
+// 						free(dev);
+// 						goto cleanup;
+// 					}
+// 
+// 					if (head) {
+// 						tail->next = dev;
+// 						tail = dev;
+// 					}
+// 					else
+// 						head = tail = dev;
+// 				} while (optind < argc && *(optarg = argv[optind]) != '-'); 
+// 
+// 				/* 
+// 				 * Now we only support one dll
+// 				 */
+// 				goto start_elcore;
+// 
+// 				break;
+// 		}
+// 	}
 
-				do {
-					if ((dev = calloc(1, sizeof(spi_dev_t))) == NULL)
-						goto cleanup;
-	
-					if (argv[optind] == NULL || *argv[optind] == '-')
-						dev->opts = NULL;
-					else
-						dev->opts = strdup(argv[optind]);
-					++optind;
-					dev->funcs  = (spi_funcs_t *)drventry;
-					dev->devnum = devnum++;
-					dev->dlhdl  = dlhdl;
+    if ((dev = calloc(1, sizeof(elcore_dev_t))) == NULL)
+    {
+        perror("dev allocation error");
+        goto cleanup;
+    }
+    
+    if (argv[1] == NULL || *argv[0] == '-')
+    {
+        dev->opts = NULL;
+    }
+    else
+    {
+        dev->opts = strdup(argv[optind]);
+    }
+//     dev->funcs = (elcore_funcs_t*)NULL;
+    dev->funcs->init = elcore_func_init;
+    dev->funcs->fini = elcore_func_fini;
+    dev->devnum = devnum++;
+    
+    stat = _elcore_create_instance(dev);
+    
+    if (dev->opts)
+        free(dev->opts);
+    
+    if (stat != EOK) {
+        perror("elcore_create_instance() failed");
+        free(dev);
+        goto cleanup;
+    }
 
-					i = _spi_create_instance(dev);
-					if (dev->opts)
-						free(dev->opts);
-
-					if (i != EOK) {
-						perror("spi_create_instance() failed");
-						free(dev);
-						goto cleanup;
-					}
-
-					if (head) {
-						tail->next = dev;
-						tail = dev;
-					}
-					else
-						head = tail = dev;
-				} while (optind < argc && *(optarg = argv[optind]) != '-'); 
-
-				/* 
-				 * Now we only support one dll
-				 */
-				goto start_spi;
-
-				break;
-		}
-	}
-
-start_spi:
+    if (head) {
+        tail->next = dev;
+        tail = dev;
+    }
+    else
+        head = tail = dev;
+    
+start_elcore:
 	if (head) {
 		/* background the process */
 		procmgr_daemon(0, PROCMGR_DAEMON_NOCLOSE | PROCMGR_DAEMON_NODEVNULL);
@@ -135,10 +172,8 @@ cleanup:
 		dev=head;
 	}
 
-	dlclose(dlhdl);
+// 	dlclose(dlhdl);
 
 	return (EOK);
 }
 
-
-__SRCVERSION( "$URL: http://community.qnx.com/svn/repos/internal-outsourcing/trunk/hardware/spi/master/_spi_main.c $ $Rev: 1861 $" );

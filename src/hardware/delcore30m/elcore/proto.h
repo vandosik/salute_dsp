@@ -22,8 +22,8 @@
 
 
 
-#ifndef _SPI_PROTO_H_INCLUDED
-#define _SPI_PROTO_H_INCLUDED
+#ifndef _ELCORE_PROTO_H_INCLUDED
+#define _ELCORE_PROTO_H_INCLUDED
 
 struct elcore_ocb;
 #define IOFUNC_OCB_T    struct elcore_ocb
@@ -35,10 +35,10 @@ struct elcore_ocb;
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <hw/spi-master.h>
+#include <elcore-master.h>
 
-#define SPI_RESMGR_NPARTS_MIN   2
-#define SPI_RESMGR_MSGSIZE_MIN  2048
+#define ELCORE_RESMGR_NPARTS_MIN   2
+#define ELCORE_RESMGR_MSGSIZE_MIN  2048
 #define SPI_CLIENTS_MAX         32
 
 #define	SPI_EVENT				1
@@ -49,34 +49,34 @@ struct elcore_ocb;
 #define _SPI_DEV_EXCHANGE(d)	(d | (SPI_DEV_EXCHANGE << SPI_DEV_XFER_SHIFT))
 #define _SPI_DEV_WRITE_READ(d)	(d | (SPI_DEV_WRITE_READ << SPI_DEV_XFER_SHIFT))
 
-extern iofunc_funcs_t			_spi_ocb_funcs;
-extern resmgr_io_funcs_t		_spi_io_funcs;
-extern resmgr_connect_funcs_t	_spi_connect_funcs;
-extern iofunc_mount_t			_spi_mount;
+extern iofunc_funcs_t			_elcore_ocb_funcs;
+extern resmgr_io_funcs_t		_elcore_io_funcs;
+extern resmgr_connect_funcs_t	_elcore_connect_funcs;
+extern iofunc_mount_t			_elcore_mount;
 
 typedef struct elcore_ocb {
 	iofunc_ocb_t		hdr;
 	uint32_t			core;
-} spi_ocb_t;
+} elcore_ocb_t;
 
-typedef struct spi_lock {
-	spi_ocb_t			*owner;		/* Owner */
-	uint32_t			device;		/* Device */
-	struct spi_lock		*next;
-} spi_lock_t;
+// typedef struct spi_lock {
+// 	spi_ocb_t			*owner;		/* Owner */
+// 	uint32_t			device;		/* Device */
+// 	struct spi_lock		*next;
+// } spi_lock_t;
 
-typedef struct spi_dev {
+typedef struct elcore_dev {
 	dispatch_t			*dpp;
 	dispatch_context_t	*ctp;
 	int					id;
-	spi_funcs_t			*funcs;
+	elcore_funcs_t		*funcs;
 
 	uint8_t				*buf;
 	uint8_t				*dmabuf;
 	unsigned			buflen;
 
 	void				*drvhdl;
-	void				*dlhdl;
+	void				*dlhdl;  // dll handler
 
 	pthread_t			tid;
 	int					chid;
@@ -86,30 +86,33 @@ typedef struct spi_dev {
 	int					devnum;
 
 	void				*next;
-} spi_dev_t;
+} elcore_dev_t;
 
 
-spi_ocb_t  *_spi_ocb_calloc(resmgr_context_t *ctp, IOFUNC_ATTR_T *attr);
-spi_lock_t *_spi_islock(resmgr_context_t *ctp, uint32_t device, spi_ocb_t *ocb);
-void _spi_ocb_free(spi_ocb_t *ocb);
-void *_spi_dlload(void **hdl, const char *optarg);
-int _spi_create_instance(spi_dev_t *dev);
-int _spi_init_iofunc(void);
-int _spi_close_ocb(resmgr_context_t *ctp, void *reserved, spi_ocb_t *ocb);
-int _spi_devctl(resmgr_context_t *ctp, io_devctl_t *msg, spi_ocb_t *ocb);
-int _spi_read(resmgr_context_t *ctp, io_read_t *msg, spi_ocb_t *ocb);
-int _spi_write(resmgr_context_t *ctp, io_write_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg_read(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg_cmdread(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg_write_then_read(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg_write(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg_xchange(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_iomsg_dmaxchange(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
-int _spi_lock_check(resmgr_context_t *ctp, uint32_t device, spi_ocb_t *ocb);
-int _spi_unlock_dev(resmgr_context_t *ctp, uint32_t device, spi_ocb_t *ocb);
-int _spi_slogf(const char *fmt, ...);
+elcore_ocb_t  *_elcore_ocb_calloc(resmgr_context_t *ctp, IOFUNC_ATTR_T *attr);
+// spi_lock_t *_spi_islock(resmgr_context_t *ctp, uint32_t device, spi_ocb_t *ocb);
+void _elcore_ocb_free(elcore_ocb_t *ocb);
+// void *_spi_dlload(void **hdl, const char *optarg);
+int _elcore_create_instance(elcore_dev_t *dev);
+int _elcore_init_iofunc(void);
+// int _spi_close_ocb(resmgr_context_t *ctp, void *reserved, spi_ocb_t *ocb);
+// int _spi_devctl(resmgr_context_t *ctp, io_devctl_t *msg, spi_ocb_t *ocb);
+int _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb);
+int _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb);
+// int _spi_iomsg(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_iomsg_read(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_iomsg_cmdread(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_iomsg_write_then_read(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_iomsg_write(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_iomsg_xchange(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_iomsg_dmaxchange(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
+// int _spi_lock_check(resmgr_context_t *ctp, uint32_t device, spi_ocb_t *ocb);
+// int _spi_unlock_dev(resmgr_context_t *ctp, uint32_t device, spi_ocb_t *ocb);
+// int _spi_slogf(const char *fmt, ...);
 
+
+extern void *elcore_func_init(void *hdl, char *options);
+extern void elcore_func_fini(void *hdl);
 
 #endif
 

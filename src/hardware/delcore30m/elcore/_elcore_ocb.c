@@ -21,22 +21,26 @@
 
 
 
+
 #include "proto.h"
 
-
-iofunc_funcs_t			_elcore_ocb_funcs = { _IOFUNC_NFUNCS, _elcore_ocb_calloc, _elcore_ocb_free };
-resmgr_io_funcs_t		_elcore_io_funcs;
-resmgr_connect_funcs_t	_elcore_connect_funcs;
-iofunc_mount_t			_elcore_mount = { 0, 0, 0, 0, &_elcore_ocb_funcs };
-
-int _elcore_init_iofunc(void)
+elcore_ocb_t *
+_elcore_ocb_calloc(resmgr_context_t *ctp, IOFUNC_ATTR_T *attr)
 {
-	iofunc_func_init(_RESMGR_CONNECT_NFUNCS, &_elcore_connect_funcs, _RESMGR_IO_NFUNCS, &_elcore_io_funcs);
-	_elcore_io_funcs.read      = _elcore_read;
-	_elcore_io_funcs.write     = _elcore_write;
-// 	_elcore_io_funcs.devctl    = _elcore_devctl;
-// 	_elcore_io_funcs.close_ocb = _elcore_close_ocb;
-// 	_elcore_io_funcs.msg       = _elcore_iomsg;
+	elcore_ocb_t	*ocb;
+//	SPIDEV		*drvhdl = (SPIDEV *)attr;
+//	spi_dev_t	*dev = (spi_dev_t *)drvhdl->hdl;
 
-	return EOK;
+	if (NULL == (ocb = calloc(1, sizeof(*ocb))))
+		return NULL;
+
+	ocb->core = ELCORE_DEV_CORE0;
+
+	return ocb;
+}
+
+void
+_elcore_ocb_free(IOFUNC_OCB_T *ocb)
+{
+	free(ocb);
 }

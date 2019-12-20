@@ -24,12 +24,12 @@
 
 #include "proto.h"
 
-static int _spi_register_interface(void *data)
+static int _elcore_register_interface(void *data)
 {
-	spi_dev_t		*dev = data;
-	SPIDEV			*drvhdl;
-	resmgr_attr_t	rattr;
-	char			devname[PATH_MAX + 1];
+	elcore_dev_t		*dev = data;
+	ELCORE_DEV			*drvhdl;
+	resmgr_attr_t		rattr;
+	char				devname[PATH_MAX + 1];
 
 	if ((drvhdl = dev->funcs->init(dev, dev->opts)) == NULL) {
 		free(dev->opts);
@@ -40,20 +40,20 @@ static int _spi_register_interface(void *data)
 
 	/* set up i/o handler functions */
 	memset(&rattr, 0, sizeof(rattr));
-	rattr.nparts_max   = SPI_RESMGR_NPARTS_MIN;
-	rattr.msg_max_size = SPI_RESMGR_MSGSIZE_MIN;
+	rattr.nparts_max   = ELCORE_RESMGR_NPARTS_MIN; //how many IOV structures are available for server replies
+	rattr.msg_max_size = ELCORE_RESMGR_MSGSIZE_MIN; //the minimum receive buffer size
 
 	iofunc_attr_init(&drvhdl->attr, S_IFCHR | 0666, NULL, NULL);
-	drvhdl->attr.mount = &_spi_mount;
+	drvhdl->attr.mount = &_elcore_mount;
 
 	/* register device name */
-	snprintf(devname, PATH_MAX, "/dev/spi%d", dev->devnum);
+	snprintf(devname, PATH_MAX, "/dev/elcore%d", dev->devnum);
 	if (-1 == (dev->id = resmgr_attach(dev->dpp, &rattr, devname, _FTYPE_ANY, 0,
-					&_spi_connect_funcs, &_spi_io_funcs, (void *)drvhdl))) {
+					&_elcore_connect_funcs, &_elcore_io_funcs, (void *)drvhdl))) {
 		perror("resmgr_attach() failed");
 		goto failed1;
 	}
-
+	//get device inode
 	resmgr_devino(dev->id, &drvhdl->attr.mount->dev, &drvhdl->attr.inode);
 
 	if ((dev->ctp = dispatch_context_alloc(dev->dpp)) != NULL)
@@ -68,11 +68,11 @@ failed1:
 	return (!EOK);
 }
 
-static void* _spi_driver_thread(void *data)
+static void* _elcore_driver_thread(void *data)
 {
-	spi_dev_t	*dev = data;
+	elcore_dev_t	*dev = data;
 
-	if (_spi_register_interface(data) != EOK)
+	if (_elcore_register_interface(data) != EOK)
 		return NULL;
 
 	while (1) {
@@ -85,7 +85,7 @@ static void* _spi_driver_thread(void *data)
 	return NULL;
 }
 
-int _spi_create_instance(spi_dev_t *dev)
+int _elcore_create_instance(elcore_dev_t *dev)
 {
 	pthread_attr_t		pattr;
 	struct sched_param	param;
@@ -102,7 +102,7 @@ int _spi_create_instance(spi_dev_t *dev)
 	pthread_attr_setinheritsched(&pattr, PTHREAD_EXPLICIT_SCHED);
 
 	// Create thread for this interface
-	if (pthread_create(NULL, &pattr, (void *)_spi_driver_thread, dev) != EOK) {
+	if (pthread_create(NULL, &pattr, (void *)_elcore_driver_thread, dev) != EOK) {
 		perror("pthread_create() failed");
 		goto failed1;
 	}
