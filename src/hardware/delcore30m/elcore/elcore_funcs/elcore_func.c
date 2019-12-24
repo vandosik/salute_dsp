@@ -13,6 +13,8 @@ void *elcore_func_init(void *hdl, char *options)
         return NULL;
     }
     
+    dev->hdl = hdl;
+    
     printf("%s: success\n", __func__);
     
     return dev;

@@ -34,7 +34,7 @@ _elcore_ocb_calloc(resmgr_context_t *ctp, IOFUNC_ATTR_T *attr)
 	if (NULL == (ocb = calloc(1, sizeof(*ocb))))
 		return NULL;
 
-	ocb->core = ELCORE_DEV_CORE0;
+	ocb->core = ELCORE_DEV_CORE_0;
 
 	return ocb;
 }

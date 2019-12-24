@@ -25,6 +25,8 @@
 #ifndef _ELCORE_PROTO_H_INCLUDED
 #define _ELCORE_PROTO_H_INCLUDED
 
+// struct _elcore_dev_entry_t;
+// #define IOFUNC_ATTR_T       struct _elcore_dev_entry_t  /* see note 1 */
 struct elcore_ocb;
 #define IOFUNC_OCB_T    struct elcore_ocb
 

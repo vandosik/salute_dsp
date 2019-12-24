@@ -76,9 +76,11 @@
 //     #define	SPI_DEV_ID_MASK			0xFFFF
 //     #define	SPI_DEV_ID_NONE			SPI_DEV_ID_MASK
 // 
-#define ELCORE_DEV_CORE0            (1 << 0)
-#define ELCORE_DEV_CORE1            (1 << 1)
-
+enum elcore_core {
+	ELCORE_DEV_CORE_0 = 0x1,
+	ELCORE_DEV_CORE_1 = 0x2,
+	ELCORE_DEV_CORE_ALL = 0x3,
+};
 
 //     /* For SPI API interface */
 //     #define	SPI_DEV_DEFAULT			(1 << 31)	/* Default device, use by spi_setcfg()/spi_getdevinfo() call */
@@ -124,17 +126,22 @@
 //     } spi_dma_paddr_t;
 // 
 // 
-//     /*
-//      * The following devctls are used by a client application
-//      * to control the SPI interface.
-//      */
-// 
-//     #include <devctl.h>
-//     #define _DCMD_SPI				_DCMD_MISC
-// 
-//     #define DCMD_SPI_SET_CONFIG		__DIOT (_DCMD_SPI, 0x11, spi_cfg_t)
-//     #define	DCMD_SPI_GET_DRVINFO	__DIOF (_DCMD_SPI, 0x12, spi_drvinfo_t)
-//     #define	DCMD_SPI_GET_DEVINFO	__DIOF (_DCMD_SPI, 0x13, spi_devinfo_t)
+    /*
+     * The following devctls are used by a client application
+     * to control the SPI interface.
+     */
+
+#include <devctl.h>
+#define _DCMD_ELCORE				_DCMD_MISC
+
+#define DCMD_ELCORE_T		__DIOT (_DCMD_ELCORE, 0x11, uint32_t)
+#define	DCMD_ELCORE_F		__DIOF (_DCMD_ELCORE, 0x12, uint32_t)
+#define	DCMD_ELCORE_N		__DION (_DCMD_ELCORE, 0x13 )
+#define	DCMD_ELCORE_TF		__DIOTF (_DCMD_ELCORE, 0x14, uint32_t)
+
+
+
+
 // 
 // 
 //     /*
