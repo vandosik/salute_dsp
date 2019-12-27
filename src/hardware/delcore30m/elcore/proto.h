@@ -37,7 +37,7 @@ struct elcore_ocb;
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include <elcore-master.h>
+#include <elcore-manager.h>
 
 #define ELCORE_RESMGR_NPARTS_MIN   2
 #define ELCORE_RESMGR_MSGSIZE_MIN  2048
@@ -98,7 +98,7 @@ void _elcore_ocb_free(elcore_ocb_t *ocb);
 int _elcore_create_instance(elcore_dev_t *dev);
 int _elcore_init_iofunc(void);
 // int _spi_close_ocb(resmgr_context_t *ctp, void *reserved, spi_ocb_t *ocb);
-// int _spi_devctl(resmgr_context_t *ctp, io_devctl_t *msg, spi_ocb_t *ocb);
+int _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb);
 int _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb);
 int _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb);
 // int _spi_iomsg(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);

@@ -133,11 +133,12 @@ enum elcore_core {
 
 #include <devctl.h>
 #define _DCMD_ELCORE				_DCMD_MISC
+#define _DCMD_ELCORE_CODE			0x11
 
-#define DCMD_ELCORE_T		__DIOT (_DCMD_ELCORE, 0x11, uint32_t)
-#define	DCMD_ELCORE_F		__DIOF (_DCMD_ELCORE, 0x12, uint32_t)
-#define	DCMD_ELCORE_N		__DION (_DCMD_ELCORE, 0x13 )
-#define	DCMD_ELCORE_TF		__DIOTF (_DCMD_ELCORE, 0x14, uint32_t)
+#define DCMD_ELCORE_T		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 0, uint32_t)
+#define	DCMD_ELCORE_F		__DIOF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 1, uint32_t)
+#define	DCMD_ELCORE_N		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2)
+#define	DCMD_ELCORE_TF		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3, uint32_t)
 
 
 

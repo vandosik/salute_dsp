@@ -27,7 +27,7 @@
 
 int
 _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
-{
+{printf("%s()\n", __func__);
 	int			status;
 	ELCORE_DEV		*drvhdl = (ELCORE_DEV *)ocb->hdr.attr;
 	elcore_dev_t	*dev = drvhdl->hdl;

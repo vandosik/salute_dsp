@@ -116,7 +116,6 @@ int main(int argc, char *argv[])
     {
         dev->opts = strdup(argv[optind]);
     }
-    printf("%s()\n", __func__);
 
     static elcore_funcs_t elcore_funcs = { 
         elcore_func_init,

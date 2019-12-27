@@ -34,7 +34,7 @@ int _elcore_init_iofunc(void)
 	iofunc_func_init(_RESMGR_CONNECT_NFUNCS, &_elcore_connect_funcs, _RESMGR_IO_NFUNCS, &_elcore_io_funcs);
 	_elcore_io_funcs.read      = _elcore_read;
 	_elcore_io_funcs.write     = _elcore_write;
-// 	_elcore_io_funcs.devctl    = _elcore_devctl;
+	_elcore_io_funcs.devctl    = _elcore_devctl;
 // 	_elcore_io_funcs.close_ocb = _elcore_close_ocb;
 // 	_elcore_io_funcs.msg       = _elcore_iomsg;
 
