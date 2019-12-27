@@ -133,6 +133,8 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			return _RESMGR_PTR(ctp, msg, sizeof(msg->o) + sizeof(spi_drvinfo_t));
 // 		}
 	}
+	
+	return _RESMGR_PTR(ctp, msg, sizeof(msg->o));
 
-	return ENOSYS;
+// 	return ENOSYS;
 }

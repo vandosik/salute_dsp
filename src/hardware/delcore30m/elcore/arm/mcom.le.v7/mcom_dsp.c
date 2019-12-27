@@ -1,19 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "./../elcore-master.h"
+#include <elcore-manager.h>
+#include "mcom_dsp.h"
 
 void *elcore_func_init(void *hdl, char *options)
 {
-    ELCORE_DEV			*dev;
+    delcore30m_t			*dev;
     
-    dev = calloc(1, sizeof(ELCORE_DEV));
+    dev = calloc(1, sizeof(delcore30m_t));
     if ( dev == NULL )
     {
         printf("%s: error\n", __func__);
         return NULL;
     }
     
-    dev->hdl = hdl;
+    dev->drvhdl.hdl = hdl;
     
     printf("%s: success\n", __func__);
     

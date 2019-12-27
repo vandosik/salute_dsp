@@ -16,7 +16,7 @@ Options:
 #include <unistd.h>
 #include <devctl.h>
 #include <errno.h>
-#include <elcore-master.h>
+#include <elcore-manager.h>
 
 #include <stdio.h>
 #include <string.h>

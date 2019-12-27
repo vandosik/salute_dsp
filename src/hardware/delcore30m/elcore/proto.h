@@ -61,6 +61,7 @@ typedef struct elcore_ocb {
 	uint32_t			core;
 } elcore_ocb_t;
 
+
 // typedef struct spi_lock {
 // 	spi_ocb_t			*owner;		/* Owner */
 // 	uint32_t			device;		/* Device */
@@ -113,8 +114,8 @@ int _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb);
 // int _spi_slogf(const char *fmt, ...);
 
 
-extern void *elcore_func_init(void *hdl, char *options);
-extern void elcore_func_fini(void *hdl);
+// extern void *elcore_func_init(void *hdl, char *options);
+// extern void elcore_func_fini(void *hdl);
 
 #endif
 

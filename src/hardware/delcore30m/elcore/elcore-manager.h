@@ -131,6 +131,9 @@ enum elcore_core {
      * to control the SPI interface.
      */
 
+
+    
+    
 #include <devctl.h>
 #define _DCMD_ELCORE				_DCMD_MISC
 #define _DCMD_ELCORE_CODE			0x11
@@ -214,13 +217,20 @@ enum elcore_core {
 //     } spi_funcs_t;
 
 typedef struct {
+    /* size of this structure */
+    size_t	size;
 
     void*   (*init)(void* hdl, char *options);
     
     void    (*fini)(void *hdl);
+    
+    
+    
+    
 
 } elcore_funcs_t;
 
+extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr
 
 /*
  * Low-level entry, has to be at the beginning of low-level handle

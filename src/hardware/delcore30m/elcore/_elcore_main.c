@@ -35,7 +35,6 @@
 #include <dlfcn.h>
 #include "proto.h"
 
-
 int main(int argc, char *argv[])
 {printf("%s()\n", __func__);
 	elcore_dev_t	*head = NULL, *tail = NULL, *dev;
@@ -117,13 +116,11 @@ int main(int argc, char *argv[])
         dev->opts = strdup(argv[optind]);
     }
 
-    static elcore_funcs_t elcore_funcs = { 
-        elcore_func_init,
-        elcore_func_fini
-    };
-    
-//     dev->funcs->init = elcore_func_init;
-//     dev->funcs->fini = elcore_func_fini;
+//     static elcore_funcs_t elcore_funcs = { 
+//         elcore_func_init,
+//         elcore_func_fini
+//     };
+   
     dev->funcs = &elcore_funcs;    
     dev->devnum = devnum++;
    
