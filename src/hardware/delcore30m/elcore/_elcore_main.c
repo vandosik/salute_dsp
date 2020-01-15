@@ -38,7 +38,7 @@
 int main(int argc, char *argv[])
 {printf("%s()\n", __func__);
 	elcore_dev_t	*head = NULL, *tail = NULL, *dev;
-	void		*drventry, *dlhdl;
+// 	void		*drventry, *dlhdl;
 	siginfo_t	info;
 	sigset_t	set;
 	int			stat, c, devnum = 0;

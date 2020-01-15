@@ -136,6 +136,7 @@
 #define MC1892VM14_CMCTR_DIV_SYS1_REG	0x44
 #define MC1892VM14_CMCTR_GATE_CORE_REG	0x48
 #define MC1892VM14_CMCTR_GATE_SYS_REG	0x4C
+#define MC1892VM14_CMCTR_GATE_DSP_REG	0x68
 #define MC1892VM14_CMCTR_SEL_APLL_REG	0x100
 #define MC1892VM14_CMCTR_SEL_SPLL_REG	0x10C
 
@@ -159,6 +160,11 @@
 #define MC1892VM14_CMCTR_GATE_SYS_I2C2_EN				(1 << 18)
 #define MC1892VM14_CMCTR_GATE_SYS_NAND_EN				(1 << 21)
 
+
+#define MC1892VM14_CMCTR_GATE_DSP_DSP0_EN				(1 << 0)
+#define MC1892VM14_CMCTR_GATE_DSP_DSP1_EN				(1 << 1)
+#define MC1892VM14_CMCTR_GATE_DSP_DSPEXT_EN				(1 << 2)
+#define MC1892VM14_CMCTR_GATE_DSP_DSPENC_EN				(1 << 3)
 /*
  * -------------------------------------------------------------------------
  * PMCTR - power management controller

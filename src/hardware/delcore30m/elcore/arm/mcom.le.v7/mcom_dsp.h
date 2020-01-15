@@ -58,6 +58,8 @@
 #define DLCR30M_DSP1_PRAM					(DLCR30M_DSP1_PRAM_PHYS - DLCR30M_BASE)
 #define DLCR30M_DSP1_PRAM_SIZE				0x00008000
 
+//size of one block
+#define DLCR30M_BANK_SIZE					0x8000
 
 //------------------ Delcore common regs --------------------------------//
 
@@ -87,6 +89,7 @@
 	#define DLCR30M_CSR_SYNC_START					(1 << 0)
 	#define DLCR30M_CSR_SYNC_WORK					(1 << 1)
 	#define DLCR30M_CSR_PM_CONFIG(val)				((val & 0x3) << 2)
+	#define DLCR30M_CSR_PM_CONFIG_MASK				(0x3 << 2)
 	#define DLCR30M_CSR_HEN							(1 << 16)
 	#define DLCR30M_CSR_DEN							(1 << 17)
 	#define DLCR30M_CSR_LEN							(1 << 18)
@@ -138,8 +141,8 @@
 #define DLCR30M_DT								0xEC				//R/W 16
 #define DLCR30M_IVAR							0xFC				//R/W 16
 
-#define DLCR30M_R2L(index)						(index * 2)		 //R/W? 32
-#define DLCR30M_R1L(index)						(0x40 + (index * 2 - 2))//R/W? 32
+#define DLCR30M_R2L(index)						(index * 2)		 //R/W? 32    0,2,4...30
+#define DLCR30M_R1L(index)						(0x40 + (index * 2 - 2))//R/W? 32   1,3,5...31  
 #define DLCR30M_AC(index)						(index * 4 + 0x200)
 // #define DLCR30M_PB_ERR_SR 0x340				//R/W? 32
 
@@ -157,21 +160,42 @@
 #define DLCR30M_dbCNTR							0x540			//R/W 16
 #define DLCR30M_dbSAR(index)					(index * 4 + 0x544) //R/W 16
 
+
+#define dsp_get_reg16(CORE_VAR,REG_NAME)						*((uint16_t*)((CORE_VAR)->regs + REG_NAME))
+#define dsp_get_reg32(CORE_VAR,REG_NAME)						*((uint32_t*)((CORE_VAR)->regs + REG_NAME))
+#define dsp_get_reg64(CORE_VAR,REG_NAME)						*((uint64_t*)((CORE_VAR)->regs + REG_NAME))
+#define dsp_set_reg16(CORE_VAR,REG_NAME,VALUE)					*((uint16_t*)((CORE_VAR)->regs + REG_NAME)) = VALUE;
+#define dsp_set_reg32(CORE_VAR,REG_NAME,VALUE)					*((uint32_t*)((CORE_VAR)->regs + REG_NAME)) = VALUE;
+#define dsp_set_reg64(CORE_VAR,REG_NAME,VALUE)					*((uint64_t*)((char*)(CORE_VAR)->regs + \
+																	(uint64_t)(REG_NAME))) = (uint64_t)(VALUE);
+
+#define addr2delcore30m(addr)					((addr & 0xFFFFF) >> 2)
+
+typedef struct delcore30m_firmware {
+	uint32_t cores;
+	size_t size;
+	uint8_t *data;
+} delcore30m_firmware;
+
+#define DLCR30M_FWREADY							1
+#define DLCR30M_FWEMPTY							0
+
 typedef struct {
-	struct dsp_cluster* cluster;//указател на структуру кластера
-	uint8_t*	xyram;
-	uint8_t*	pram;
+	struct delcore30m_t*	cluster;//указател на структуру кластера
+	uint8_t*				xyram;
+	uint8_t*				pram;
 // 	uint8_t*	stack;
-	uint8_t		firmware_size;
-	uint8_t*	dsp_regs;
-	uint8_t		id;
+	uint32_t				fw_size;
+	uint8_t					fw_ready;
+	uint8_t*				regs;		//core regs
+	uint8_t					id;
 } dsp_core;
 
 typedef struct {
-	ELCORE_DEV      drvhdl;
+	ELCORE_DEV	  drvhdl;
 	uint8_t* base;
-	uint8_t* cmn_regs;
-	dsp_core core[DELCORE30M_MAX_CORES];
+	uint8_t* regs;		//cmn regs
+	dsp_core core[DLCR30M_MAX_CORES];
 	//         dma_channel_t dma[8];
 // 	uint8_t* nbsr_sic;
 	int core_count;
@@ -179,9 +203,13 @@ typedef struct {
 } delcore30m_t;
 
 
-extern void *elcore_func_init(void *hdl, char *options);
-extern void elcore_func_fini(void *hdl);
-
+extern void*	elcore_func_init(void *hdl, char *options);
+extern void		elcore_func_fini(void *hdl);
+extern int		elcore_set_pram(void *hdl, delcore30m_firmware *firmware); //copy data to pram of target core
+extern int		elcore_release_pram(void *hdl, uint32_t core_num); //realease pram of
+extern int		elcore_reset_core(void *hdl, uint32_t core_num);
+extern int		elcore_start_core(void *hdl, uint32_t core_num);
+extern int		elcore_stop_core(void *hdl, uint32_t core_num);
 
 elcore_funcs_t elcore_funcs = {
 	sizeof(elcore_funcs_t),
