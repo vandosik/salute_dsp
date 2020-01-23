@@ -104,7 +104,7 @@ int dsp_cluster_print_regs(delcore30m_t* dsp)
     printf("TOTAL_CLK:            %4.8X\n",dsp_get_reg32(dsp,DLCR30M_TOTAL_CLK));
 
 
-    for (i=0;i<dsp->core_count;i++)
+    for (i=0;i</*dsp->core_count*/1;i++)
         dsp_core_print_regs(&(dsp->core[i]));
     return 0;
 }
@@ -152,6 +152,8 @@ void *elcore_func_init(void *hdl, char *options)
 
 	dsp_cluster_print_regs(dev);
 	
+	dev->pm_conf = (dsp_get_reg32(dev, DLCR30M_CSR) & DLCR30M_CSR_PM_CONFIG_MASK) >> 2;
+	
 // 	int it = 0;
 // 	
 // 	for (;it < DLCR30M_SIZE; )
@@ -175,28 +177,28 @@ void *elcore_func_init(void *hdl, char *options)
 	
 	
 	delcore30m_firmware firmware = {
-		.cores = 1,
+		.cores = 0,
 		.size = size,
 		.data = fw_data
 	};
 	
-	elcore_set_pram(dev, &firmware);
-	
-	
-	elcore_start_core(dev, firmware.cores);
-	
-	delay(10000);
-	printf("\n\n\n\n\n DOING DSP PROG \n\n\n\n\n");
-	
-	dsp_cluster_print_regs(dev);
-	
-	printf("\n\n\n\n\n STOP DSP \n\n\n\n\n");
-	
-	elcore_stop_core(dev, firmware.cores);
-	
-    printf("%s: success\n", __func__);
-    
-	free(firmware.data);
+// 	elcore_set_pram(dev, &firmware);
+// 	
+// 	
+// 	elcore_start_core(dev, firmware.cores);
+// 	
+// 	delay(10000);
+// 	printf("\n\n\n DOING DSP PROG \n\n\n");
+// 	
+// 	dsp_cluster_print_regs(dev);
+// 	
+// 	printf("\n\n\n STOP DSP \n\n\n");
+// 	
+// 	elcore_stop_core(dev, firmware.cores);
+// 	
+//     printf("%s: success\n", __func__);
+//     
+// 	free(firmware.data);
 	
     return dev;
     
@@ -228,27 +230,138 @@ int		elcore_stop_core(void *hdl, uint32_t core_num)
 	
 }
 
+int		elcore_pram_config(void *hdl, uint32_t size)
+{
+	uint32_t pmem_ctr;
+	delcore30m_t			*dev = hdl;
+
+
+	switch (size / DLCR30M_BANK_SIZE) {
+	case 0:
+	case 1:
+		pmem_ctr = DLCR30M_PMCONF_1;
+		break;
+	case 2:
+	case 3:
+		pmem_ctr = DLCR30M_PMCONF_3;
+		break;
+	case 4:
+		pmem_ctr = DLCR30M_PMCONF_4;
+		break;
+	default:
+		return -EFAULT;
+	}
+
+	size = (pmem_ctr + 1) * DLCR30M_BANK_SIZE;
+	/*
+	 * TODO: Add a ban on changing the memory boundary if there is at least
+	 *       one job in the queue.
+	 */
+
+	dsp_set_reg32(dev, DLCR30M_CSR, DLCR30M_CSR_PM_CONFIG(pmem_ctr));
+	dev->pm_conf = pmem_ctr;
+
+	return 0;
+}
+
+int elcore_core_read(dsp_core* core,void* offset,void* to,uint32_t size)
+{
+    if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
+    {
+        if ((uintptr_t)(offset + size) > DLCR30M_BANK_SIZE)
+          {
+            if ((uintptr_t)(offset+size) < (DLCR30M_BANK_SIZE * 5))
+			{
+			memcpy(to,(void*)(core->pram + (uintptr_t)offset), DLCR30M_BANK_SIZE - (uint32_t)offset);
+			memcpy(to + (uintptr_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset),
+			core->xyram,size - (uint32_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset));
+			}
+			else
+			{
+				return -1;
+			}
+            return 0;
+          }
+        else
+          {
+            memcpy(to,core->pram + (uintptr_t)offset,size);
+            return 0;
+          }
+    }
+    else
+    {
+        if ((uint32_t)((uintptr_t)offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5)) 
+		{
+	        memcpy(to,core->xyram + (uintptr_t)(offset - DLCR30M_BANK_SIZE),size);
+		}
+		else
+		{
+			return -1;
+		}
+    }
+    return 0;
+}
+
+int  elcore_core_write(dsp_core* core,void* from, void* offset, uint32_t size)
+{
+	if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
+	{
+
+	     if ((uintptr_t)(offset + size) > DLCR30M_BANK_SIZE) //need offset use XYRAM
+	       {
+			   if ((uintptr_t)(offset+size) < (DLCR30M_BANK_SIZE * 5)) 
+			   {	//writing from pram we need to leave one xyram bank?? yes - 4, no - 5
+		         memcpy((void*)(core->pram + (uintptr_t)offset),from, DLCR30M_BANK_SIZE - (uintptr_t)offset);
+		         memcpy(core->xyram,from + (uint64_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset),
+						size - (uint32_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset));
+			   }
+			   else
+			   {
+				   return -1;
+			   }
+	         return 0;
+	       }
+	     else
+	       {
+	         memcpy(core->pram + (uintptr_t)offset,from,size);
+	         return 0;
+	       }
+	 }
+	 else
+	 {
+	     if ((uint32_t)((uintptr_t)offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5))
+		 {
+		     memcpy(core->xyram + (uint64_t)((uintptr_t)offset - DLCR30M_BANK_SIZE), from, size);
+		 }
+		 else
+		 {
+			 return -1;
+		 }
+	 }
+	 return 0;
+}
+
 int		elcore_set_pram(void *hdl, delcore30m_firmware *firmware)
 {
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
 	uint32_t pram_size;
 	
-	pram_size = dsp_get_reg32(dev, DLCR30M_CSR);
+// 	pram_size = dsp_get_reg32(dev, DLCR30M_CSR);
 	
-	switch ((pram_size & DLCR30M_CSR_PM_CONFIG_MASK) >> 2)
+	switch (/*(pram_size & DLCR30M_CSR_PM_CONFIG_MASK) >> 2*/dev->pm_conf)
 	{
-	case 0:
+	case DLCR30M_PMCONF_1:
 		pram_size = DLCR30M_BANK_SIZE;
 		break;
-	case 1:
-		return -EINVAL;
-	case 2:
+	case DLCR30M_PMCONF_3:
 		pram_size = 3 * DLCR30M_BANK_SIZE;
 		break;
-	case 3:
+	case DLCR30M_PMCONF_4:
 		pram_size = 4 * DLCR30M_BANK_SIZE;
 		break;
+	default:
+		return -EINVAL;
 	}
 	if (firmware->size > pram_size)
 	{
@@ -256,7 +369,8 @@ int		elcore_set_pram(void *hdl, delcore30m_firmware *firmware)
 		return -EINVAL;
 	}
 	
-	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
+// 	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
+	elcore_core_write(&dev->core[firmware->cores], firmware->data, 0,firmware->size);
 	
 	dev->core[firmware->cores].fw_size = firmware->size;
 	dev->core[firmware->cores].fw_ready = DLCR30M_FWREADY;

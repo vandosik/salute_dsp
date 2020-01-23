@@ -90,6 +90,9 @@
 	#define DLCR30M_CSR_SYNC_WORK					(1 << 1)
 	#define DLCR30M_CSR_PM_CONFIG(val)				((val & 0x3) << 2)
 	#define DLCR30M_CSR_PM_CONFIG_MASK				(0x3 << 2)
+		#define DLCR30M_PMCONF_1					0
+		#define DLCR30M_PMCONF_3					2
+		#define DLCR30M_PMCONF_4					3
 	#define DLCR30M_CSR_HEN							(1 << 16)
 	#define DLCR30M_CSR_DEN							(1 << 17)
 	#define DLCR30M_CSR_LEN							(1 << 18)
@@ -193,13 +196,14 @@ typedef struct {
 
 typedef struct {
 	ELCORE_DEV	  drvhdl;
-	uint8_t* base;
-	uint8_t* regs;		//cmn regs
-	dsp_core core[DLCR30M_MAX_CORES];
+	uint8_t*	base;
+	uint8_t*	regs;		//cmn regs
+	uint8_t		pm_conf;
+	dsp_core	core[DLCR30M_MAX_CORES];
 	//         dma_channel_t dma[8];
 // 	uint8_t* nbsr_sic;
-	int core_count;
-	int dma_count;
+	uint32_t			core_count;
+	int			dma_count;
 } delcore30m_t;
 
 
