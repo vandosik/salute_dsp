@@ -264,8 +264,14 @@ int		elcore_pram_config(void *hdl, uint32_t size)
 	return 0;
 }
 
-int elcore_core_read(dsp_core* core,void* offset,void* to,uint32_t size)
+int elcore_core_read(void *hdl, void* data, void* offset/*uint32_t core_num, void* offset,void* to,uint32_t size*/)
 {
+	delcore30m_t		*dev = hdl;
+	delcore30m_firmware *frw = (delcore30m_firmware*)data;
+	dsp_core			*core = &dev->core[frw->cores];
+	void*				to = (void*)frw->data;
+	uint32_t			size = frw->size; 
+    
     if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
     {
         if ((uintptr_t)(offset + size) > DLCR30M_BANK_SIZE)
@@ -280,12 +286,10 @@ int elcore_core_read(dsp_core* core,void* offset,void* to,uint32_t size)
 			{
 				return -1;
 			}
-            return 0;
           }
         else
           {
             memcpy(to,core->pram + (uintptr_t)offset,size);
-            return 0;
           }
     }
     else
@@ -299,11 +303,18 @@ int elcore_core_read(dsp_core* core,void* offset,void* to,uint32_t size)
 			return -1;
 		}
     }
-    return 0;
+    return size;
 }
 
-int  elcore_core_write(dsp_core* core,void* from, void* offset, uint32_t size)
+int  elcore_core_write(void *hdl, void* data, void* offset/*uint32_t core_num, void* from, void* offset, uint32_t 
+size*/)
 {
+	delcore30m_t		*dev = hdl;
+	delcore30m_firmware *frw = (delcore30m_firmware*)data;
+	dsp_core			*core = &dev->core[frw->cores];
+	void*				from = (void*)frw->data;
+	uint32_t			size = frw->size; 
+	
 	if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
 	{
 
@@ -319,12 +330,10 @@ int  elcore_core_write(dsp_core* core,void* from, void* offset, uint32_t size)
 			   {
 				   return -1;
 			   }
-	         return 0;
 	       }
 	     else
 	       {
 	         memcpy(core->pram + (uintptr_t)offset,from,size);
-	         return 0;
 	       }
 	 }
 	 else
@@ -338,13 +347,14 @@ int  elcore_core_write(dsp_core* core,void* from, void* offset, uint32_t size)
 			 return -1;
 		 }
 	 }
-	 return 0;
+	 return size;
 }
 
-int		elcore_set_pram(void *hdl, delcore30m_firmware *firmware)
+int		elcore_set_pram(void *hdl, void *frmwr)
 {
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
+	delcore30m_firmware *firmware = (delcore30m_firmware*)frmwr;
 	uint32_t pram_size;
 	
 // 	pram_size = dsp_get_reg32(dev, DLCR30M_CSR);
@@ -370,7 +380,8 @@ int		elcore_set_pram(void *hdl, delcore30m_firmware *firmware)
 	}
 	
 // 	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
-	elcore_core_write(&dev->core[firmware->cores], firmware->data, 0,firmware->size);
+// 	elcore_core_write(&dev->core[firmware->cores], firmware->data, 0,firmware->size);
+	elcore_core_write(dev, firmware, 0);
 	
 	dev->core[firmware->cores].fw_size = firmware->size;
 	dev->core[firmware->cores].fw_ready = DLCR30M_FWREADY;

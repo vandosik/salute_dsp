@@ -175,9 +175,9 @@
 #define addr2delcore30m(addr)					((addr & 0xFFFFF) >> 2)
 
 typedef struct delcore30m_firmware {
-	uint32_t cores;
-	size_t size;
-	uint8_t *data;
+	uint32_t		cores;
+	size_t			size;
+	uint8_t			*data;
 } delcore30m_firmware;
 
 #define DLCR30M_FWREADY							1
@@ -209,15 +209,22 @@ typedef struct {
 
 extern void*	elcore_func_init(void *hdl, char *options);
 extern void		elcore_func_fini(void *hdl);
-extern int		elcore_set_pram(void *hdl, delcore30m_firmware *firmware); //copy data to pram of target core
+//must not be firmware structure, or define it at public 
+extern int		elcore_set_pram(void *hdl, void *frmwr);  //copy data to pram of target core, must
 extern int		elcore_release_pram(void *hdl, uint32_t core_num); //realease pram of
 extern int		elcore_reset_core(void *hdl, uint32_t core_num);
 extern int		elcore_start_core(void *hdl, uint32_t core_num);
 extern int		elcore_stop_core(void *hdl, uint32_t core_num);
+extern int		elcore_core_read(void *hdl, void *data, void* offset); //use firmware struct as data
+extern int		elcore_core_write(void *hdl, void *data, void* offset);
+
+
 
 elcore_funcs_t elcore_funcs = {
 	sizeof(elcore_funcs_t),
 	elcore_func_init,          /* init() */
-	elcore_func_fini             /* fini() */
+	elcore_func_fini,             /* fini() */
+	elcore_core_write,
+	elcore_core_read
 };
 #endif

@@ -224,6 +224,10 @@ typedef struct {
     
     void    (*fini)(void *hdl);
     
+    void    (*write)(void *hdl, void *data, void* offset);
+    
+    void    (*read)(void *hdl, void *data, void* offset);
+    
     
     
     
