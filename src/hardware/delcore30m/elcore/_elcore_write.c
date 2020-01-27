@@ -50,8 +50,9 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
     nbytes = min (msg->i.nbytes, nleft);
 	
     if (nbytes <= 0) {
-        _IO_SET_WRITE_NBYTES(ctp, 0);
-        return _RESMGR_NPARTS(0);
+//         _IO_SET_WRITE_NBYTES(ctp, 0);
+//         return _RESMGR_NPARTS(0);
+	return EIO;
     }
 
     /* check if message buffer is too short */
