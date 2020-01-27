@@ -25,11 +25,9 @@
 #include "proto.h"
 
 
-static uint8_t                     *buffer = "Hello world\n";
-
 int
 _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
-{
+{printf("%s()\n", __func__);
 	uint8_t		*buf;
 	int			nbytes;
     int			nleft;
@@ -43,18 +41,18 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
 
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
         return ENOSYS;
-    
+
     nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
     nbytes = min (msg->i.nbytes, nleft);
 
-    if (msg->i.nbytes <= 0) {
+    if (nbytes <= 0) {
         _IO_SET_READ_NBYTES(ctp, 0);
         return _RESMGR_NPARTS(0);
     }
 
     
     /* check if message buffer is too short */
-    nbytes = msg->i.nbytes;
+//     nbytes = msg->i.nbytes;
     if (nbytes > ctp->msg_max_size) {
         if (dev->buflen < nbytes) {
             dev->buflen = nbytes;
@@ -66,17 +64,15 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
             }
         }
         buf = dev->buf;
-		ocb->hdr.offset += nbytes;
     }
 	else {
         buf = (uint8_t *)msg;
     }
 
-   
-    
-    /*nbytes*/ = strlen(buffer)+1;
-	nbytes = dev->funcs->read(drvhdl, buf, (void*)((uintptr_t)(ocb->hdr.offset)));
+	nbytes = dev->funcs->read(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), nbytes);
 
+	ocb->hdr.offset += nbytes;
+	
 	if (nbytes > 0) {
 		_IO_SET_READ_NBYTES(ctp, nbytes);
 		return _RESMGR_PTR(ctp, buf, nbytes);

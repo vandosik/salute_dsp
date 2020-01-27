@@ -46,7 +46,7 @@ static int _elcore_register_interface(void *data)
 	iofunc_attr_init(&drvhdl->attr, S_IFCHR | 0666, NULL, NULL);
 	drvhdl->attr.mount = &_elcore_mount;
     
-    drvhdl->attr.nbytes = 13;
+    drvhdl->attr.nbytes = 0x8000;
 
 	/* register device name */
 	snprintf(devname, PATH_MAX, "/dev/elcore%d", dev->devnum);

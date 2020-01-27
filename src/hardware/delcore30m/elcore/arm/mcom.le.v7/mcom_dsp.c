@@ -104,7 +104,7 @@ int dsp_cluster_print_regs(delcore30m_t* dsp)
     printf("TOTAL_CLK:            %4.8X\n",dsp_get_reg32(dsp,DLCR30M_TOTAL_CLK));
 
 
-    for (i=0;i</*dsp->core_count*/1;i++)
+    for (i=0;i<dsp->core_count;i++)
         dsp_core_print_regs(&(dsp->core[i]));
     return 0;
 }
@@ -164,23 +164,23 @@ void *elcore_func_init(void *hdl, char *options)
 // 	}
 // 	printf("\n");
 	
-	uint32_t size;
-	uint8_t *fw_data;
-	getbytes(&fw_data, fw_path, &size);
+// 	uint32_t size;
+// 	uint8_t *fw_data;
+// 	getbytes(&fw_data, fw_path, &size);
+// 	
+// 	if (fw_data == NULL)
+// 	{
+// 		perror("File opening");
+// 		elcore_func_fini(hdl);
+// 	}
 	
-	if (fw_data == NULL)
-	{
-		perror("File opening");
-		elcore_func_fini(hdl);
-	}
 	
 	
-	
-	delcore30m_firmware firmware = {
-		.cores = 0,
-		.size = size,
-		.data = fw_data
-	};
+// 	delcore30m_firmware firmware = {
+// 		.cores = 0,
+// 		.size = size,
+// 		.data = fw_data
+// 	};
 	
 // 	elcore_set_pram(dev, &firmware);
 // 	
@@ -264,13 +264,14 @@ int		elcore_pram_config(void *hdl, uint32_t size)
 	return 0;
 }
 
-int elcore_core_read(void *hdl, void* data, void* offset/*uint32_t core_num, void* offset,void* to,uint32_t size*/)
+int elcore_core_read(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* to,  void* offset, uint32_t size)
 {
 	delcore30m_t		*dev = hdl;
-	delcore30m_firmware *frw = (delcore30m_firmware*)data;
-	dsp_core			*core = &dev->core[frw->cores];
-	void*				to = (void*)frw->data;
-	uint32_t			size = frw->size; 
+// 	delcore30m_firmware *frw = (delcore30m_firmware*)data;
+// 	dsp_core			*core = &dev->core[frw->cores];
+// 	void*				to = (void*)frw->data;
+// 	uint32_t			size = /*frw->size*/20; 
+	dsp_core			*core = &dev->core[core_num];
     
     if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
     {
@@ -303,17 +304,21 @@ int elcore_core_read(void *hdl, void* data, void* offset/*uint32_t core_num, voi
 			return -1;
 		}
     }
+	printf("%s: %u bytes had been read from offset: %u\n", __func__, size, (uint32_t)offset);
+    
     return size;
 }
 
-int  elcore_core_write(void *hdl, void* data, void* offset/*uint32_t core_num, void* from, void* offset, uint32_t 
-size*/)
+int  elcore_core_write(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* from, void* offset, uint32_t 
+size)
 {
 	delcore30m_t		*dev = hdl;
-	delcore30m_firmware *frw = (delcore30m_firmware*)data;
-	dsp_core			*core = &dev->core[frw->cores];
-	void*				from = (void*)frw->data;
-	uint32_t			size = frw->size; 
+// 	delcore30m_firmware *frw = (delcore30m_firmware*)data;
+// 	dsp_core			*core = &dev->core[frw->cores];
+// 	void*				from = (void*)frw->data;
+// 	uint32_t			size = /*frw->size*/20;
+	
+	dsp_core			*core = &dev->core[core_num];
 	
 	if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
 	{
@@ -347,7 +352,9 @@ size*/)
 			 return -1;
 		 }
 	 }
-	 return size;
+	printf("%s: %u bytes had been written to offset: %u\n", __func__, size, (uint32_t)offset);
+	
+	return size;
 }
 
 int		elcore_set_pram(void *hdl, void *frmwr)
@@ -380,8 +387,8 @@ int		elcore_set_pram(void *hdl, void *frmwr)
 	}
 	
 // 	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
-// 	elcore_core_write(&dev->core[firmware->cores], firmware->data, 0,firmware->size);
-	elcore_core_write(dev, firmware, 0);
+	elcore_core_write(dev, &dev->core[firmware->cores], firmware->data, 0,firmware->size);
+// 	elcore_core_write(dev, firmware, 0);
 	
 	dev->core[firmware->cores].fw_size = firmware->size;
 	dev->core[firmware->cores].fw_ready = DLCR30M_FWREADY;

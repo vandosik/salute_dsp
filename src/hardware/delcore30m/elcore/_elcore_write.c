@@ -30,6 +30,7 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
 	uint8_t		*buf;
 	int			nonblock;
 	int			nbytes, status;
+	int			nleft;
 	ELCORE_DEV		*drvhdl = (ELCORE_DEV *)ocb->hdr.attr;
 	elcore_dev_t	*dev = drvhdl->hdl;
 
@@ -45,7 +46,9 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
 // 	if ((status =_spi_lock_check(ctp, ocb->chip, ocb)) != EOK)
 // 		return status;
 
-    nbytes = msg->i.nbytes;
+    nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
+    nbytes = min (msg->i.nbytes, nleft);
+	
     if (nbytes <= 0) {
         _IO_SET_WRITE_NBYTES(ctp, 0);
         return _RESMGR_NPARTS(0);
@@ -74,7 +77,9 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
 	else
         buf = ((uint8_t *)msg) + sizeof(msg->i);
 
-	nbytes =  dev->funcs->write(drvhdl, buf, (void*)((uintptr_t)(ocb->hdr.offset)));
+	nbytes =  dev->funcs->write(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), nbytes);
+	
+	ocb->hdr.offset += nbytes;
 
 // 	if (nbytes == 0)
 // 		return EAGAIN;

@@ -215,8 +215,10 @@ extern int		elcore_release_pram(void *hdl, uint32_t core_num); //realease pram o
 extern int		elcore_reset_core(void *hdl, uint32_t core_num);
 extern int		elcore_start_core(void *hdl, uint32_t core_num);
 extern int		elcore_stop_core(void *hdl, uint32_t core_num);
-extern int		elcore_core_read(void *hdl, void *data, void* offset); //use firmware struct as data
-extern int		elcore_core_write(void *hdl, void *data, void* offset);
+extern int		elcore_core_read(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
+uint32_t size); //use firmware struct as data
+extern int		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
+uint32_t size);
 
 
 
