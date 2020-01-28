@@ -40,13 +40,8 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
         return ENOSYS;
 
-// 	/*
-// 	 * Check to see if the device is locked
-// 	 */
-// 	if ((status =_spi_lock_check(ctp, ocb->chip, ocb)) != EOK)
-// 		return status;
-
-    nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
+    //check the "end" of the file
+    nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset; 
     nbytes = min (msg->i.nbytes, nleft);
 	
     if (nbytes <= 0) {

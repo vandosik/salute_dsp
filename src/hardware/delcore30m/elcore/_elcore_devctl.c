@@ -29,26 +29,90 @@ int
 _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 {printf("%s()\n", __func__);
 	int			status;
+    int			nbytes = 0;
 	ELCORE_DEV		*drvhdl = (ELCORE_DEV *)ocb->hdr.attr;
 	elcore_dev_t	*dev = drvhdl->hdl;
-
+	void* devctl_data;
+	
 	status = iofunc_devctl_default(ctp, msg, &ocb->hdr);
 	if (status != _RESMGR_DEFAULT)
 		return status;
 
+	devctl_data = _DEVCTL_DATA(msg->i);
+	
 	switch (msg->i.dcmd) {
-		case DCMD_ELCORE_T:
-			printf("%s(): DCMD_ELCORE_T\n", __func__);
+        case DCMD_ELCORE_START:
+		{
+			status = dev->funcs->start_core(drvhdl, ocb->core);
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
 			break;
-		case DCMD_ELCORE_F:
-			printf("%s(): DCMD_ELCORE_F\n", __func__);
+		}
+		case DCMD_ELCORE_STOP:
+		{
+			status = dev->funcs->stop_core(drvhdl, ocb->core);
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
 			break;
-		case DCMD_ELCORE_N:
-			printf("%s(): DCMD_ELCORE_N\n", __func__);
+		}
+		case DCMD_ELCORE_PRINT:
+		{
+			status = dev->funcs->print(drvhdl);
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
 			break;
-		case DCMD_ELCORE_TF:
-			printf("%s(): DCMD_ELCORE_TF\n", __func__);
+		}
+		case DCMD_ELCORE_SEND:
+		{
+			elcore_send_t	*send_cfg;
+			void			*send_buf;
+
+			send_cfg = (elcore_send_t*)devctl_data;
+			send_buf = (void*)((uint8_t*)devctl_data + sizeof(elcore_send_t));
+			
+			ocb->core = send_cfg->core;
+			
+			status = dev->funcs->write(drvhdl, ocb->core, send_buf, (void*)send_cfg->offset, send_cfg->len);
+			
+			if (status >= 0)
+			{
+				status = EOK;
+			}
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
 			break;
+		}
+		case DCMD_ELCORE_RECV:
+		{
+			elcore_recv_t	*recv_cfg;
+			void			*recv_buf;
+
+			recv_cfg = (elcore_recv_t*)devctl_data;
+			recv_buf = (void*)((uint8_t*)devctl_data + sizeof(elcore_recv_t));
+			
+			ocb->core = recv_cfg->core;
+			
+			status = dev->funcs->read(drvhdl, ocb->core, recv_buf, (void*)recv_cfg->offset, recv_cfg->len);
+			
+			nbytes = status + sizeof(elcore_recv_t);
+
+			if (status >= 0)
+			{
+				status = EOK;
+			}
+			else
+			{
+				return EINVAL;
+			}
+			
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
+			break;
+		}
+		default:
+		{
+			return ENOSYS;
+		}
 // 		case DCMD_SPI_SET_CONFIG:
 // 		{
 // 			spi_cfg_t	*cfg;
@@ -133,8 +197,10 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			return _RESMGR_PTR(ctp, msg, sizeof(msg->o) + sizeof(spi_drvinfo_t));
 // 		}
 	}
-	
-	return _RESMGR_PTR(ctp, msg, sizeof(msg->o));
+  memset(&msg->o, 0, sizeof(msg->o));
+  msg->o.ret_val = status;
+  msg->o.nbytes = nbytes;
+  return(_RESMGR_PTR(ctp, &msg->o, sizeof(msg->o) + nbytes));
 
 // 	return ENOSYS;
 }

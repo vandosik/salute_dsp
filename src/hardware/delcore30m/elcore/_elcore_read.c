@@ -42,6 +42,7 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
         return ENOSYS;
 
+    //check the "end" of the file
     nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
     nbytes = min (msg->i.nbytes, nleft);
 

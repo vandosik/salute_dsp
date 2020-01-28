@@ -219,6 +219,7 @@ extern int		elcore_core_read(void *hdl, /*void *data, void* offset*/uint32_t cor
 uint32_t size); //use firmware struct as data
 extern int		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
 uint32_t size);
+extern int dsp_cluster_print_regs(void *hdl);
 
 
 
@@ -227,6 +228,9 @@ elcore_funcs_t elcore_funcs = {
 	elcore_func_init,          /* init() */
 	elcore_func_fini,             /* fini() */
 	elcore_core_write,
-	elcore_core_read
+	elcore_core_read,
+    elcore_start_core,
+    elcore_stop_core,
+    dsp_cluster_print_regs
 };
 #endif

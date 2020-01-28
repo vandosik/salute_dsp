@@ -8,42 +8,7 @@
 
 #include <unistd.h>
 
-char* fw_path = "/tmp/set_regs.fw.bin";
 
-int getbytes(uint8_t** data, const char *filename, uint32_t *size)
-{
-	printf("%s: entry\n", __func__);
-
-	FILE *f = fopen(filename, "r");
-	if (f == NULL) {
-		perror("err opening file");
-		*size = 0;
-		return -1;
-	}
-	fseek(f, 0, SEEK_END);
-	*size = ftell(f);
-	fseek(f, 0, SEEK_SET);
-
-	printf("size of file: %u\n", *size);
-	
-	*data = malloc(*size);
-	
-	if (*data == NULL)
-	{
-		perror("err alloc data");
-	}
-	
-	printf ("bytes read: %d\n",fread(*data, 1, *size, f));
-
-	if (*data == NULL)
-	{
-		perror("err reading data");
-	}
-	
-	fclose(f);
-
-	return 0;
-}
 
 int dsp_core_print_regs(dsp_core* core)
 {
@@ -93,8 +58,10 @@ int dsp_core_print_regs(dsp_core* core)
     return 0;
 }
 
-int dsp_cluster_print_regs(delcore30m_t* dsp)
+int dsp_cluster_print_regs(void *hdl)
 {
+    delcore30m_t			*dsp = hdl;
+    
     int i = 0;
     printf("CLUSTER REGISTER INFORMATION:\n");
     printf("DSP_MASKR:            %4.8X\n",dsp_get_reg32(dsp,DLCR30M_MASKR));
@@ -164,15 +131,7 @@ void *elcore_func_init(void *hdl, char *options)
 // 	}
 // 	printf("\n");
 	
-// 	uint32_t size;
-// 	uint8_t *fw_data;
-// 	getbytes(&fw_data, fw_path, &size);
-// 	
-// 	if (fw_data == NULL)
-// 	{
-// 		perror("File opening");
-// 		elcore_func_fini(hdl);
-// 	}
+
 	
 	
 	
@@ -387,7 +346,7 @@ int		elcore_set_pram(void *hdl, void *frmwr)
 	}
 	
 // 	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
-	elcore_core_write(dev, &dev->core[firmware->cores], firmware->data, 0,firmware->size);
+	elcore_core_write(dev,firmware->cores, firmware->data, 0,firmware->size);
 // 	elcore_core_write(dev, firmware, 0);
 	
 	dev->core[firmware->cores].fw_size = firmware->size;
@@ -461,6 +420,8 @@ int		elcore_reset_core(void *hdl, uint32_t core_num)
 	{
 	    dsp_set_reg16(core, DLCR30M_dbSAR(iter), 0xFFFF);
 	}
+	
+	return 0;
 }
 
 void elcore_func_fini(void *hdl)

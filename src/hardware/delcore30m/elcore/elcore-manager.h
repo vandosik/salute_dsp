@@ -40,20 +40,20 @@
 //     #define	SPI_VERREV_SHIFT	0
 // 
 // 
-//     /*
-//      * SPI driver information
-//      */
-//     typedef struct {
-//         uint32_t	version;
-//         char		name[16];	/* Driver name */
-//         uint32_t	feature;
-//     #define	SPI_FEATURE_DMA			(1 << 31)
-//     #define	SPI_FEATURE_DMA_ALIGN	0xFF		/* DMA buffer alignment mask, alignment = 2^alignment */
-//     } spi_drvinfo_t;
+    /*
+     * DSP driver information
+     */
+    typedef struct {
+        uint32_t	version;
+        char		name[16];	/* Driver name */
+        uint32_t	feature;
+    #define	SPI_FEATURE_DMA			(1 << 31)
+    #define	SPI_FEATURE_DMA_ALIGN	0xFF		/* DMA buffer alignment mask, alignment = 2^alignment */
+    } elcore_drvinfo_t;
 // 
 // 
-//     typedef struct {
-//         uint32_t	mode;
+    typedef struct {
+        uint32_t	mode;
 //     #define	SPI_MODE_CHAR_LEN_MASK	(0xFF)		/* Charactor length */
 //     #define	SPI_MODE_CKPOL_HIGH		(1 <<  8)
 //     #define	SPI_MODE_CKPHASE_HALF	(1 <<  9)
@@ -69,9 +69,9 @@
 //     #define	SPI_MODE_IDLE_INSERT	(1 << 16)
 // 
 //     #define	SPI_MODE_LOCKED			(1 << 31)	/* The device is locked by another client */
-// 
-//         uint32_t	clock_rate;
-//     } spi_cfg_t;
+
+        uint32_t	clock_rate;
+    } elcore_cfg_t;
 // 
 //     #define	SPI_DEV_ID_MASK			0xFFFF
 //     #define	SPI_DEV_ID_NONE			SPI_DEV_ID_MASK
@@ -94,11 +94,11 @@ enum elcore_core {
 //     #define SPI_DEV_READ			1
 //     #define SPI_DEV_WRITE			2
 // 
-//     typedef struct {
-//         uint32_t	device;		/* Device ID */
-//         char		name[16];	/* Device description */
-//         spi_cfg_t	cfg;		/* Device configuration */
-//     } spi_devinfo_t;
+    typedef struct {
+        uint32_t	device;		/* Device ID */
+        char		name[16];	/* Device description */
+        elcore_cfg_t	cfg;		/* Device configuration */
+    } elcore_devinfo_t;
 // 
 // 
 //     /*
@@ -134,14 +134,36 @@ enum elcore_core {
 
     
     
+    
+    
 #include <devctl.h>
 #define _DCMD_ELCORE				_DCMD_MISC
 #define _DCMD_ELCORE_CODE			0x11
 
-#define DCMD_ELCORE_T		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 0, uint32_t)
-#define	DCMD_ELCORE_F		__DIOF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 1, uint32_t)
-#define	DCMD_ELCORE_N		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2)
-#define	DCMD_ELCORE_TF		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3, uint32_t)
+
+typedef struct {
+	uint32_t	len;
+	uint32_t	offset;
+	uint32_t	core;
+} elcore_send_t;
+
+#define DCMD_ELCORE_SEND	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 0, elcore_send_t)
+
+typedef struct {
+	uint32_t	len;
+	uint32_t	offset;
+	uint32_t	core;
+} elcore_recv_t;
+
+#define DCMD_ELCORE_RECV	__DIOF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 1, elcore_recv_t)
+
+#define DCMD_ELCORE_START	__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2)
+
+#define DCMD_ELCORE_STOP	__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3)
+
+#define DCMD_ELCORE_PRINT	__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 4)
+
+#define DCMD_ELCORE_RESET	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 5, int)
 
 
 
@@ -220,15 +242,21 @@ typedef struct {
     /* size of this structure */
     size_t	size;
 
-    void*   (*init)(void* hdl, char *options);
+    void*	(*init)(void* hdl, char *options);
     
-    void    (*fini)(void *hdl);
+    void	(*fini)(void *hdl);
     
-    int    (*write)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
+    int		(*write)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
 uint32_t size);
     
-    int    (*read)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
+    int		(*read)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
 uint32_t size);
+	
+	int		(*start_core)(void *hdl, uint32_t core_num);
+	
+	int		(*stop_core)(void *hdl, uint32_t core_num);
+	
+	int		(*print)(void *hdl);
     
     
     

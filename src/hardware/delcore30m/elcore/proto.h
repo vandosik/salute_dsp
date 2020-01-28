@@ -114,9 +114,6 @@ int _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb);
 // int _spi_slogf(const char *fmt, ...);
 
 
-// extern void *elcore_func_init(void *hdl, char *options);
-// extern void elcore_func_fini(void *hdl);
-
 #endif
 
 __SRCVERSION( "$URL: http://community.qnx.com/svn/repos/internal-outsourcing/trunk/hardware/spi/master/proto.h $ $Rev: 372 $" )
