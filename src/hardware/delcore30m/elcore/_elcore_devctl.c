@@ -41,7 +41,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 	devctl_data = _DEVCTL_DATA(msg->i);
 	
 	switch (msg->i.dcmd) {
-        case DCMD_ELCORE_START:
+		case DCMD_ELCORE_START:
 		{
 			status = dev->funcs->start_core(drvhdl, ocb->core);
 // 			msg->o.ret_val = status;
@@ -111,7 +111,22 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		}
 		default:
 		{
-			return ENOSYS;
+			status = dev->funcs->ctl(drvhdl, msg->i.dcmd, devctl_data, 
+			                 msg->i.nbytes, &nbytes, /*&info*/ NULL);
+			if (status >= 0)
+			{
+				status = EOK;
+			}
+			else
+			{
+				return EINVAL;
+			}
+
+// 			memset(&msg->o, 0, sizeof(msg->o));
+// 			msg->o.ret_val = info;
+// 			msg->o.nbytes = nbytes;
+// 			return _RESMGR_PTR(ctp, msg, sizeof(msg->o) + nbytes);
+
 		}
 // 		case DCMD_SPI_SET_CONFIG:
 // 		{

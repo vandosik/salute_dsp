@@ -220,7 +220,7 @@ uint32_t size); //use firmware struct as data
 extern int		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
 uint32_t size);
 extern int dsp_cluster_print_regs(void *hdl);
-
+extern int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
 
 
 elcore_funcs_t elcore_funcs = {
@@ -231,6 +231,7 @@ elcore_funcs_t elcore_funcs = {
 	elcore_core_read,
     elcore_start_core,
     elcore_stop_core,
-    dsp_cluster_print_regs
+    dsp_cluster_print_regs,
+    elcore_ctl
 };
 #endif

@@ -258,6 +258,8 @@ uint32_t size);
 	
 	int		(*print)(void *hdl);
     
+	int		(*ctl)(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info);
+    
     
     
     

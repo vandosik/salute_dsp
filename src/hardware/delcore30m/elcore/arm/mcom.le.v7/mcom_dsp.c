@@ -163,6 +163,8 @@ void *elcore_func_init(void *hdl, char *options)
     
 }
 
+// int		elcore_wait_irq
+
 int		elcore_start_core(void *hdl, uint32_t core_num)
 {
 	printf("%s: entry\n", __func__);
@@ -423,6 +425,27 @@ int		elcore_reset_core(void *hdl, uint32_t core_num)
 	
 	return 0;
 }
+
+#define DCMD_CUSTOM	__DIOT (_DCMD_ELCORE, 228 + 5, int)
+
+int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info ) 
+{ //for macroses, not defined in elcore-manager.h
+	delcore30m_t			*dev = hdl;
+
+	switch(cmd) {
+		case DCMD_CUSTOM:
+			printf("DCMD_CUSTOM\n");
+			break;
+		default:
+			printf("asshole\n");
+			return -1;
+	}
+	
+	printf("%s: cmd: %d  msglen: %d  nbytes: %d\n", __func__, cmd, msglen, *nbytes );
+	
+    return 0;
+}
+
 
 void elcore_func_fini(void *hdl)
 {

@@ -22,6 +22,9 @@ Options:
 #include <stdlib.h>
 #include <string.h>
 
+
+#define DCMD_CUSTOM	__DIOT (_DCMD_ELCORE, 228 + 5, int)
+
 char* fw_path = "/tmp/input";
 
 int getbytes(uint8_t** data, const char *filename, uint32_t *size)
@@ -112,6 +115,12 @@ int main( int argc, char** argv )
     {
         perror("error opening file");
         return -1;
+    }
+    
+    if (error = devctl( fd, DCMD_CUSTOM, &val32, sizeof(int), NULL ) )
+    {
+        printf( "DCMD_CUSTOM error: %s\n", strerror ( error ) );
+        goto exit;
     }
     
     if (error = devctl( fd, DCMD_ELCORE_SEND, fw_data, size + sizeof(elcore_send_t), NULL ) )
