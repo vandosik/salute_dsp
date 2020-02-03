@@ -46,7 +46,7 @@ static int _elcore_register_interface(void *data)
 	iofunc_attr_init(&drvhdl->attr, S_IFCHR | 0666, NULL, NULL);
 	drvhdl->attr.mount = &_elcore_mount;
     
-    drvhdl->attr.nbytes = 0x8000;
+	drvhdl->attr.nbytes = 0x8000;
 
 	/* register device name */
 	snprintf(devname, PATH_MAX, "/dev/elcore%d", dev->devnum);
@@ -108,7 +108,17 @@ int _elcore_create_instance(elcore_dev_t *dev)
 		perror("pthread_create() failed");
 		goto failed1;
 	}
+	while (!dev->drvhdl)
+	{
+		delay(1);
+	}
 
+	if (pthread_create(NULL, NULL, dev->funcs->irq_thread, dev->drvhdl) != EOK) {
+		perror("pthread_create() failed");
+		goto failed1;
+	}
+	
+	
 	return (EOK);
 
 failed1:

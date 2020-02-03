@@ -123,6 +123,7 @@ int main(int argc, char *argv[])
    
     dev->funcs = &elcore_funcs;    
     dev->devnum = devnum++;
+    dev->drvhdl = NULL;
    
     stat = _elcore_create_instance(dev);
     

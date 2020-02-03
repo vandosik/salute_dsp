@@ -3,6 +3,7 @@
 #include <string.h>
 #include <elcore-manager.h>
 #include <sys/mman.h>
+#include <sys/neutrino.h>
 #include <errno.h>
 #include "mcom_dsp.h"
 
@@ -101,6 +102,7 @@ void *elcore_func_init(void *hdl, char *options)
 
 	dev->regs = dev->base;
 	dev->core_count = DLCR30M_MAX_CORES;
+    dev->irq = DLCR30M_IRQ_NUM;
     
 	dev->core[0].id = 0;
 	dev->core[1].id = 1;
@@ -121,17 +123,8 @@ void *elcore_func_init(void *hdl, char *options)
 	
 	dev->pm_conf = (dsp_get_reg32(dev, DLCR30M_CSR) & DLCR30M_CSR_PM_CONFIG_MASK) >> 2;
 	
-// 	int it = 0;
-// 	
-// 	for (;it < DLCR30M_SIZE; )
-// 	{
-// 		printf(" %.2x ", *(dev->base + it));
-// 		it++;
-// 		if (it % 16 == 0) printf("\n");
-// 	}
-// 	printf("\n");
-	
-
+	//enable interrups
+	dsp_set_bit_reg32(dev, DLCR30M_MASKR, 3);
 	
 	
 	
@@ -446,6 +439,51 @@ int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info
     return 0;
 }
 
+int elcore_interrupt_thread(void *hdl)
+{
+	printf("%s: entry\n", __func__);
+	delcore30m_t			*dev = hdl;
+	
+	struct sigevent event;
+	
+	/* fill in "event" structure */
+	memset(&event, 0, sizeof(event));
+	event.sigev_notify = SIGEV_INTR;
+
+	/* Obtain I/O privileges */
+	if (ThreadCtl( _NTO_TCTL_IO, 0 ) < 0)
+	{
+		perror("ThreadCtl");
+		return -1;
+	}
+	
+	if ((dev->irq_hdl = InterruptAttachEvent( dev->irq, &event,0 )) < 0)
+	{
+		perror("InterruptAttachEvent");
+		return -1;
+	}
+	
+	
+	
+	while (1) {
+		InterruptWait (NULL, NULL);
+		/*  do something about the interrupt,
+		 *  perhaps updating some shared
+		 *  structures in the resource manager 
+		 *
+		 *  unmask the interrupt when done
+		 */
+		printf("%s: IRQ GET\n", __func__);
+		
+		printf("DLCR30M_QSTR: \t\t %08x\nDSP0_DCSR: \t\t %08x\n", dsp_get_reg32(dev, DLCR30M_QSTR), 
+			dsp_get_reg32(&dev->core[0], DLCR30M_DSCR));
+		//reset irq
+		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
+		
+		InterruptUnmask(dev->irq, dev->irq_hdl);
+	}
+	
+}
 
 void elcore_func_fini(void *hdl)
 {

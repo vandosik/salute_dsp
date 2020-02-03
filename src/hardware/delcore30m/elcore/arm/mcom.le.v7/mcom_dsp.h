@@ -7,6 +7,8 @@
 
 #define DLCR30M_MAX_CORES					2
 
+#define DLCR30M_IRQ_NUM						0x21
+
 #define DLCR30M_BASE						0x37000000UL
 #define DLCR30M_END							0x3A87FFFCUL
 #define DLCR30M_SIZE						(DLCR30M_END - DLCR30M_BASE)
@@ -171,6 +173,24 @@
 #define dsp_set_reg32(CORE_VAR,REG_NAME,VALUE)					*((uint32_t*)((CORE_VAR)->regs + REG_NAME)) = VALUE;
 #define dsp_set_reg64(CORE_VAR,REG_NAME,VALUE)					*((uint64_t*)((char*)(CORE_VAR)->regs + \
 																	(uint64_t)(REG_NAME))) = (uint64_t)(VALUE);
+																	
+#define dsp_set_bit_reg16(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg16(CORE_VAR,REG_NAME, \
+														dsp_get_reg16(CORE_VAR,REG_NAME) | (1<<BIT_NUM))
+
+#define dsp_set_bit_reg32(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg32(CORE_VAR,REG_NAME, \
+														dsp_get_reg32(CORE_VAR,REG_NAME) | (1<<BIT_NUM))
+
+#define dsp_set_bit_reg64(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg64(CORE_VAR,REG_NAME, \
+														dsp_get_reg64(CORE_VAR,REG_NAME) | (1<<BIT_NUM))
+
+#define dsp_clr_bit_reg64(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg64(CORE_VAR,REG_NAME, \
+														dsp_get_reg64(CORE_VAR,REG_NAME) & ~(1<<BIT_NUM))
+
+#define dsp_clr_bit_reg64(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg64(CORE_VAR,REG_NAME, \
+														dsp_get_reg64(CORE_VAR,REG_NAME) & ~(1<<BIT_NUM))
+
+#define dsp_clr_bit_reg64(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg64(CORE_VAR,REG_NAME, \
+														dsp_get_reg64(CORE_VAR,REG_NAME) & ~(1<<BIT_NUM))
 
 #define addr2delcore30m(addr)					((addr & 0xFFFFF) >> 2)
 
@@ -204,6 +224,8 @@ typedef struct {
 // 	uint8_t* nbsr_sic;
 	uint32_t			core_count;
 	int			dma_count;
+	uint32_t	irq;
+	int			irq_hdl;
 } delcore30m_t;
 
 
@@ -221,7 +243,7 @@ extern int		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t co
 uint32_t size);
 extern int dsp_cluster_print_regs(void *hdl);
 extern int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
-
+extern int elcore_interrupt_thread(void *hdl);
 
 elcore_funcs_t elcore_funcs = {
 	sizeof(elcore_funcs_t),
@@ -229,9 +251,10 @@ elcore_funcs_t elcore_funcs = {
 	elcore_func_fini,             /* fini() */
 	elcore_core_write,
 	elcore_core_read,
-    elcore_start_core,
-    elcore_stop_core,
-    dsp_cluster_print_regs,
-    elcore_ctl
+	elcore_start_core,
+	elcore_stop_core,
+	dsp_cluster_print_regs,
+	elcore_ctl,
+	elcore_interrupt_thread
 };
 #endif
