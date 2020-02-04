@@ -40,11 +40,11 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
         return ENOSYS;
 
-    //check the "end" of the file
+    //check the "end" of the file and the max_buf size
     nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset; 
     nbytes = min (msg->i.nbytes, nleft);
 	
-    if (nbytes <= 0) {
+    if (nbytes <= 0) { //if we try to write 0 and less bytes
 //         _IO_SET_WRITE_NBYTES(ctp, 0);
 //         return _RESMGR_NPARTS(0);
 	return EIO;
@@ -71,10 +71,11 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
         buf = dev->buf;
     }
 	else
+    {
         buf = ((uint8_t *)msg) + sizeof(msg->i);
-
+    }
 	nbytes =  dev->funcs->write(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), nbytes);
-	
+	//move in the file
 	ocb->hdr.offset += nbytes;
 
 // 	if (nbytes == 0)
@@ -86,37 +87,4 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
 	}
 
 	return EIO;
-
-//     int     status;
-//     char    *buf;
-// 
-//     if ((status = iofunc_write_verify(ctp, msg, &ocb->hdr, NULL)) != EOK)
-//         return (status);
-// 
-//     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
-//         return(ENOSYS);
-// 
-//     /* set up the number of bytes (returned by client's write()) */
-// 
-//     _IO_SET_WRITE_NBYTES (ctp, msg->i.nbytes);
-// 
-//     buf = (char *) malloc(msg->i.nbytes + 1);
-//     if (buf == NULL)
-//         return(ENOMEM);
-// 
-//     /*
-//      *  Reread the data from the sender's message buffer.
-//      *  We're not assuming that all of the data fit into the
-//      *  resource manager library's receive buffer.
-//      */
-// 
-//     resmgr_msgread(ctp, buf, msg->i.nbytes, sizeof(msg->i));
-//     buf [msg->i.nbytes] = '\0'; /* just in case the text is not NULL terminated */
-//     printf ("Received %d bytes = '%s'\n", msg -> i.nbytes, buf);
-//     free(buf);
-// 
-//     if (msg->i.nbytes > 0)
-//         ocb->hdr.attr->flags |= IOFUNC_ATTR_MTIME | IOFUNC_ATTR_CTIME;
-// 
-//     return (_RESMGR_NPARTS (0));
 }

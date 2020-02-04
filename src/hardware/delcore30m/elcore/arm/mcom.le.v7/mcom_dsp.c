@@ -499,13 +499,13 @@ int elcore_interrupt_thread(void *hdl)
 		//reset irq
 		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
         
-		/*wait time to test blocking*/
-		delay(10000);
+// 		/*wait time to test blocking*/
+// 		delay(10000);
 		
         dev->drvhdl.first_job.status = ELCORE_JOB_IDLE;
         dev->drvhdl.first_job.rc = ELCORE_JOB_SUCCESS;
         /*TODO: get the job from the list (queue) of jobs.*/
-		if (dev->drvhdl.first_job.rcvid != 0) //calloc sets it to zero by dflt
+		if (dev->drvhdl.first_job.rcvid != 0) //if its nonzero, we must manually wake up client by rcvid
 		{
 			/*FIXME: size and msg are hardcoded now*/
 			printf("%s: msgreply!\n", __func__);

@@ -42,7 +42,7 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
         return ENOSYS;
 
-    //check the "end" of the file
+    //check the "end" of the file and max_buf size
     nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
     nbytes = min (msg->i.nbytes, nleft);
 
@@ -53,7 +53,6 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
 
     
     /* check if message buffer is too short */
-//     nbytes = msg->i.nbytes;
     if (nbytes > ctp->msg_max_size) {
         if (dev->buflen < nbytes) {
             dev->buflen = nbytes;
@@ -80,60 +79,5 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
 	}
 
 	return EIO;
-    
-//         int         nleft;
-//         int         nbytes;
-//         int         nparts;
-//         int         status;
-// 
-//         if ((status = iofunc_read_verify (ctp, msg, &ocb->hdr, NULL)) != EOK)
-//             return (status);
-//             
-//         if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
-//             return (ENOSYS);
-// 
-//         /*
-//          *  On all reads (first and subsequent), calculate
-//          *  how many bytes we can return to the client,
-//          *  based upon the number of bytes available (nleft)
-//          *  and the client's buffer size
-//          */
-// 
-//         nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
-//         nbytes = min (msg->i.nbytes, nleft);
-// 
-//         if (nbytes > 0) {
-//             /* set up the return data IOV */
-//             SETIOV (ctp->iov, buffer + ocb->hdr.offset, nbytes);
-// 
-//             /* set up the number of bytes (returned by client's read()) */
-//             _IO_SET_READ_NBYTES (ctp, nbytes);
-// 
-//             /*
-//              * advance the offset by the number of bytes
-//              * returned to the client.
-//              */
-// 
-//             ocb->hdr.offset += nbytes;
-//             
-//             nparts = 1;
-//         } else {
-//             /*
-//              * they've asked for zero bytes or they've already previously
-//              * read everything
-//              */
-//             
-//             _IO_SET_READ_NBYTES (ctp, 0);
-//             
-//             nparts = 0;
-//         }
-// 
-//         /* mark the access time as invalid (we just accessed it) */
-// 
-//         if (msg->i.nbytes > 0)
-//             ocb->hdr.attr->flags |= IOFUNC_ATTR_ATIME;
-// 
-//         //return (_RESMGR_PTR(ctp, buffer, nbytes));
-// 		return (_RESMGR_NPARTS (nparts));
 }
 
