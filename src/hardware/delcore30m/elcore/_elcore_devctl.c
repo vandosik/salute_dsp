@@ -109,6 +109,41 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			msg->o.nbytes = nbytes;
 			break;
 		}
+		case DCMD_ELCORE_JOB_STATUS:
+		{
+			enum elcore_wait_job    block_type = *((uint32_t*)devctl_data);
+			/*TODO: need select job from some kind of list (queue)*/
+			elcore_job_t*			cur_job = &drvhdl->first_job;
+			
+			switch (block_type)
+			{
+				case ELCORE_WAIT_BLOCK:
+				{
+					enum elcore_job_status st = cur_job->status;
+					
+					if (st == ELCORE_JOB_RUNNING)
+					{
+						cur_job->rcvid = ctp->rcvid;
+						
+						return (_RESMGR_NOREPLY);
+					}
+					//if job is ready, we act like as NONBLOCK 
+				}
+				case ELCORE_WAIT_NONBLOCK:
+				{
+					*((uint32_t*)devctl_data) = cur_job->status;
+					
+					status = EOK;
+					nbytes = sizeof(uint32_t);
+					
+					break;
+				}
+				default:
+					return EINVAL;
+			}
+
+			break;
+		}
 		default:
 		{
 			status = dev->funcs->ctl(drvhdl, msg->i.dcmd, devctl_data, 

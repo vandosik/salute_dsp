@@ -92,6 +92,7 @@ int main( int argc, char** argv )
     int fd;
     int val32 = 0;
     int error;
+    uint32_t    job_status;
     
     uint32_t size; //size of program
     uint8_t *fw_data;
@@ -144,9 +145,28 @@ int main( int argc, char** argv )
     }
     
     printf("\n\nProg started\n\n");
-    
-    delay(5000);
-    
+   
+#if 0
+    do {
+        job_status = ELCORE_WAIT_NONBLOCK;
+
+        if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
+        {
+            printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+            goto exit;
+        }
+        
+    } while (job_status == ELCORE_JOB_RUNNING);
+#else
+    job_status = ELCORE_WAIT_BLOCK;
+
+    if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
+    {
+        printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+        goto exit;
+    }
+#endif
+
     if ( error = devctl( fd, DCMD_ELCORE_STOP, NULL, 0, NULL ) )
     {
         printf( "DCMD_ELCORE_STOP error: %s\n", strerror ( error ) );

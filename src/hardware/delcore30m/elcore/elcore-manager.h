@@ -134,7 +134,22 @@ enum elcore_core {
 
     
     
-    
+enum elcore_job_status {
+	ELCORE_JOB_IDLE = 0,
+	ELCORE_JOB_ENQUEUED,
+	ELCORE_JOB_RUNNING,
+};
+
+enum elcore_job_result {
+	ELCORE_JOB_ERROR = -2,
+	ELCORE_JOB_CANCELLED = -1,
+	ELCORE_JOB_SUCCESS = 0,
+};
+
+enum elcore_wait_job {
+	ELCORE_WAIT_BLOCK = 0, /*thread blocks at devctl call untill job finishes*/
+	ELCORE_WAIT_NONBLOCK /*thread gets immidiate responce about job status*/
+};    
     
 #include <devctl.h>
 #define _DCMD_ELCORE				_DCMD_MISC
@@ -155,15 +170,18 @@ typedef struct {
 	uint32_t	core;
 } elcore_recv_t;
 
-#define DCMD_ELCORE_RECV	__DIOF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 1, elcore_recv_t)
+#define DCMD_ELCORE_RECV		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 1, elcore_recv_t)
 
-#define DCMD_ELCORE_START	__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2)
+#define DCMD_ELCORE_START		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2)
 
-#define DCMD_ELCORE_STOP	__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3)
+#define DCMD_ELCORE_STOP		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3)
 
-#define DCMD_ELCORE_PRINT	__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 4)
+#define DCMD_ELCORE_PRINT		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 4)
 
-#define DCMD_ELCORE_RESET	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 5, int)
+#define DCMD_ELCORE_RESET		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 5, int)
+/*FIXME: temporarily send elcore_wait_job at u32 and get elcore_job_status there.
+ Lated need to identify job*/
+#define DCMD_ELCORE_JOB_STATUS	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 6, uint32_t)
 
 
 
@@ -185,58 +203,41 @@ typedef struct {
 //     int spi_dma_xchange(int fd, uint32_t device, void *wbuf, void *rbuf, int len);
 // 
 // 
+
+
+// enum delcore30m_memory_type {
+// 	DELCORE30M_MEMORY_XYRAM,
+// 	DELCORE30M_MEMORY_SYSTEM,
+// };
+
+// struct delcore30m_buffer {
+// 	int fd;
+// 	enum delcore30m_memory_type type;
+// 	int core_num;
+// 	size_t size;
+// };
+
+typedef struct _elcore_job {
+	uint32_t				id;
+	
+	int						rcvid;
+	uint8_t					cores;
+
+// 	unsigned int inum; /* actual number of input arguments */
+// 	unsigned int onum; /* actual number of output arguments */
 // 
-//     /*
-//      * For SPI driver interface
-//      */
+// 	int input[MAX_INPUTS];
+// 	int output[MAX_OUTPUTS];
 // 
-//     /*
-//      * Hardware interface for low level driver
-//      */
-//     typedef struct {
-//         /* size of this structure */
-//         size_t	size;
-// 
-//         /*
-//          * Initialize master interface.
-//          * Returns a handle associated with this driver
-//          * Returns:
-//          * !NULL    success
-//          * NULL     failure
-//          */
-//         void*	(*init)(void *hdl, char *options);
-// 
-//         /*
-//          * Clean up driver.
-//          * Frees memory associated with "hdl".
-//          */
-//         void	(*fini)(void *hdl);
-// 
-//         /*
-//          * Get driver information
-//          */
-//         int		(*drvinfo)(void *hdl, spi_drvinfo_t *info);
-// 
-//         /*
-//          * Get device information
-//          */
-//         int		(*devinfo)(void *hdl, uint32_t device, spi_devinfo_t *info);
-// 
-//         /*
-//          * Set SPI configuration
-//          */
-//         int		(*setcfg)(void *hdl, uint16_t device, spi_cfg_t *cfg);
-// 
-//         /*
-//          * xfer function calls
-//          */
-//         void*	(*xfer)(void *hdl, uint32_t device, uint8_t *buf, int *len);
-// 
-//         /*
-//          * DMA xfer function calls
-//          */
-//         int		(*dma_xfer)(void *hdl, uint32_t device, spi_dma_paddr_t *paddr, int len);
-//     } spi_funcs_t;
+// 	int cores_fd;
+// 	int sdmas_fd;
+
+	enum elcore_job_status	status;
+	enum elcore_job_result	rc;
+	
+	
+	struct _elcore_job		*next;
+} elcore_job_t;
 
 typedef struct {
     /* size of this structure */
@@ -255,6 +256,8 @@ uint32_t size);
 	int		(*start_core)(void *hdl, uint32_t core_num);
 	
 	int		(*stop_core)(void *hdl, uint32_t core_num);
+// 	/*FIXME: depending on second parameter client thread blocks at devctl or not*/
+// 	int		(*job_status)(void *hdl, uint32_t job_block); 
 	
 	int		(*print)(void *hdl);
     
@@ -273,6 +276,7 @@ extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr
 typedef struct _elcore_dev_entry_t {
 	iofunc_attr_t	attr;
 	void			*hdl;		/* Pointer to high-level handle */
+	elcore_job_t	first_job;	/* TODO: make a list of jobs. Set it here cause it is used on both levels*/
 } ELCORE_DEV;
 
 

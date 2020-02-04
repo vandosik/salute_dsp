@@ -244,6 +244,7 @@ uint32_t size);
 extern int dsp_cluster_print_regs(void *hdl);
 extern int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
 extern int elcore_interrupt_thread(void *hdl);
+// extern int elcore_job_status(void *hdl, uint32_t job_block); 
 
 elcore_funcs_t elcore_funcs = {
 	sizeof(elcore_funcs_t),
@@ -253,6 +254,7 @@ elcore_funcs_t elcore_funcs = {
 	elcore_core_read,
 	elcore_start_core,
 	elcore_stop_core,
+//     elcore_job_status,
 	dsp_cluster_print_regs,
 	elcore_ctl,
 	elcore_interrupt_thread

@@ -164,9 +164,12 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	delcore30m_t			*dev = hdl;
 	dsp_core				*core = &dev->core[core_num];
 
-	dsp_set_reg16(core, DLCR30M_PC, 0x0);
+	/*TODO: need to take this from the list or queue*/
+	dev->drvhdl.first_job.status = ELCORE_JOB_RUNNING;
 	
+	dsp_set_reg16(core, DLCR30M_PC, 0x0);
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
+	
 	
 	return EOK;
 	
@@ -439,6 +442,21 @@ int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info
     return 0;
 }
 
+// int elcore_job_status(void *hdl, uint32_t job_block) /*I need this func?*/
+// {
+// 	enum elcore_wait_job	block_type = job_block;
+// 	
+// 	switch (block_type)
+// 	{
+// 		case ELCORE_WAIT_BLOCK:
+// 			break;
+// 		case ELCORE_WAIT_NONBLOCK:	/* May be process this  */
+// 			break;
+// 		default:
+// 			break;
+// 	}
+// }
+
 int elcore_interrupt_thread(void *hdl)
 {
 	printf("%s: entry\n", __func__);
@@ -477,13 +495,28 @@ int elcore_interrupt_thread(void *hdl)
 		
 		printf("DLCR30M_QSTR: \t\t %08x\nDSP0_DCSR: \t\t %08x\n", dsp_get_reg32(dev, DLCR30M_QSTR), 
 			dsp_get_reg32(&dev->core[0], DLCR30M_DSCR));
+
 		//reset irq
 		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
+        
+		/*wait time to test blocking*/
+		delay(10000);
+		
+        dev->drvhdl.first_job.status = ELCORE_JOB_IDLE;
+        dev->drvhdl.first_job.rc = ELCORE_JOB_SUCCESS;
+        /*TODO: get the job from the list (queue) of jobs.*/
+		if (dev->drvhdl.first_job.rcvid != 0) //calloc sets it to zero by dflt
+		{
+			/*FIXME: size and msg are hardcoded now*/
+			printf("%s: msgreply!\n", __func__);
+			MsgReply(dev->drvhdl.first_job.rcvid, 0, &dev->drvhdl.first_job.status, sizeof(uint32_t));
+		}
 		
 		InterruptUnmask(dev->irq, dev->irq_hdl);
 	}
 	
 }
+
 
 void elcore_func_fini(void *hdl)
 {
