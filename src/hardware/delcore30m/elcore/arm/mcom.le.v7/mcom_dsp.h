@@ -203,6 +203,8 @@ typedef struct delcore30m_firmware {
 #define DLCR30M_FWREADY							1
 #define DLCR30M_FWEMPTY							0
 
+#include <sdma.h>
+
 typedef struct {
 	struct delcore30m_t*	cluster;//указател на структуру кластера
 	uint8_t*				xyram;
@@ -215,17 +217,17 @@ typedef struct {
 } dsp_core;
 
 typedef struct {
-	ELCORE_DEV	  drvhdl;
-	uint8_t*	base;
-	uint8_t*	regs;		//cmn regs
-	uint8_t		pm_conf;
-	dsp_core	core[DLCR30M_MAX_CORES];
-	//         dma_channel_t dma[8];
+	ELCORE_DEV	  		drvhdl;
+	uint8_t*			base;
+	uint8_t*			regs;		//cmn regs
+	uint8_t				pm_conf;
+	dsp_core			core[DLCR30M_MAX_CORES];
+	struct sdma_channel	sdma[SDMA_MAX_CHANNELS];
 // 	uint8_t* nbsr_sic;
 	uint32_t			core_count;
-	int			dma_count;
-	uint32_t	irq;
-	int			irq_hdl;
+	int					dma_count;
+	uint32_t			irq;
+	int					irq_hdl;
 } delcore30m_t;
 
 
