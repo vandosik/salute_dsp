@@ -38,6 +38,10 @@
 #define SDMA_DMAKILL				0x1
 //завершить поток
 #define SDMA_DMAEND				0x0
+
+#define SDMA_DMAGO				0xA0
+//no operation
+#define SDMA_DMANOP				0x18
 /*---------------------------------*/
 
 /* ----------SDMA registers------------- */
@@ -50,7 +54,25 @@
 #define SDMA_DBGCMD					0xD04		//управление выполнением инструкций, загружаемых через APB интерфейс
 #define SDMA_DBGINST0				0xD08		//нулевой отладочный регистр инструкций
 #define SDMA_DBGINST1				0xD0C		//первый отладочный регистр инструкций
+//регистр состояния потока управления
+#define SDMA_DSR					0x0
+//счетчик команд потока управления
+#define SDMA_DPC					0x4
+//сбой потока управления
+#define SDMA_FSRD					0x30
+//сбой потока каналов
+#define SDMA_FSRC					0x34
+//тип сбоя потока упр
+#define SDMA_FTRD					0x38
+//тип сбоя потоков каналла
+#define SDMA_FTR(channel)			(0x40 + 0x4 * channel)
 
+//channel regs
+#define SDMA_CCR(channel)			(0x408 + 0x20 * channel)
+#define SDMA_CSR(channel)			(0x100 + 0x8 * channel)
+#define SDMA_CPC(channel)			(0x104 + 0x8 * channel)
+
+#define SDMA_CR(channel)			(0xE00 + 0x4 * channel)
 
 //значение сигнала ARSIZE AXI. Определяет разрядность одной пересылки внутри пакета. 1/2/4/8/16 байт за пересылку
 //1-3 биты регистра CCR
@@ -58,22 +80,31 @@
 #define SDMA_CCR_SRC_INC			(1 << 0)
 #define SDMA_CCR_DST_INC			(1 << 14)
 
+
 typedef struct sdma_channel{
         uint8_t* rram;
         uint8_t id;
 } sdma_channel_t;
 
 typedef struct sdma_exchange{
-        void* from;
-        void* to;
+        uint32_t from;
+        uint32_t to;
 //         dma_direction direction;
         uint32_t word_size;
         uint32_t size;
 		uint32_t	iterations;
-		uint32_t	ccr; //TODO: mmap SDMA_CCR reg, need to be here???
+// 		uint32_t	ccr; //TODO: mmap SDMA_CCR reg, need to be here???
         uint8_t flags;
         sdma_channel_t* channel;
 } sdma_exchange_t;
 
+
+//sdma funcs
+
+int sdma_init(void);
+
+int sdma_fini(void);
+
+int sdma_transfer(sdma_exchange_t *dma_exchange);
 
 #endif

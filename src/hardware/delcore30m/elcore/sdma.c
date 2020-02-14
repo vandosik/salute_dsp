@@ -1,7 +1,10 @@
 #include <sys/mman.h>
 #include <stdint.h>
-#include <string.h>
+// #include <string.h>
+#include <stdio.h>
 #include <sdma.h>
+#include <errno.h>
+#include <hw/inout.h>
 
 /**
  * struct sdma_program_buf - Internal data about SDMA program
@@ -19,8 +22,44 @@ typedef struct sdma_dev {
 
 sdma_dev_t sdma;
 
-#define sdma_read32(offset)				in32(sdma->vbase + offset)
-#define sdma_write32(offset, value)		out32(sdma->vbase + offset, value)
+#define U16_MAX							0xFFFF
+
+#define sdma_read32(offset)				in32(sdma.vbase + offset)
+#define sdma_write32(offset, value)		out32(sdma.vbase + offset, value)
+
+void sdma_print_regs(int channel)
+{
+	int iter = 0;
+
+	printf("\n");
+	
+	printf("DSR: 0x%08x \n", sdma_read32(SDMA_DSR));
+	printf("DPC: 0x%08x \n", sdma_read32(SDMA_DPC));
+	printf("FSRD: 0x%08x \n", sdma_read32(SDMA_FSRD));
+	printf("FSRC: 0x%08x \n", sdma_read32(SDMA_FSRC));
+	printf("FTRD: 0x%08x \n", sdma_read32(SDMA_FTRD));
+	
+	if (channel < 0 || channel >= SDMA_MAX_CHANNELS)
+	{
+		for (; iter < SDMA_MAX_CHANNELS; iter++)
+		{
+			printf("CCR%d: 0x%08x \n", iter, sdma_read32(SDMA_CCR(iter)));
+			printf("CSR%d: 0x%08x \n", iter, sdma_read32(SDMA_CSR(iter)));
+			printf("CPC%d: 0x%08x \n", iter, sdma_read32(SDMA_CPC(iter)));
+			printf("FTR%d: 0x%08x \n", iter, sdma_read32(SDMA_FTR(iter)));
+		}
+	}
+	else
+	{
+		iter = channel;
+		
+		printf("CCR%d: 0x%08x \n", iter, sdma_read32(SDMA_CCR(iter)));
+		printf("CSR%d: 0x%08x \n", iter, sdma_read32(SDMA_CSR(iter)));
+		printf("CPC%d: 0x%08x \n", iter, sdma_read32(SDMA_CPC(iter)));
+		printf("FTR%d: 0x%08x \n", iter, sdma_read32(SDMA_FTR(iter)));
+	}
+	printf("\n");
+}
 
 int sdma_init(void)
 {
@@ -29,9 +68,18 @@ int sdma_init(void)
 		perror("SDMA alloc failed");
 		return -1;
 	}
+	
+	sdma_print_regs(-1);
+	
 	return 0;
 }
 
+int sdma_fini(void)
+{
+	munmap_device_io( sdma.vbase, SDMA_SIZE );
+	
+	return 0;
+}
 //добавление одной команды в код программы для SDMA побайтово
 static void sdma_command_add(struct sdma_program_buf *buf, uint64_t command,
 			     size_t commandlen)
@@ -60,13 +108,46 @@ static void sdma_addr_add(struct sdma_program_buf *program_buf, uint8_t cmd,
 		sdma_command_add(program_buf, cmd + (value << 8), 3);
 }
 
+static int sdma_program_test(struct sdma_program_buf *program_buf,
+			      sdma_exchange_t *task)
+{
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMANOP, 1);
+		sdma_command_add(program_buf, SDMA_DMAEND, 1);
+}
 
-static void sdma_program(struct sdma_program_buf *program_buf,
+static int sdma_program(struct sdma_program_buf *program_buf,
 			      sdma_exchange_t *task)
 {
 	uint8_t *loop_start;
 	uint32_t loop_length;
-	const uint32_t acnt = task.size / SDMA_BURST_SIZE(/*TODO: get CCR val*/task->ccr);
+	const uint32_t acnt = task->size / SDMA_BURST_SIZE(/*task->ccr*/sdma_read32(SDMA_CCR(task->channel->id)));
 	uint32_t i, trans16_pack = (acnt / 16);
 	const uint32_t trans_pack = (acnt % 16);
 
@@ -85,12 +166,12 @@ static void sdma_program(struct sdma_program_buf *program_buf,
 // 				 2);
 // 	}
 	//set number of loop iterations
-	sdma_command_add(program_buf, SDMA_DMALP(SDMA_LCO) + ((iterations-1) << 8), 2);
+	sdma_command_add(program_buf, SDMA_DMALP(SDMA_LCO) + ((task->iterations-1) << 8), 2);
 
 	loop_start = program_buf->pos;
 	if (trans16_pack) {
 		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
-		sdma_command_add(program_buf, task->ccr | (15 << 18) | (15 << 4),
+		sdma_command_add(program_buf, sdma_read32(SDMA_CCR(task->channel->id)) | (15 << 18) | (15 << 4),
 				 4); //устанавливаем 16и пересылок за пакет для dst и src
 	}
 
@@ -115,7 +196,7 @@ static void sdma_program(struct sdma_program_buf *program_buf,
 	if (trans_pack) {
 		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
 		sdma_command_add(program_buf,
-			    task->ccr | (trans_pack-1) << 18 | (trans_pack-1) << 4,
+			    /*task->ccr*/sdma_read32(SDMA_CCR(task->channel->id)) | (trans_pack-1) << 18 | (trans_pack-1) << 4,
 			    4); //устанавливаем оставшееся количество пересылок за пакет (оно меньше 16)
 
 		sdma_command_add(program_buf, SDMA_DMALD, 1);
@@ -141,15 +222,19 @@ static void sdma_program(struct sdma_program_buf *program_buf,
 // 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
 // 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
 	
-	sdma_command_add(&program_buf, SDMA_DMAWMB, 1);
-	sdma_command_add(&program_buf, SDMA_DMAEND, 1);
+	sdma_command_add(program_buf, SDMA_DMAWMB, 1);
+	sdma_command_add(program_buf, SDMA_DMAEND, 1);
+	
+	return 0;
 }
 
 int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
 {
 	int 	rc;
 	uint8_t *code_vaddr;
+	uint64_t	code_paddr;
 	struct sdma_program_buf program_buf;
+	uint32_t	dbg_status;
 
 
 	if (dma_exchange->channel->id >= SDMA_MAX_CHANNELS)
@@ -160,19 +245,35 @@ int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
 // 	if (channel_status & 0xF)
 // 		return -EBUSY;
 
-	if ((code_vaddr = mmap(NULL, SDMA_PROG_MAXSIZE, MAP_PHYS | MAP_ANON, NOFD, 0) == MAP_FAILED)
+	if ((code_vaddr = mmap(NULL, SDMA_PROG_MAXSIZE, PROT_READ | PROT_WRITE,
+		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
-		perror
+		perror("Code mmap err");
+		sdma_fini();
+		return -ENOMEM;
 	}
 	
 	
 	program_buf.pos = program_buf.start = code_vaddr;
 	program_buf.end = program_buf.start + SDMA_PROG_MAXSIZE;
 	
-	rc = sdma_program(dma_exchange, );
+// 	rc = sdma_program(&program_buf, dma_exchange);
+	rc = sdma_program_test(&program_buf, dma_exchange);
 	if (rc)
+	{
 		return rc;
-	core_id = dmachain.core;
+	}
+	
+	//get physical addr of code
+	if (mem_offset64(code_vaddr, NOFD, 1, &code_paddr, 0) == -1)
+	{
+		perror("Get phys addr error");
+		munmap(code_vaddr, SDMA_PROG_MAXSIZE);
+		sdma_fini();
+		return -ENOMEM;
+	}
+	printf("%s: code_phys %lld\n", __func__, code_paddr);
+// 	core_id = dmachain.core;
 
 	/* TODO: Move DSP registers setup to try_run() */
 
@@ -198,19 +299,24 @@ int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
 // 		return rc;
     //пока STATUS не ноль, SDMA будет все игнорировать
 	do {
-		regmap_read(pdata->sdma, DBGSTATUS, &dbg_status);
+		dbg_status = sdma_read32(SDMA_DBGSTATUS);
+		printf("%s: dbg_status 0x%08x\n", __func__, dbg_status);
 	} while (dbg_status & 1);
-    //нулевой и первый байт инструкции DMAGO, номер канала(присутствует в самой команде и в "полях регистра") в регистр 
-0
-	regmap_write(pdata->sdma, DBGINST0,
-		     (0xA0 << 16) | (dmachain.channel.num << 8) |
-		     (dmachain.channel.num << 24));
+//нулевой и первый байт инструкции DMAGO, номер канала(присутствует в самой команде и в "полях регистра") в регистр 0
+	sdma_write32(SDMA_DBGINST0,
+		     (SDMA_DMAGO << 16) | (dma_exchange->channel->id << 8) |
+		     (dma_exchange->channel->id << 24));
+	
     //со 2го по 5й байт инструкции DMAGO в регистр 1
-	regmap_write(pdata->sdma, DBGINST1, code_addr);
+	sdma_write32(SDMA_DBGINST1, (uint32_t)code_paddr);
+	sdma_print_regs(1);
     //запустить выполнение нструкций
-	regmap_write(pdata->sdma, DBGCMD, 0);
-
-	delcore30m_spinlock_unlock(pdata);
+	sdma_write32(SDMA_DBGCMD, 0);
+	sdma_print_regs(1);
+	//FIXME: nedd to do in after transfer complete
+	munmap(code_vaddr, SDMA_PROG_MAXSIZE);
+	sdma_print_regs(1);
+// 	delcore30m_spinlock_unlock(pdata);
 	return 0;
 }
 
