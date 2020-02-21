@@ -160,18 +160,28 @@ int main( int argc, char** argv )
         .size = DMA_TEST_MEM_SIZE,
         .iterations = 1
     };
-    
-    if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+sdma_release_task(&sdma_task);
+sdma_transfer(&sdma_task);
+
+    if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
     {
-        printf("Job transfer error: %s\n", strerror(-job_status));
+        printf("Job prepare error: %s\n", strerror(-job_status));
         goto exit3;
     }
     
+    if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+    {
+        printf("Job runing error: %s\n", strerror(-job_status));
+    }
 //     delay(1000);
     
     printf("Passed string: \n%s\n", src_data);
     printf("Got string: \n%s\n", dst_data);
     
+    
+    
+        sdma_release_task(&sdma_task);
+sdma_transfer(&sdma_task);
     exit3:
         sdma_fini();
     exit2:

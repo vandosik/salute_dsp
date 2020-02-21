@@ -85,22 +85,38 @@
 #define SDMA_CCR_SRC_BURST_LEN		4
 #define SDMA_CCR_DST_BURST_LEN		18
 
-//TODO: need some object for DMA controller??
+
 
 typedef struct sdma_channel{
         uint8_t* rram;
         uint8_t id;
 } sdma_channel_t;
 
+/**
+ * struct sdma_program_buf - Internal data about SDMA program
+ * @start: Pointer to start of SDMA program buffer.
+ * @pos:   Pointer to current position of SDMA program buffer.
+ * @end:   Pointer to end of SDMA program buffer.
+ */
+struct sdma_program_buf {
+	uint8_t *start, *pos, *end;
+	uint32_t	code_paddr;
+};
+
+#define SDMA_PROG_READY		0x10101010
+//TODO: some fields, such as code_addr, are not for customer. Need to hide them.
 typedef struct sdma_exchange{
         uint32_t from;
         uint32_t to;
+		uint32_t size;
+        sdma_channel_t* channel;
+		uint32_t	iterations;
+		struct sdma_program_buf program_buf;
+		uint32_t prog_ready;
 //         dma_direction direction;
         uint32_t word_size;
-        uint32_t size;
-		uint32_t	iterations;
+
         uint8_t flags;
-        sdma_channel_t* channel;
 } sdma_exchange_t;
 
 
@@ -109,7 +125,13 @@ typedef struct sdma_exchange{
 int sdma_init(void);
 
 int sdma_fini(void);
-
+//prepare sdma exchange to work
+int sdma_prepare_task(sdma_exchange_t *dma_exchange);
+//do exchange
 int sdma_transfer(sdma_exchange_t *dma_exchange);
+//release resources, assosiated with dma exchange
+int sdma_release_task(sdma_exchange_t *dma_exchange);
+
+void sdma_reset( int channel);
 
 #endif

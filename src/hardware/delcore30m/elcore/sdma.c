@@ -5,16 +5,11 @@
 #include <sdma.h>
 #include <errno.h>
 #include <hw/inout.h>
+#include <unistd.h>
 
-/**
- * struct sdma_program_buf - Internal data about SDMA program
- * @start: Pointer to start of SDMA program buffer.
- * @pos:   Pointer to current position of SDMA program buffer.
- * @end:   Pointer to end of SDMA program buffer.
- */
-struct sdma_program_buf {
-	uint8_t *start, *pos, *end;
-};
+
+
+//TODO: need some object for DMA controller??
 
 typedef struct sdma_dev {
 	uintptr_t vbase;
@@ -29,6 +24,7 @@ sdma_dev_t sdma;
 
 void sdma_reset(int channel)
 {
+	printf("%s: entry\n", __func__);
 	uint32_t dbg_status;
     
 	do {
@@ -45,6 +41,7 @@ void sdma_reset(int channel)
 
 int sdma_mem_dump(uint8_t* addr, uint32_t len)
 {
+	printf("%s: entry\n", __func__);
 	uint32_t iter = 0;
 	
 	printf("Numeric\n");
@@ -113,6 +110,7 @@ void sdma_print_regs(int channel)
 
 int sdma_init(void)
 {
+	
 	if ((sdma.vbase = mmap_device_io(SDMA_SIZE, SDMA_BASE)) == MAP_DEVICE_FAILED)
 	{
 		perror("SDMA alloc failed");
@@ -161,6 +159,7 @@ static void sdma_addr_add(struct sdma_program_buf *program_buf, uint8_t cmd,
 static int sdma_program(struct sdma_program_buf *program_buf,
 			      sdma_exchange_t *task)
 {
+	printf("%s: entry\n", __func__);
 	uint8_t *loop_start;
 	uint32_t loop_length;
 	const uint32_t acnt = task->size / SDMA_BURST_SIZE(/*task->ccr*/sdma_read32(SDMA_CCR(task->channel->id)));
@@ -250,37 +249,29 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	return 0;
 }
 
-int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
+
+int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 {
+	printf("%s: entry\n", __func__);
 	int 	rc;
 	uint8_t *code_vaddr;
 	uint64_t	code_paddr;
-	struct sdma_program_buf program_buf;
-	uint32_t	dbg_status;
-    uint32_t	val32;
-
-
+	
 	if (dma_exchange->channel->id >= SDMA_MAX_CHANNELS)
 		return -EINVAL;
-
-// 	regmap_read(pdata->sdma, CHANNEL_STATUS(dmachain.channel.num),
-// 		    &channel_status);
-// 	if (channel_status & 0xF)
-// 		return -EBUSY;
 
 	if ((code_vaddr = mmap(NULL, SDMA_PROG_MAXSIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
 		perror("Code mmap err");
-		sdma_fini();
 		return -ENOMEM;
 	}
 	
 	
-	program_buf.pos = program_buf.start = code_vaddr;
-	program_buf.end = program_buf.start + SDMA_PROG_MAXSIZE;
+	dma_exchange->program_buf.pos = dma_exchange->program_buf.start = code_vaddr;
+	dma_exchange->program_buf.end = dma_exchange->program_buf.start + SDMA_PROG_MAXSIZE;
 	
-	rc = sdma_program(&program_buf, dma_exchange);
+	rc = sdma_program(&dma_exchange->program_buf, dma_exchange);
 	
 	if (rc)
 	{
@@ -292,12 +283,37 @@ int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
 	{
 		perror("Get phys addr error");
 		munmap(code_vaddr, SDMA_PROG_MAXSIZE);
-		sdma_fini();
 		return -ENOMEM;
 	}
-	printf("%s: code_phys %lld\n", __func__, code_paddr);
-	printf("%s: code_vird %lld\n", __func__, code_vaddr);
-	printf("%s: code_len %u  \n", __func__, program_buf.pos - program_buf.start);
+	dma_exchange->program_buf.code_paddr = code_paddr;
+	dma_exchange->prog_ready = SDMA_PROG_READY;
+	
+	printf("%s: code_phys 0x%08x\n", __func__, (uint32_t)code_paddr);
+	printf("%s: code_vird 0x%08x\n", __func__, (uint32_t)code_vaddr);
+	printf("%s: code_len  %-8u  \n", __func__, dma_exchange->program_buf.pos - dma_exchange->program_buf.start);
+	
+	return EOK;
+}
+
+int sdma_transfer(sdma_exchange_t *dma_exchange)
+{
+	printf("%s: entry\n", __func__);
+	uint32_t	dbg_status;
+    uint32_t	val32;
+
+
+	if (dma_exchange->prog_ready != SDMA_PROG_READY)
+	{
+		printf("DMA exchange not prepared\n");
+		return -EINVAL;
+	}
+
+// 	regmap_read(pdata->sdma, CHANNEL_STATUS(dmachain.channel.num),
+// 		    &channel_status);
+// 	if (channel_status & 0xF)
+// 		return -EBUSY;
+
+
 	
 // 	sdma_mem_dump((uint8_t*)code_vaddr, SDMA_PROG_MAXSIZE);
 	
@@ -341,7 +357,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
 	sdma_write32(SDMA_DBGINST0, val32);
 	
     //со 2го по 5й байт инструкции DMAGO в регистр 1
-	sdma_write32(SDMA_DBGINST1, (uint32_t)code_paddr); 
+	sdma_write32(SDMA_DBGINST1, dma_exchange->program_buf.code_paddr); 
 	//try to convert later (le32 to cpu)
 	
 	
@@ -354,38 +370,23 @@ int sdma_transfer(sdma_exchange_t *dma_exchange) //maybe code addr pass as arg?
     
     delay(3000);
     sdma_print_regs(dma_exchange->channel->id);
-	//FIXME: nedd to do in after transfer complete
-// 	munmap(code_vaddr, SDMA_PROG_MAXSIZE);
-
-#if 0
-    void* remmap_src;
-
-    if ((remmap_src = mmap_device_memory(NULL, SDMA_PROG_MAXSIZE, PROT_READ | PROT_WRITE,
-        0, dma_exchange->from)) == MAP_FAILED)
-    {
-		perror("Remmap src addr error");
-		munmap(code_vaddr, SDMA_PROG_MAXSIZE);
-		sdma_fini();
-		return -ENOMEM;
-    }
-   
-    void* remmap_dst;
-
-    if ((remmap_dst = mmap_device_memory(NULL, SDMA_PROG_MAXSIZE, PROT_READ | PROT_WRITE,
-        0, dma_exchange->to)) == MAP_FAILED)
-    {
-		perror("Remmap dst addr error");
-		munmap(code_vaddr, SDMA_PROG_MAXSIZE);
-		sdma_fini();
-		return -ENOMEM;
-    }
-    
-    memcpy(remmap_dst,remmap_src, 64);
-	
-// 	sdma_mem_dump((uint8_t*)remmap_src, 64);
-#endif
 
 // 	delcore30m_spinlock_unlock(pdata);
 	return 0;
 }
 
+
+int sdma_release_task(sdma_exchange_t *dma_exchange)
+{
+	printf("%s: entry\n", __func__);
+	if (dma_exchange->prog_ready != SDMA_PROG_READY)
+	{
+		printf("DMA exchange not prepared\n");
+		return -EINVAL;
+	}
+	
+	munmap(dma_exchange->program_buf.start, SDMA_PROG_MAXSIZE);
+	dma_exchange->prog_ready = !SDMA_PROG_READY;
+	
+	return EOK;
+}
