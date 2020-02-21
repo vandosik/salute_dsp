@@ -35,7 +35,7 @@
 //чтения данных из источника в MIFO, адрес источника в SAR
 #define SDMA_DMALD				0x07
 //перывает выполнение потока
-#define SDMA_DMAKILL				0x1
+#define SDMA_DMAKILL			0x1
 //завершить поток
 #define SDMA_DMAEND				0x0
 
@@ -45,8 +45,10 @@
 /*---------------------------------*/
 
 /* ----------SDMA registers------------- */
+//set in arm/mc1892vm14.h, TODO: need to take this from hwi
 #define SDMA_BASE					0x37220000
 #define SDMA_SIZE					0x1000
+
 
 #define SDMA_INTEN					0x020		//разрешение прерываний
 #define SDMA_CHANNEL_STATUS(x)			(0x100 + (8 * (x)))
@@ -72,14 +74,18 @@
 #define SDMA_CSR(channel)			(0x100 + 0x8 * channel)
 #define SDMA_CPC(channel)			(0x104 + 0x8 * channel)
 
-#define SDMA_CR(channel)			(0xE00 + 0x4 * channel)
+#define SDMA_CR(num)				(0xE00 + 0x4 * num)
+#define SDMA_CRD					0xE14
 
 //значение сигнала ARSIZE AXI. Определяет разрядность одной пересылки внутри пакета. 1/2/4/8/16 байт за пересылку
 //1-3 биты регистра CCR
-#define SDMA_BURST_SIZE(ccr)			(1 << (((ccr) >> 1) & 0x7))
+#define SDMA_BURST_SIZE(ccr)		(1 << (((ccr) >> 1) & 0x7))
 #define SDMA_CCR_SRC_INC			(1 << 0)
 #define SDMA_CCR_DST_INC			(1 << 14)
+#define SDMA_CCR_SRC_BURST_LEN		4
+#define SDMA_CCR_DST_BURST_LEN		18
 
+//TODO: need some object for DMA controller??
 
 typedef struct sdma_channel{
         uint8_t* rram;
@@ -93,7 +99,6 @@ typedef struct sdma_exchange{
         uint32_t word_size;
         uint32_t size;
 		uint32_t	iterations;
-// 		uint32_t	ccr; //TODO: mmap SDMA_CCR reg, need to be here???
         uint8_t flags;
         sdma_channel_t* channel;
 } sdma_exchange_t;

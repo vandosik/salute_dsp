@@ -102,14 +102,22 @@ int main( int argc, char** argv )
     uint64_t src_paddr;
 
     
-	if ((src_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE,
+//     uint32_t src_paddr_1;
+//     printf("input addr:\n");
+//     scanf("%u", &src_paddr_1);
+// 
+//     printf("got 0x%08x\n", src_paddr_1);
+//     src_paddr = src_paddr_1;
+    
+    
+	if ((src_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
 		perror("SRC mmap err");
 		goto exit0;
 	}
  
-    if ((dst_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE,
+    if ((dst_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
 		perror("DST mmap err");
@@ -130,8 +138,8 @@ int main( int argc, char** argv )
 	}
     printf("%s: dst_phys %lld\n", __func__, dst_paddr);
     
-    //set src data
-    strncpy(src_data, "Raz raz raz this is hardbass, all v sportivkah adidas. And in niki pazani, listen to \
+//     set src data
+    strncpy(src_data, "rRaz raz raz this is hardbass, all v sportivkah adidas. And in niki pazani, listen to \
     to hardbass basy!!",DMA_TEST_MEM_SIZE-1 );
     src_data[DMA_TEST_MEM_SIZE-1] = '\0';
     
@@ -142,7 +150,7 @@ int main( int argc, char** argv )
     }
     struct sdma_channel chnl_1 = {
         .rram = NULL,
-        .id = 1
+        .id = 0
     };
     
     struct sdma_exchange sdma_task = {
@@ -159,7 +167,7 @@ int main( int argc, char** argv )
         goto exit3;
     }
     
-    delay(1000);
+//     delay(1000);
     
     printf("Passed string: \n%s\n", src_data);
     printf("Got string: \n%s\n", dst_data);
