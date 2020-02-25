@@ -162,7 +162,7 @@ typedef struct {
 	uint32_t	core;
 } elcore_send_t;
 
-#define DCMD_ELCORE_SEND	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 0, elcore_send_t)
+#define DCMD_ELCORE_SEND		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 0, elcore_send_t)
 
 typedef struct {
 	uint32_t	len;
@@ -172,16 +172,34 @@ typedef struct {
 
 #define DCMD_ELCORE_RECV		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 1, elcore_recv_t)
 
-#define DCMD_ELCORE_START		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2)
+typedef struct {
+	uint32_t	len;
+	uint32_t	offset;
+	uint32_t	core;
+    uint32_t	dma_src;
+} elcore_dmasend_t;
 
-#define DCMD_ELCORE_STOP		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3)
+#define DCMD_ELCORE_DMASEND		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 2, elcore_dmasend_t)
 
-#define DCMD_ELCORE_PRINT		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 4)
+typedef struct {
+	uint32_t	len;
+	uint32_t	offset;
+	uint32_t	core;
+	uint32_t	dma_dst;
+} elcore_dmarecv_t;
 
-#define DCMD_ELCORE_RESET		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 5, int)
+#define DCMD_ELCORE_DMARECV		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3, elcore_dmarecv_t)
+
+#define DCMD_ELCORE_START		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 4)
+
+#define DCMD_ELCORE_STOP		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 5)
+
+#define DCMD_ELCORE_PRINT		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 6)
+
+#define DCMD_ELCORE_RESET		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 7, int)
 /*FIXME: temporarily send elcore_wait_job at u32 and get elcore_job_status there.
  Lated need to identify job*/
-#define DCMD_ELCORE_JOB_STATUS	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 6, uint32_t)
+#define DCMD_ELCORE_JOB_STATUS	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 8, uint32_t)
 
 
 
@@ -264,6 +282,10 @@ uint32_t size);
 	int		(*ctl)(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info);
    
 	int		(*irq_thread)(void *hdl);
+
+	int		(*dma_send)( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, uint32_t size);
+
+	int		(*dma_recv)(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, uint32_t size);
     
 
 } elcore_funcs_t;

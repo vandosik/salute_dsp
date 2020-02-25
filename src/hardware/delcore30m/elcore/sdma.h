@@ -46,8 +46,10 @@
 
 /* ----------SDMA registers------------- */
 //set in arm/mc1892vm14.h, TODO: need to take this from hwi
-#define SDMA_BASE					0x37220000
+#define SDMA_BASE					0x37220000UL
 #define SDMA_SIZE					0x1000
+//set in arm/mc1892vm14_irq.h, TODO: need to take this from hwi
+#define SDMA_IRQ_NUM				(32 + 8)
 
 
 #define SDMA_INTEN					0x020		//разрешение прерываний
@@ -133,5 +135,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange);
 int sdma_release_task(sdma_exchange_t *dma_exchange);
 
 void sdma_reset( int channel);
+
+int sdma_mem_dump(uint8_t* addr, uint32_t len);
 
 #endif

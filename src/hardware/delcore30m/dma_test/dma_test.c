@@ -14,9 +14,9 @@ Options:
 #include <fcntl.h>
 #include <stdint.h>
 #include <unistd.h>
-// #include <devctl.h>
+#include <devctl.h>
 #include <errno.h>
-// #include <elcore-manager.h>
+#include <elcore-manager.h>
 #include <sdma.h>
 
 #include <stdio.h>
@@ -29,86 +29,87 @@ Options:
 
 char* fw_path = "/tmp/input";
 
-// int getbytes(uint8_t** data, const char *filename, uint32_t *size)
-// {
-// 	printf("%s: entry\n", __func__);
-// 
-// 	FILE *f = fopen(filename, "r");
-// 	if (f == NULL) {
-// 		perror("err opening file");
-// 		*size = 0;
-// 		return -1;
-// 	}
-// 	fseek(f, 0, SEEK_END);
-// 	*size = ftell(f);
-// 	fseek(f, 0, SEEK_SET);
-// 
-// 	printf("size of file: %u\n", *size);
-// 	
-// 	*data = malloc(*size + sizeof(elcore_send_t));
-// 	
-// 	if (*data == NULL)
-// 	{
-// 		perror("err alloc data");
-// 	}
-// 	
-// 	printf ("bytes read: %d\n",fread(*data + sizeof(elcore_send_t), 1, *size, f));
-// 
-// 	if (*data + sizeof(elcore_send_t) == NULL)
-// 	{
-// 		perror("err reading data");
-// 	}
-// 	
-// 	fclose(f);
-// 
-// 	return 0;
-// }
-// 
-// int writefile(uint8_t *data, const char *filename, uint32_t *size)
-// {
-// 	printf("%s: entry\n", __func__);
-// 
-// 	FILE *f = fopen(filename, "w");
-// 	if (f == NULL) {
-// 		perror("err opening file");
-// 		*size = 0;
-// 		return -1;
-// 	}
-// 	
-// 	
-// 	if (data == NULL)
-// 	{
-// 		perror("No data");
-// 	}
-// 	
-// 	printf ("bytes written: %d\n", fwrite(data, 1, *size, f));
-// 
-// 	
-// 	fclose(f);
-// 
-// 	return 0;    
-// }
+int getbytes(uint8_t* data, const char *filename, uint32_t *size)
+{
+	printf("%s: entry\n", __func__);
 
-#define DMA_TEST_MEM_SIZE       64
+	FILE *f = fopen(filename, "r");
+	if (f == NULL) {
+		perror("err opening file");
+		*size = 0;
+		return -1;
+	}
+	fseek(f, 0, SEEK_END);
+	*size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+
+	printf("size of file: %u\n", *size);
+	
+	printf ("bytes read: %d\n",fread(data, 1, *size, f));
+
+	if (data == NULL)
+	{
+		perror("err reading data");
+        return -1;
+	}
+	
+	fclose(f);
+
+	return 0;
+}
+
+int writefile(uint8_t *data, const char *filename, uint32_t *size)
+{
+	printf("%s: entry\n", __func__);
+
+	FILE *f = fopen(filename, "w");
+	if (f == NULL) {
+		perror("err opening file");
+		*size = 0;
+		return -1;
+	}
+	
+	
+	if (data == NULL)
+	{
+		perror("No data");
+	}
+	
+	printf ("bytes written: %d\n", fwrite(data, 1, *size, f));
+
+	
+	fclose(f);
+
+	return 0;    
+}
+
+#define DMA_TEST_MEM_SIZE       300
 
 int main( int argc, char** argv )
 {
-    int    job_status;
-   
+    int fd;
+    int error;
+    uint32_t    job_status;
+    uint32_t size; //size of program
     uint8_t *src_data;
-    uint8_t *dst_data;
-    
-    uint64_t dst_paddr;
     uint64_t src_paddr;
 
+#if 0
+    uint32_t src_paddr_1;
+    printf("input addr:\n");
+    scanf("%u", &src_paddr_1);
+
+    printf("got 0x%08x\n", src_paddr_1);
+    src_paddr = src_paddr_1;
+#endif
     
-//     uint32_t src_paddr_1;
-//     printf("input addr:\n");
-//     scanf("%u", &src_paddr_1);
-// 
-//     printf("got 0x%08x\n", src_paddr_1);
-//     src_paddr = src_paddr_1;
+    fd = open("/dev/elcore0", O_RDWR);
     
+    if ( fd < 0 )
+    {
+        perror("error opening file");
+        return -1;
+    }
     
 	if ((src_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
@@ -116,79 +117,115 @@ int main( int argc, char** argv )
 		perror("SRC mmap err");
 		goto exit0;
 	}
- 
-    if ((dst_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
-		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
-	{
-		perror("DST mmap err");
+
+	if (getbytes(src_data, fw_path, &size) < 0)
+    {
+		printf("Getbytes error\n");
 		goto exit1;
-	}
+    }
+
 	
     if (mem_offset64(src_data, NOFD, 1, &src_paddr, 0) == -1)
 	{
 		perror("Get src_phys addr error");
-		goto exit2;
+		goto exit1;
 	}
-    printf("%s: src_phys %lld\n", __func__, src_paddr);
+    printf("%s: src_phys 0x%08x\n", __func__, src_paddr);
     
-    if (mem_offset64(dst_data, NOFD, 1, &dst_paddr, 0) == -1)
-	{
-		perror("Get dst_phys addr error");
-        goto exit2;
-	}
-    printf("%s: dst_phys %lld\n", __func__, dst_paddr);
+    elcore_dmasend_t dma_send = {
+        .len = size,
+        .offset = 0,
+        .core = 0,
+        .dma_src = src_paddr
+    };
+    //BUG: delete this
+    sdma_mem_dump(src_data, 40);
     
 //     set src data
-    strncpy(src_data, "rRaz raz raz this is hardbass, all v sportivkah adidas. And in niki pazani, listen to \
-    to hardbass basy!!",DMA_TEST_MEM_SIZE-1 );
-    src_data[DMA_TEST_MEM_SIZE-1] = '\0';
-    
-    if (sdma_init())
+//     strncpy(src_data, "rRaz raz raz this is hardbass, all v sportivkah adidas. And in niki pazani, listen to \
+//     to hardbass basy!!",DMA_TEST_MEM_SIZE-1 );
+//     src_data[DMA_TEST_MEM_SIZE-1] = '\0';
+   
+    if (error = devctl( fd, DCMD_ELCORE_DMASEND, &dma_send, sizeof(elcore_dmasend_t), NULL ) )
     {
-        perror("sdma_init failure");
-        goto exit2;
+        printf( "DCMD_ELCORE_DMASEND error: %s\n", strerror ( error ) );
+        goto exit1;
     }
-    struct sdma_channel chnl_1 = {
-        .rram = NULL,
-        .id = 0
-    };
     
-    struct sdma_exchange sdma_task = {
-        .from = (uint32_t)src_paddr,
-        .to = (uint32_t)dst_paddr,
-        .channel = &chnl_1,
-        .size = DMA_TEST_MEM_SIZE,
-        .iterations = 1
-    };
-sdma_release_task(&sdma_task);
-sdma_transfer(&sdma_task);
+    printf("\n\nProg uploaded\n\n");
+    
+    if ( error = devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL ) )
+    {
+        printf( "DCMD_ELCORE_PRINT error: %s\n", strerror ( error ) );
+        goto exit1;
+    }
+    
+    if ( error = devctl( fd, DCMD_ELCORE_START, NULL, 0, NULL ) )
+    {
+        printf( "DCMD_ELCORE_START error: %s\n", strerror ( error ) );
+        goto exit1;
+    }
+    
+#if 0
+    do {
+        job_status = ELCORE_WAIT_NONBLOCK;
 
-    if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+        if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
+        {
+            printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+            goto exit;
+        }
+        
+    } while (job_status == ELCORE_JOB_RUNNING);
+#else
+    job_status = ELCORE_WAIT_BLOCK;
+
+    if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
     {
-        printf("Job prepare error: %s\n", strerror(-job_status));
-        goto exit3;
+        printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+        goto exit1;
+    }
+#endif
+
+    printf("\n\nProg started\n\n");
+
+    if ( error = devctl( fd, DCMD_ELCORE_STOP, NULL, 0, NULL ) )
+    {
+        printf( "DCMD_ELCORE_STOP error: %s\n", strerror ( error ) );
+        goto exit1;
     }
     
-    if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+    printf("\n\nProg stopped\n\n");
+    
+    if ( error = devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL ) )
     {
-        printf("Job runing error: %s\n", strerror(-job_status));
+        printf( "DCMD_ELCORE_PRINT error: %s\n", strerror ( error ) );
+        goto exit1;
     }
-//     delay(1000);
+    //elcore_dmarecv_t = elcore_dmasend_t
+    if (error = devctl( fd, DCMD_ELCORE_DMARECV, &dma_send, sizeof(elcore_dmarecv_t), NULL ) )
+    {
+        printf( "DCMD_ELCORE_DMARECV error: %s\n", strerror ( error ) );
+        goto exit1;
+    }
     
-    printf("Passed string: \n%s\n", src_data);
-    printf("Got string: \n%s\n", dst_data);
+    printf("\n\nProg downloaded\n\n");
+    sdma_mem_dump(src_data, 40);
     
     
+    writefile(src_data, "/tmp/output", &size);
     
-        sdma_release_task(&sdma_task);
-sdma_transfer(&sdma_task);
-    exit3:
-        sdma_fini();
-    exit2:
-        munmap(dst_data, SDMA_PROG_MAXSIZE);
+
+    
+//     printf("Passed string: \n%s\n", src_data);
+
+    
+    
+   
     exit1:
         munmap(src_data, SDMA_PROG_MAXSIZE);
     exit0:
+        close(fd);
     
     return 0;
     

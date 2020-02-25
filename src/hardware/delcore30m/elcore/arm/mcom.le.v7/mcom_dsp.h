@@ -208,7 +208,9 @@ typedef struct delcore30m_firmware {
 typedef struct {
 	struct delcore30m_t*	cluster;//указател на структуру кластера
 	uint8_t*				xyram;
+	uint32_t				xyram_phys;
 	uint8_t*				pram;
+	uint32_t				pram_phys;
 // 	uint8_t*	stack;
 	uint32_t				fw_size;
 	uint8_t					fw_ready;
@@ -219,6 +221,7 @@ typedef struct {
 typedef struct {
 	ELCORE_DEV	  		drvhdl;
 	uint8_t*			base;
+	uint32_t			pbase;
 	uint8_t*			regs;		//cmn regs
 	uint8_t				pm_conf;
 	dsp_core			core[DLCR30M_MAX_CORES];
@@ -246,6 +249,9 @@ uint32_t size);
 extern int dsp_cluster_print_regs(void *hdl);
 extern int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
 extern int elcore_interrupt_thread(void *hdl);
+extern int elcore_dmarecv( void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, uint32_t size);
+extern int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, uint32_t size);
+
 // extern int elcore_job_status(void *hdl, uint32_t job_block); 
 
 elcore_funcs_t elcore_funcs = {
@@ -259,6 +265,8 @@ elcore_funcs_t elcore_funcs = {
 //     elcore_job_status,
 	dsp_cluster_print_regs,
 	elcore_ctl,
-	elcore_interrupt_thread
+	elcore_interrupt_thread,
+	elcore_dmasend,
+	elcore_dmarecv
 };
 #endif

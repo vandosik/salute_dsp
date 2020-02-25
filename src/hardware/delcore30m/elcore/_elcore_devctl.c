@@ -109,6 +109,51 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			msg->o.nbytes = nbytes;
 			break;
 		}
+		case DCMD_ELCORE_DMASEND:
+		{
+			elcore_dmasend_t	*dma_send;
+
+			dma_send = (elcore_dmasend_t*)devctl_data;
+			ocb->core = dma_send->core;
+			
+// 			status = dev->funcs->write(drvhdl, ocb->core, send_buf, (void*)send_cfg->offset, send_cfg->len);
+            printf("%s: dma_send src: 0x%08x\n", __func__, dma_send->dma_src);
+			status = dev->funcs->dma_send(drvhdl, ocb->core, dma_send->dma_src, dma_send->offset, dma_send->len);
+            
+			if (status >= 0)
+			{
+				status = EOK;
+			}
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
+			break;
+		}
+		case DCMD_ELCORE_DMARECV:
+		{
+			elcore_dmarecv_t	*dma_recv;
+
+			dma_recv = (elcore_dmarecv_t*)devctl_data;
+			ocb->core = dma_recv->core;
+			
+// 			status = dev->funcs->read(drvhdl, ocb->core, recv_buf, (void*)recv_cfg->offset, recv_cfg->len);
+            printf("%s: dma_recv src: 0x%08x\n", __func__, dma_recv->dma_dst);
+			status = dev->funcs->dma_recv(drvhdl, ocb->core, dma_recv->dma_dst, dma_recv->offset, dma_recv->len);
+            
+			nbytes = sizeof(elcore_dmarecv_t);
+
+			if (status >= 0)
+			{
+				status = EOK;
+			}
+			else
+			{
+				return EINVAL;
+			}
+			
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
+			break;
+		}
 		case DCMD_ELCORE_JOB_STATUS:
 		{
 			enum elcore_wait_job    block_type = *((uint32_t*)devctl_data);

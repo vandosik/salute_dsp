@@ -8,7 +8,7 @@
 #include "mcom_dsp.h"
 
 #include <unistd.h>
-
+#include <sdma.h>
 
 
 int dsp_core_print_regs(dsp_core* core)
@@ -89,10 +89,11 @@ void *elcore_func_init(void *hdl, char *options)
 	}
 
 	dev->drvhdl.hdl = hdl;
+	dev->pbase = DLCR30M_BASE;
     
 	if ( (void *)( dev->base = mmap_device_memory( NULL, DLCR30M_SIZE,
 	        PROT_READ | PROT_WRITE | PROT_NOCACHE, 0,
-	        DLCR30M_BASE ) ) == MAP_FAILED )
+	        dev->pbase ) ) == MAP_FAILED )
 	{
 		fprintf(stderr,"DSP mapping device memory failed\n");
 		free(hdl);
@@ -111,10 +112,14 @@ void *elcore_func_init(void *hdl, char *options)
 	dev->core[1].cluster = (struct delcore30m_t*)dev;
 
 	dev->core[0].xyram = dev->base + DLCR30M_DSP0_XYRAM;
+	dev->core[0].xyram_phys = dev->pbase + DLCR30M_DSP0_XYRAM;
 	dev->core[1].xyram = dev->base + DLCR30M_DSP1_XYRAM;
+	dev->core[1].xyram_phys = dev->pbase + DLCR30M_DSP1_XYRAM;
 	
 	dev->core[0].pram = dev->base + DLCR30M_DSP0_PRAM;
+	dev->core[0].pram_phys = dev->pbase + DLCR30M_DSP0_PRAM;
 	dev->core[1].pram = dev->base + DLCR30M_DSP1_PRAM;
+	dev->core[1].pram_phys = dev->pbase + DLCR30M_DSP1_PRAM;
 	
 	dev->core[0].regs = dev->base + DLCR30M_DSP0_REGS;
 	dev->core[1].regs = dev->base + DLCR30M_DSP1_REGS;
@@ -123,7 +128,7 @@ void *elcore_func_init(void *hdl, char *options)
 	
 	dev->pm_conf = (dsp_get_reg32(dev, DLCR30M_CSR) & DLCR30M_CSR_PM_CONFIG_MASK) >> 2;
 	
-	//enable interrups
+	//FIXME:enable interrups
 	dsp_set_bit_reg32(dev, DLCR30M_MASKR, 3);
 	
 	
@@ -517,6 +522,273 @@ int elcore_interrupt_thread(void *hdl)
 	
 }
 
+int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, uint32_t size)
+{
+	delcore30m_t			*dev = hdl;
+	struct sdma_exchange	sdma_task;
+	dsp_core				*core = &dev->core[core_num];
+	int						job_status;
+	
+	struct sdma_channel chnl_0 = {
+		.rram = NULL,
+		.id = 0
+	};
+	
+	if (sdma_init())
+	{
+		perror("sdma_init failure");
+		goto exit0;
+	}
+	
+	if (offset < DLCR30M_BANK_SIZE)
+	{
+
+			if (offset + size > DLCR30M_BANK_SIZE) //need offset use XYRAM
+			{
+			   if (offset + size < (DLCR30M_BANK_SIZE * 5)) 
+			   {	//writing from pram we need to leave one xyram bank?? yes - 4, no - 5
+				sdma_task.from = from;
+				sdma_task.to = core->pram_phys + offset;
+				sdma_task.channel = &chnl_0;
+				sdma_task.size = DLCR30M_BANK_SIZE - offset;
+				sdma_task.iterations = 1;
+				
+				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+				{
+					printf("Job prepare error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+
+				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+				{
+				    printf("Job runing error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+				
+				sdma_release_task(&sdma_task);
+				
+				sdma_task.from = from + (uint64_t)(DLCR30M_BANK_SIZE - offset);
+				sdma_task.to = core->xyram_phys;
+				sdma_task.channel = &chnl_0;
+				sdma_task.size = size - (DLCR30M_BANK_SIZE - offset);
+				sdma_task.iterations = 1;
+				
+				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+				{
+					printf("Job prepare error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+
+				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+				{
+				    printf("Job runing error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+				
+				goto exit1;
+				
+				
+			   }
+			   else
+			   {
+				   return -1;
+			   }
+			}
+			else
+			{ //send with one block
+				sdma_task.from = from;
+				sdma_task.to = core->pram_phys + offset;
+				sdma_task.channel = &chnl_0;
+				sdma_task.size = size;
+				sdma_task.iterations = 1;
+				
+				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+				{
+					printf("Job prepare error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+
+				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+				{
+				    printf("Job runing error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+				
+// 				goto exit1;
+	       }
+	 }
+	 else
+	 { //put to XYRAM
+	     if ((offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5))
+		 {
+			sdma_task.from = from;
+			sdma_task.to = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
+			sdma_task.channel = &chnl_0;
+			sdma_task.size = size;
+			sdma_task.iterations = 1;
+			
+			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+			{
+				printf("Job prepare error: %s\n", strerror(-job_status));
+				goto exit1;
+			}
+
+			if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+			{
+			    printf("Job runing error: %s\n", strerror(-job_status));
+				goto exit1;
+			}
+				
+			 goto exit1;
+		 }
+		 else
+		 {
+			 return -1;
+		 }
+	 }
+	printf("%s: %u bytes had been written to offset: %u\n", __func__, size, offset);
+	sdma_mem_dump(core->pram + offset, 40);
+	
+	
+	exit1:
+        sdma_release_task(&sdma_task);
+    exit0:
+        sdma_fini();
+	
+	return size;
+}
+
+int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, uint32_t size)
+{
+	delcore30m_t			*dev = hdl;
+	struct sdma_exchange	sdma_task;
+	dsp_core				*core = &dev->core[core_num];
+	int						job_status;
+	
+	struct sdma_channel chnl_0 = {
+		.rram = NULL,
+		.id = 0
+	};
+	
+	if (sdma_init())
+	{
+		perror("sdma_init failure");
+		goto exit0;
+	}
+	
+    if (offset < DLCR30M_BANK_SIZE)
+    {
+        if ((offset + size) > DLCR30M_BANK_SIZE)
+          {
+            if ((offset+size) < (DLCR30M_BANK_SIZE * 5))
+			{
+				sdma_task.from = core->pram_phys + offset;
+				sdma_task.to = to;
+				sdma_task.channel = &chnl_0;
+				sdma_task.size = DLCR30M_BANK_SIZE - offset;
+				sdma_task.iterations = 1;
+				
+				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+				{
+					printf("Job prepare error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+
+				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+				{
+				    printf("Job runing error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+				
+				sdma_release_task(&sdma_task);
+			
+				sdma_task.from = core->xyram_phys;
+				sdma_task.to = to + (DLCR30M_BANK_SIZE - offset);
+				sdma_task.channel = &chnl_0;
+				sdma_task.size = size - (DLCR30M_BANK_SIZE - offset);
+				sdma_task.iterations = 1;
+				
+				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+				{
+					printf("Job prepare error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+
+				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+				{
+				    printf("Job runing error: %s\n", strerror(-job_status));
+					goto exit1;
+				}
+				
+				goto exit1;
+			}
+			else
+			{
+				return -1;
+			}
+		}
+		else
+		{
+			sdma_task.from = core->pram_phys + offset;
+			sdma_task.to = to;
+			sdma_task.channel = &chnl_0;
+			sdma_task.size = size;
+			sdma_task.iterations = 1;
+
+			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+			{
+				printf("Job prepare error: %s\n", strerror(-job_status));
+				goto exit1;
+			}
+
+			if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+			{
+			    printf("Job runing error: %s\n", strerror(-job_status));
+				goto exit1;
+			}
+
+// 			goto exit1;
+		}
+	}
+	else
+	{
+        if ((offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5)) 
+		{
+			sdma_task.from = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
+			sdma_task.to = to;
+			sdma_task.channel = &chnl_0;
+			sdma_task.size = size;
+			sdma_task.iterations = 1;
+			
+			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
+			{
+				printf("Job prepare error: %s\n", strerror(-job_status));
+				goto exit1;
+			}
+
+			if ((job_status = sdma_transfer(&sdma_task)) != 0 )
+			{
+			    printf("Job runing error: %s\n", strerror(-job_status));
+				goto exit1;
+			}
+				
+			goto exit1;
+		}
+		else
+		{
+			return -1;
+		}
+    }
+	printf("%s: %u bytes had been read from offset: %u\n", __func__, size, offset);
+	sdma_mem_dump(core->pram + offset, 40);
+	
+	exit1:
+        sdma_release_task(&sdma_task);
+    exit0:
+        sdma_fini();
+
+    return size;
+}
 
 void elcore_func_fini(void *hdl)
 {

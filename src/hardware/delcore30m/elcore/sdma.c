@@ -54,15 +54,15 @@ int sdma_mem_dump(uint8_t* addr, uint32_t len)
 		printf(" %02x ", *(addr+iter));
 
 	}
-	printf("Symbolic\n");
-	for (iter = 0; iter < len; iter++)
-	{
-		if (!iter % 16 == 0)
-		{
-			printf("\n");
-		}
-		printf(" %c ", *(addr+iter));
-	}
+// 	printf("Symbolic\n");
+// 	for (iter = 0; iter < len; iter++)
+// 	{
+// 		if (!iter % 16 == 0)
+// 		{
+// 			printf("\n");
+// 		}
+// 		printf(" %c ", *(addr+iter));
+// 	}
 	printf("\n");
     
 	return 0;
@@ -297,7 +297,7 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 
 int sdma_transfer(sdma_exchange_t *dma_exchange)
 {
-	printf("%s: entry\n", __func__);
+	printf("%s: entry  from: 0x%08x    to: 0x%08x\n", __func__, dma_exchange->from, dma_exchange->to);
 	uint32_t	dbg_status;
     uint32_t	val32;
 
@@ -364,9 +364,8 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	sdma_print_regs(dma_exchange->channel->id);
     //запустить выполнение нструкций
 	sdma_write32(SDMA_DBGCMD, 0);
-// 	sdma_print_regs(dma_exchange->channel->id);
-    		dbg_status = sdma_read32(SDMA_DBGSTATUS);
-		printf("%s: dbg_status 0x%08x\n", __func__, dbg_status);
+    		
+	printf("%s: dbg_status 0x%08x\n", __func__, sdma_read32(SDMA_DBGSTATUS));
     
     delay(3000);
     sdma_print_regs(dma_exchange->channel->id);
