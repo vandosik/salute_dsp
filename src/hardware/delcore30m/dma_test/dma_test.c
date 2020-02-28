@@ -178,13 +178,13 @@ int main( int argc, char** argv )
         
     } while (job_status == ELCORE_JOB_RUNNING);
 #else
-    job_status = ELCORE_WAIT_BLOCK;
-
-    if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
-    {
-        printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
-        goto exit1;
-    }
+//     job_status = ELCORE_WAIT_BLOCK;
+// 
+//     if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
+//     {
+//         printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+//         goto exit1;
+//     }
 #endif
 
     printf("\n\nProg started\n\n");

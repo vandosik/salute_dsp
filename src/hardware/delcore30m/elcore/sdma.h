@@ -72,9 +72,12 @@
 #define SDMA_FTR(channel)			(0x40 + 0x4 * channel)
 
 //channel regs
+#define SDMA_SAR(channel)			(0x400 + 0x20 * channel)
+#define SDMA_DAR(channel)			(0x404 + 0x20 * channel)
 #define SDMA_CCR(channel)			(0x408 + 0x20 * channel)
 #define SDMA_CSR(channel)			(0x100 + 0x8 * channel)
 #define SDMA_CPC(channel)			(0x104 + 0x8 * channel)
+
 
 #define SDMA_CR(num)				(0xE00 + 0x4 * num)
 #define SDMA_CRD					0xE14
@@ -82,6 +85,8 @@
 //значение сигнала ARSIZE AXI. Определяет разрядность одной пересылки внутри пакета. 1/2/4/8/16 байт за пересылку
 //1-3 биты регистра CCR
 #define SDMA_BURST_SIZE(ccr)		(1 << (((ccr) >> 1) & 0x7))
+#define SDMA_CCR_SRC_BURST_SIZE		4
+#define SDMA_CCR_DST_BURST_SIZE		15
 #define SDMA_CCR_SRC_INC			(1 << 0)
 #define SDMA_CCR_DST_INC			(1 << 14)
 #define SDMA_CCR_SRC_BURST_LEN		4
@@ -106,6 +111,9 @@ struct sdma_program_buf {
 };
 
 #define SDMA_PROG_READY		0x10101010
+
+typedef enum {EXTR_TO_EXTR = 0, INTR_TO_EXTR, EXTR_TO_INTR, INTR_TO_INTR} sdma_direction;
+
 //TODO: some fields, such as code_addr, are not for customer. Need to hide them.
 typedef struct sdma_exchange{
         uint32_t from;
@@ -113,6 +121,7 @@ typedef struct sdma_exchange{
 		uint32_t size;
         sdma_channel_t* channel;
 		uint32_t	iterations;
+        sdma_direction  direction;
 		struct sdma_program_buf program_buf;
 		uint32_t prog_ready;
 //         dma_direction direction;
