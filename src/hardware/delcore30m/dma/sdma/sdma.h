@@ -53,7 +53,7 @@
 
 
 #define SDMA_INTEN					0x020		//разрешение прерываний
-#define SDMA_CHANNEL_STATUS(x)			(0x100 + (8 * (x)))
+#define SDMA_CHANNEL_STATUS(x)		(0x100 + (8 * (x)))
 #define SDMA_DBGSTATUS				0xD00		//Состояние отладки, перед записью CMD нужно его прочитать
 #define SDMA_DBGCMD					0xD04		//управление выполнением инструкций, загружаемых через APB интерфейс
 #define SDMA_DBGINST0				0xD08		//нулевой отладочный регистр инструкций
