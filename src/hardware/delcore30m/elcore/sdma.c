@@ -312,31 +312,73 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	}
 
 #else
-	trans16_pack = task->size / 4 / SDMA_NEED_BURSTLEN;
-	printf("%s: trans16_pack:\t %u\n", __func__, trans16_pack);
+
+    src_brst_size = 1;
+    dst_brst_size = 4;
+	trans_count = task->size;
+    trans_count /= src_brst_size; 
 	
-	if (trans16_pack) {printf("%s: trans16_pack_1:\n", __func__);
+	trans16_pack = (trans_count / brst_len);
+	trans_pack = (trans_count % brst_len);
+	
+	printf("%s: trans_count:\t\t %u\n", __func__, trans_count);
+	printf("%s: trans16_pack:\t %u\n", __func__, trans16_pack);
+	printf("%s: trans_pack:\t %u\n", __func__, trans_pack);
+	
+	if (trans16_pack) 
+	{
+		printf("%s: trans16_pack_1:\n", __func__);
 		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
 		sdma_command_add(program_buf, sdma_read32(SDMA_CCR(task->channel->id)) 
-		| ((SDMA_NEED_BURSTLEN-1) << SDMA_CCR_DST_BURST_LEN) 
-		| ((SDMA_NEED_BURSTLEN-1) << SDMA_CCR_SRC_BURST_LEN)
-		| (0 << SDMA_CCR_SRC_BURST_SIZE)  //1 byte
-		| (2 << SDMA_CCR_DST_BURST_SIZE)  //4 bytes
+		| ((brst_len-1) << SDMA_CCR_DST_BURST_LEN) 
+		| ((brst_len-1) << SDMA_CCR_SRC_BURST_LEN)
+		| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
+		| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
 		| SDMA_CCR_SRC_INC
 		| SDMA_CCR_DST_INC, 4); //устанавливаем 16и пересылок за пакет для dst и src
 	}
 //циклы по 255 пересылок
-
-// 	for (i = 0; i < trans16_pack / 4 * SDMA_NEED_BURSTLEN; ++i) {printf("%s: trans16_pack_2:\n", __func__);
-		sdma_command_add(program_buf, SDMA_DMALP(SDMA_LC1) + ((trans16_pack-1) << 8), 2);
+	for (i = 0; i < trans16_pack / 256; ++i)
+	{
+		printf("%s: trans16_pack_2:\n", __func__);
+		sdma_command_add(program_buf, SDMA_DMALP(SDMA_LC1) + (255 << 8), 2);
 		sdma_command_add(program_buf, SDMA_DMALD, 1);
-        sdma_command_add(program_buf, SDMA_DMALD, 1);
-        sdma_command_add(program_buf, SDMA_DMALD, 1);
-        sdma_command_add(program_buf, SDMA_DMALD, 1);
 		sdma_command_add(program_buf, SDMA_DMAST, 1);
-		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + (5 << 8), 2);
-// 	}
+		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + (2 << 8), 2);
+	}
 //цикл на оставшееся после n*255 пересылок
+	trans16_pack = trans16_pack % 256;
+	if (trans16_pack) 
+	{
+		printf("%s: trans16_pack_3:\n", __func__);
+		sdma_command_add(program_buf,
+				 SDMA_DMALP(SDMA_LC1) + ((trans16_pack - 1) << 8), 2);
+		sdma_command_add(program_buf, SDMA_DMALD, 1);
+		sdma_command_add(program_buf, SDMA_DMAST, 1);
+		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + (2 << 8), 2);
+	} 
+
+	//до этого места передаем по 16 пересылок за раз
+	
+	if (trans_pack)
+	{
+		printf("%s: trans_pack_4:\n", __func__);
+		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
+		sdma_command_add(program_buf,
+			    /*task->ccr*/sdma_read32(SDMA_CCR(task->channel->id)) 
+				| ((trans_pack-1) << SDMA_CCR_DST_BURST_LEN) 
+				| ((trans_pack-1) << SDMA_CCR_SRC_BURST_LEN)
+				| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
+				| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
+				| SDMA_CCR_SRC_INC
+				| SDMA_CCR_DST_INC, 4);  
+
+		//BUG: this code works only for 1 and 4 burst sizes. Otherwise need to count NOK for src and dst bursts
+			sdma_command_add(program_buf, SDMA_DMALD, 1);
+			printf("code_len ld: %x\n", program_buf->pos - program_buf->start);
+			sdma_command_add(program_buf, SDMA_DMAST, 1);
+			printf("code_len st: %x\n", program_buf->pos - program_buf->start);
+	}
 
 
 #endif
@@ -358,8 +400,9 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 // 	if ((sd.type == SDMA_DESCRIPTOR_E0I1) ||
 // 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
 // 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
-	
 	sdma_command_add(program_buf, SDMA_DMAWMB, 1);
+	printf("code_len wmb: %x\n", program_buf->pos - program_buf->start);
+
 	sdma_command_add(program_buf, SDMA_DMAEND, 1);
 	
 	return 0;
