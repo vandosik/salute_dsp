@@ -84,9 +84,9 @@
 
 //значение сигнала ARSIZE AXI. Определяет разрядность одной пересылки внутри пакета. 1/2/4/8/16 байт за пересылку
 //1-3 биты регистра CCR     
-#define SDMA_CCR_DEFAUL				0x00800200
+#define SDMA_CCR_DEFAULT			0x00800200
 // #define SDMA_BURST_SIZE(ccr)		(1 << (((ccr) >> 1) & 0x7))
-#define SDMA_CCR_SRC_BURST_SIZE		4
+#define SDMA_CCR_SRC_BURST_SIZE		1
 #define SDMA_CCR_DST_BURST_SIZE		15
 #define SDMA_CCR_SRC_INC			(1 << 0)
 #define SDMA_CCR_DST_INC			(1 << 14)

@@ -91,9 +91,13 @@ char* fw_path = "/tmp/input";
 
 #define DMA_TEST_MEM_SIZE       64
 
+#define DLCR30M_DSP0_PRAM_PHYS				0x3a600000
+#define DMA_TEST_DSTADDR                    0xdfba0000
+
 int main( int argc, char** argv )
 {
     int    job_status;
+    uint32_t paddr_1;
    
     uint8_t *src_data;
     uint8_t *dst_data;
@@ -105,12 +109,43 @@ int main( int argc, char** argv )
     
 // #define DST_DYN
     
+    
+    
+#ifdef SRC_DYN
 	if ((src_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
 		perror("SRC mmap err");
 		goto exit0;
 	}
+	
+    if (mem_offset64(src_data, NOFD, 1, &src_paddr, 0) == -1)
+	{
+		perror("Get src_phys addr error");
+		goto exit1;
+	}
+    printf("%s: src_phys %lld\n", __func__, src_paddr);
+	
+#else 
+
+    printf("input src addr:\n");
+    scanf("%x", &paddr_1);
+
+    printf("got 0x%08x\n", paddr_1);
+    src_paddr = paddr_1;
+    
+    if (  (src_data = mmap_device_memory( NULL, DMA_TEST_MEM_SIZE,
+	        PROT_READ | PROT_WRITE | PROT_NOCACHE, 0,
+	        src_paddr )) == MAP_FAILED )
+	{
+		perror("DST mmap err");
+        goto exit0;
+	}
+    
+#endif
+
+    
+    
 #ifdef DST_DYN 
     if ((dst_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
@@ -127,18 +162,16 @@ int main( int argc, char** argv )
     printf("%s: dst_phys %lld\n", __func__, dst_paddr);
 #else 
     
-#define DLCR30M_DSP0_PRAM_PHYS				0x3a600000
-#define DMA_TEST_DSTADDR                    0xdfba0000
 
-    uint32_t dst_paddr_1;
+
+    
     printf("input dst addr:\n");
-    scanf("%x", &dst_paddr_1);
+    scanf("%x", &paddr_1);
 
-    printf("got 0x%08x\n", dst_paddr_1);
-    dst_paddr = dst_paddr_1;
+    printf("got 0x%08x\n", paddr_1);
+    dst_paddr = paddr_1;
     
-//     dst_paddr = DLCR30M_DSP0_PRAM_PHYS;
-    
+
 	if (  (dst_data = mmap_device_memory( NULL, DMA_TEST_MEM_SIZE,
 	        PROT_READ | PROT_WRITE | PROT_NOCACHE, 0,
 	        dst_paddr )) == MAP_FAILED )
@@ -148,12 +181,7 @@ int main( int argc, char** argv )
 	}
 #endif
 	
-    if (mem_offset64(src_data, NOFD, 1, &src_paddr, 0) == -1)
-	{
-		perror("Get src_phys addr error");
-		goto exit2;
-	}
-    printf("%s: src_phys %lld\n", __func__, src_paddr);
+
 
 
 

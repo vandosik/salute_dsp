@@ -246,9 +246,17 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 
 	if (trans16_pack) 
 	{
-		printf("%s: trans16_pack_1:\n", __func__);
+		printf("%s: trans16_pack_1 set CCR: 0x%08x\n", __func__, SDMA_CCR_DEFAULT 
+		| ((brst_len-1) << SDMA_CCR_DST_BURST_LEN) 
+		| ((brst_len-1) << SDMA_CCR_SRC_BURST_LEN)
+		| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
+		| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
+		| SDMA_CCR_SRC_INC
+		| SDMA_CCR_DST_INC);
+		
+		
 		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
-		sdma_command_add(program_buf, SDMA_CCR_DEFAUL 
+		sdma_command_add(program_buf, SDMA_CCR_DEFAULT 
 		| ((brst_len-1) << SDMA_CCR_DST_BURST_LEN) 
 		| ((brst_len-1) << SDMA_CCR_SRC_BURST_LEN)
 		| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
@@ -296,10 +304,17 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	
 	if (trans_pack) 
 	{
-		printf("%s: trans_pack_4:\n", __func__);
+		printf("%s: trans_pack_4 set CCR: 0x%08x\n", __func__, SDMA_CCR_DEFAULT
+				| ((trans_pack-1) << SDMA_CCR_DST_BURST_LEN) 
+				| ((trans_pack-1) << SDMA_CCR_SRC_BURST_LEN)
+				| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
+				| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
+				| SDMA_CCR_SRC_INC
+				| SDMA_CCR_DST_INC);
+
 		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
 		//TODO: maybe assosiate unique ccr with task?
-		sdma_command_add(program_buf,/*task->ccr*/SDMA_CCR_DEFAUL
+		sdma_command_add(program_buf,/*task->ccr*/SDMA_CCR_DEFAULT
 				| ((trans_pack-1) << SDMA_CCR_DST_BURST_LEN) 
 				| ((trans_pack-1) << SDMA_CCR_SRC_BURST_LEN)
 				| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
