@@ -89,7 +89,7 @@ char* fw_path = "/tmp/input";
 // 	return 0;    
 // }
 
-#define DMA_TEST_MEM_SIZE       62
+#define DMA_TEST_MEM_SIZE       64
 
 int main( int argc, char** argv )
 {
@@ -163,7 +163,7 @@ int main( int argc, char** argv )
 // to hardbass basy!! Op, davai davai, op davai davai. Dominirui and suspend!! \
 // abcdefghijklmnopqrstuvwxyz qwertyuiopasdfghjklzxcvbnm",DMA_TEST_MEM_SIZE-1 );
     
-    strncpy(src_data, "abcdefghijklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ123456789",DMA_TEST_MEM_SIZE-1 );
+    strncpy(src_data, "abcdefghijklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ123456789*:~",DMA_TEST_MEM_SIZE-1 );
     
     src_data[DMA_TEST_MEM_SIZE-1] = '\0';
 
@@ -190,7 +190,7 @@ _______________________________________",DMA_TEST_MEM_SIZE-1 );
         .from = (uint32_t)src_paddr,
         .to = (uint32_t)dst_paddr,
         .channel = &chnl_1,
-        .size = DMA_TEST_MEM_SIZE-10,
+        .size = DMA_TEST_MEM_SIZE,
         .iterations = 1
     };
 
