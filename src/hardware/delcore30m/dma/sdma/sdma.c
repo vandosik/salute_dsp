@@ -1,5 +1,4 @@
 #include <stdint.h>
-// #include <string.h>
 #include <stdio.h>
 #include <string.h>
 #include <sdma.h>
@@ -9,10 +8,6 @@
 #include <sys/mman.h>
 #include <hw/inout.h>
 
-
-
-
-//TODO: need some object for DMA controller??
 
 typedef struct sdma_dev {
 	uintptr_t	vbase;
@@ -164,8 +159,7 @@ int sdma_init(void)
 }
 
 int sdma_fini(void)
-{
-	
+{//BUG:  verify that sdma inited
 	InterruptDetach(sdma.irq_hdl);
 	munmap_device_io( sdma.vbase, SDMA_SIZE );
 	

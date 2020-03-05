@@ -131,31 +131,19 @@ void *elcore_func_init(void *hdl, char *options)
 	//FIXME:enable interrups
 	dsp_set_bit_reg32(dev, DLCR30M_MASKR, 3);
 	
-	
+	if (sdma_init())
+	{
+		perror("sdma_init failure");
+		elcore_func_fini(dev);
+        
+        return NULL;
+	}
 	
 // 	delcore30m_firmware firmware = {
 // 		.cores = 0,
 // 		.size = size,
 // 		.data = fw_data
 // 	};
-	
-// 	elcore_set_pram(dev, &firmware);
-// 	
-// 	
-// 	elcore_start_core(dev, firmware.cores);
-// 	
-// 	delay(10000);
-// 	printf("\n\n\n DOING DSP PROG \n\n\n");
-// 	
-// 	dsp_cluster_print_regs(dev);
-// 	
-// 	printf("\n\n\n STOP DSP \n\n\n");
-// 	
-// 	elcore_stop_core(dev, firmware.cores);
-// 	
-//     printf("%s: success\n", __func__);
-//     
-// 	free(firmware.data);
 	
     return dev;
     
@@ -534,11 +522,11 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 		.id = 0
 	};
 	
-	if (sdma_init())
-	{
-		perror("sdma_init failure");
-		goto exit0;
-	}
+// 	if (sdma_init())
+// 	{
+// 		perror("sdma_init failure");
+// 		goto exit0;
+// 	}
 	
 	if (offset < DLCR30M_BANK_SIZE)
 	{
@@ -652,8 +640,8 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 	
 	exit1:
         sdma_release_task(&sdma_task);
-    exit0:
-        sdma_fini();
+//     exit0:
+//         sdma_fini();
 	
 	return size;
 }
@@ -670,11 +658,11 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 		.id = 0
 	};
 	
-	if (sdma_init())
-	{
-		perror("sdma_init failure");
-		goto exit0;
-	}
+// 	if (sdma_init())
+// 	{
+// 		perror("sdma_init failure");
+// 		goto exit0;
+// 	}
 	
     if (offset < DLCR30M_BANK_SIZE)
     {
@@ -784,8 +772,8 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 	
 	exit1:
         sdma_release_task(&sdma_task);
-    exit0:
-        sdma_fini();
+//     exit0:
+//         sdma_fini();
 
     return size;
 }
@@ -798,6 +786,8 @@ void elcore_func_fini(void *hdl)
     
     munmap_device_memory(dev->base ,DLCR30M_SIZE);
     free(hdl);
+    
+    sdma_fini();
 	
     printf("%s: success\n", __func__);
 }
