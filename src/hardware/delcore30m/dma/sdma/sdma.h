@@ -6,6 +6,12 @@
 #define SDMA_MAX_CHANNELS			8
 #define SDMA_PROG_MAXSIZE			1000
 
+//set in arm/mc1892vm14.h, TODO: need to take this from hwi
+#define SDMA_BASE					0x37220000UL
+#define SDMA_SIZE					0x1000
+//set in arm/mc1892vm14_irq.h, TODO: need to take this from hwi
+#define SDMA_IRQ_NUM				(32 + 8)
+
 /* ---------SDMA commands----------- */
 //загружает заданное значение в один из регистров
 #define SDMA_DMAMOVE_SAR			0x00BC //адрес источника
@@ -45,19 +51,21 @@
 /*---------------------------------*/
 
 /* ----------SDMA registers------------- */
-//set in arm/mc1892vm14.h, TODO: need to take this from hwi
-#define SDMA_BASE					0x37220000UL
-#define SDMA_SIZE					0x1000
-//set in arm/mc1892vm14_irq.h, TODO: need to take this from hwi
-#define SDMA_IRQ_NUM				(32 + 8)
 
-
-#define SDMA_INTEN					0x020		//разрешение прерываний
-#define SDMA_CHANNEL_STATUS(x)		(0x100 + (8 * (x)))
-#define SDMA_DBGSTATUS				0xD00		//Состояние отладки, перед записью CMD нужно его прочитать
-#define SDMA_DBGCMD					0xD04		//управление выполнением инструкций, загружаемых через APB интерфейс
-#define SDMA_DBGINST0				0xD08		//нулевой отладочный регистр инструкций
-#define SDMA_DBGINST1				0xD0C		//первый отладочный регистр инструкций
+//разрешение прерываний по инструкции DMASEV
+#define SDMA_INTEN					0x020
+//регистр статуса прерываний
+#define SDMA_INTSTATUS				0x028
+//Регистр сброса прерываний
+#define SDMA_INTCLR					0x02C
+//Состояние отладки, перед записью CMD нужно его прочитать
+#define SDMA_DBGSTATUS				0xD00
+//управление выполнением инструкций, загружаемых через APB интерфейс
+#define SDMA_DBGCMD					0xD04
+//нулевой отладочный регистр инструкций
+#define SDMA_DBGINST0				0xD08
+//первый отладочный регистр инструкций
+#define SDMA_DBGINST1				0xD0C
 //регистр состояния потока управления
 #define SDMA_DSR					0x0
 //счетчик команд потока управления

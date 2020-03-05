@@ -794,6 +794,7 @@ void elcore_func_fini(void *hdl)
 {
     delcore30m_t			*dev = hdl;
 
+    InterruptDetach(dev->irq_hdl);
     
     munmap_device_memory(dev->base ,DLCR30M_SIZE);
     free(hdl);

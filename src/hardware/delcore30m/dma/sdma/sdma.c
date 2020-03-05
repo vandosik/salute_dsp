@@ -1,21 +1,27 @@
-#include <sys/mman.h>
 #include <stdint.h>
 // #include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <sdma.h>
 #include <errno.h>
-#include <hw/inout.h>
 #include <unistd.h>
+#include <sys/neutrino.h>
+#include <sys/mman.h>
+#include <hw/inout.h>
+
 
 
 
 //TODO: need some object for DMA controller??
 
 typedef struct sdma_dev {
-	uintptr_t vbase;
+	uintptr_t	vbase;
+	int			irq_num;
+	int			irq_hdl;         
 } sdma_dev_t;
 
 sdma_dev_t sdma;
+struct sigevent sdma_event;
 
 #define U16_MAX							0xFFFF
 
@@ -112,6 +118,30 @@ void sdma_print_regs(int channel)
 	printf("\n");
 }
 
+static int sdma_irq_init(int irq)
+{
+	/* fill in "event" structure */
+	memset(&sdma_event, 0, sizeof(sdma_event));
+	sdma_event.sigev_notify = SIGEV_INTR;
+	
+	/* Obtain I/O privileges */
+	if (ThreadCtl( _NTO_TCTL_IO, 0 ) < 0)
+	{
+		perror("ThreadCtl");
+		return -1;
+	}
+	
+	sdma.irq_num = irq;
+	
+	if ((sdma.irq_hdl = InterruptAttachEvent( sdma.irq_num, &sdma_event,0 )) < 0)
+	{
+		perror("InterruptAttachEvent");
+		return -1;
+	}
+	
+	return 0;
+}
+
 int sdma_init(void)
 {
 	
@@ -120,7 +150,14 @@ int sdma_init(void)
 		perror("SDMA alloc failed");
 		return -1;
 	}
-	 
+	
+	if (sdma_irq_init(SDMA_IRQ_NUM))
+	{
+		perror("Irq init error");
+		munmap_device_io( sdma.vbase, SDMA_SIZE );
+		return -1;
+	}
+
 	sdma_print_regs(-1);
 	
 	return 0;
@@ -128,6 +165,8 @@ int sdma_init(void)
 
 int sdma_fini(void)
 {
+	
+	InterruptDetach(sdma.irq_hdl);
 	munmap_device_io( sdma.vbase, SDMA_SIZE );
 	
 	return 0;
@@ -328,10 +367,16 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	loop_length = program_buf->pos - loop_start;
 	sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LCO) + (loop_length << 8), 2);
 
-	//sending events, no need now
+	//sending events , interrupts
 // 	if ((sd.type == SDMA_DESCRIPTOR_E0I1) ||
 // 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
 // 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
+	
+	//send irq to OS
+	sdma_command_add(program_buf, SDMA_DMASEV + (task->channel->id << 11), 2);
+	
+	
+	
 	sdma_command_add(program_buf, SDMA_DMAWMB, 1);
 
 	sdma_command_add(program_buf, SDMA_DMAEND, 1);
@@ -401,6 +446,51 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	return EOK;
 }
 
+static int irq_wait(sdma_exchange_t *task)
+{
+	printf("%s: entry\n", __func__);
+	uint32_t intstatus;
+	uint32_t inten;
+	int i;
+	int result;
+
+	struct sigevent e;
+	e.sigev_notify = SIGEV_UNBLOCK;
+	uint64_t timeout = 100 * 1000000;	//TODO: assisiate time with code len or transfer len
+	
+	while(1)
+	{
+		TimerTimeout(CLOCK_REALTIME, _NTO_TIMEOUT_INTR, &e, &timeout, NULL);
+		result = InterruptWait(0, NULL);
+		
+		if (result < 0)
+		{
+			printf("Timeout waiting irq\n");
+			return -1;
+		}
+		
+		intstatus = sdma_read32(SDMA_INTSTATUS);
+		inten = sdma_read32(SDMA_INTEN);
+
+		if (intstatus & (1 << task->channel->id))
+	    {
+			sdma_write32(SDMA_INTCLR, 1 << task->channel->id);
+
+			/* disable channel interrupt */
+			inten &= ~(1 << task->channel->id);
+			sdma_write32(SDMA_INTEN, inten);
+			
+			InterruptUnmask(sdma.irq_num, sdma.irq_hdl);
+			
+			return 0;
+		}
+
+		InterruptUnmask(sdma.irq_num, sdma.irq_hdl);
+	}
+
+	return 1;
+}
+
 int sdma_transfer(sdma_exchange_t *dma_exchange)
 {
 	printf("%s: entry  from: 0x%08x    to: 0x%08x\n", __func__, dma_exchange->from, dma_exchange->to);
@@ -434,7 +524,6 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 
 // 	set SDMA to set interrupts on channel
 	sdma_write32(SDMA_INTEN, sdma_read32(SDMA_INTEN) | (1 << dma_exchange->channel->id));
-
 	
 	//sey DSP to get interrups from SDMA
 // 	delcore30m_writel(pdata, core_id, DELCORE30M_IMASKR, (1 << 30));
@@ -463,9 +552,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	sdma_write32(SDMA_DBGINST0, val32);
 	
     //со 2го по 5й байт инструкции DMAGO в регистр 1
-	sdma_write32(SDMA_DBGINST1, dma_exchange->program_buf.code_paddr); 
-	//try to convert later (le32 to cpu)
-	
+	sdma_write32(SDMA_DBGINST1, dma_exchange->program_buf.code_paddr);
 	
 	sdma_print_regs(dma_exchange->channel->id);
     //запустить выполнение нструкций
@@ -473,12 +560,18 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
     		
 	printf("%s: dbg_status 0x%08x\n", __func__, sdma_read32(SDMA_DBGSTATUS));
     
-    delay(3000);
+	if (irq_wait(dma_exchange))
+	{
+		printf("error receiveing interrupt\n");
+		return -1;
+	}
+	
     sdma_print_regs(dma_exchange->channel->id);
 
 // 	delcore30m_spinlock_unlock(pdata);
 	return 0;
 }
+
 
 
 int sdma_release_task(sdma_exchange_t *dma_exchange)
