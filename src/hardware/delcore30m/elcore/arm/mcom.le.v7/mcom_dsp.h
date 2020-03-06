@@ -215,7 +215,8 @@ typedef struct {
 	uint32_t				fw_size;
 	uint8_t					fw_ready;
 	uint8_t*				regs;		//core regs
-	uint8_t					id;
+	uint8_t					id; //DLCR30M_IDR (0x108) 
+	uint32_t				job_id; //job on DSP core
 } dsp_core;
 
 typedef struct {

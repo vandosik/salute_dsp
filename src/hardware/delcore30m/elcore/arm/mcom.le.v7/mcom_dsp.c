@@ -158,7 +158,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	dsp_core				*core = &dev->core[core_num];
 
 	/*TODO: need to take this from the list or queue*/
-	dev->drvhdl.first_job.status = ELCORE_JOB_RUNNING;
+	dev->drvhdl.first_job->job_pub.status = ELCORE_JOB_RUNNING;
 	
 	dsp_set_reg16(core, DLCR30M_PC, 0x0);
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
@@ -490,19 +490,20 @@ int elcore_interrupt_thread(void *hdl)
 			dsp_get_reg32(&dev->core[0], DLCR30M_DSCR));
 
 		//reset irq
+        //check all cores
 		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
         
 // 		/*wait time to test blocking*/
 // 		delay(10000);
 		
-        dev->drvhdl.first_job.status = ELCORE_JOB_IDLE;
-        dev->drvhdl.first_job.rc = ELCORE_JOB_SUCCESS;
+        dev->drvhdl.first_job->job_pub.status = ELCORE_JOB_IDLE;
+        dev->drvhdl.first_job->job_pub.rc = ELCORE_JOB_SUCCESS;
         /*TODO: get the job from the list (queue) of jobs.*/
-		if (dev->drvhdl.first_job.rcvid != 0) //if its nonzero, we must manually wake up client by rcvid
+		if (dev->drvhdl.first_job->rcvid != 0) //if its nonzero, we must manually wake up client by rcvid
 		{
 			/*FIXME: size and msg are hardcoded now*/
 			printf("%s: msgreply!\n", __func__);
-			MsgReply(dev->drvhdl.first_job.rcvid, 0, &dev->drvhdl.first_job.status, sizeof(uint32_t));
+			MsgReply(dev->drvhdl.first_job->rcvid, 0, &dev->drvhdl.first_job->job_pub.status, sizeof(uint32_t));
 		}
 		
 		InterruptUnmask(dev->irq, dev->irq_hdl);

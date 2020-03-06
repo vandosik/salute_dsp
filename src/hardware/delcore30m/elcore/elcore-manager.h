@@ -132,29 +132,11 @@ enum elcore_core {
      */
 
 
-    
-    
-enum elcore_job_status {
-	ELCORE_JOB_IDLE = 0,
-	ELCORE_JOB_ENQUEUED,
-	ELCORE_JOB_RUNNING,
-};
-
-enum elcore_job_result {
-	ELCORE_JOB_ERROR = -2,
-	ELCORE_JOB_CANCELLED = -1,
-	ELCORE_JOB_SUCCESS = 0,
-};
-
-enum elcore_wait_job {
-	ELCORE_WAIT_BLOCK = 0, /*thread blocks at devctl call untill job finishes*/
-	ELCORE_WAIT_NONBLOCK /*thread gets immidiate responce about job status*/
-};    
-    
 #include <devctl.h>
 #define _DCMD_ELCORE				_DCMD_MISC
 #define _DCMD_ELCORE_CODE			0x11
 
+#include <elcore_job_list.h>
 
 typedef struct {
 	uint32_t	len;
@@ -235,27 +217,7 @@ typedef struct {
 // 	size_t size;
 // };
 
-typedef struct _elcore_job {
-	uint32_t				id;
-	
-	int						rcvid;
-	uint8_t					cores;
 
-// 	unsigned int inum; /* actual number of input arguments */
-// 	unsigned int onum; /* actual number of output arguments */
-// 
-// 	int input[MAX_INPUTS];
-// 	int output[MAX_OUTPUTS];
-// 
-// 	int cores_fd;
-// 	int sdmas_fd;
-
-	enum elcore_job_status	status;
-	enum elcore_job_result	rc;
-	
-	
-	struct _elcore_job		*next;
-} elcore_job_t;
 
 typedef struct {
     /* size of this structure */
@@ -296,9 +258,9 @@ extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr
  * Low-level entry, has to be at the beginning of low-level handle
  */
 typedef struct _elcore_dev_entry_t {
-	iofunc_attr_t	attr;
-	void			*hdl;		/* Pointer to high-level handle */
-	elcore_job_t	first_job;	/* TODO: make a list of jobs. Set it here cause it is used on both levels*/
+	iofunc_attr_t				attr;
+	void						*hdl;		/* Pointer to high-level handle */
+	elcore_job_t				*first_job;	/* TODO: make a list of jobs. Set it here to easyly use on both levels*/
 } ELCORE_DEV;
 
 

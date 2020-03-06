@@ -156,13 +156,13 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		{
 			enum elcore_wait_job    block_type = *((uint32_t*)devctl_data);
 			/*TODO: need select job from some kind of list (queue)*/
-			elcore_job_t*			cur_job = &drvhdl->first_job;
+			elcore_job_t*			cur_job = drvhdl->first_job;
 			
 			switch (block_type)
 			{
 				case ELCORE_WAIT_BLOCK:
 				{
-					enum elcore_job_status st = cur_job->status;
+					enum elcore_job_status st = cur_job->job_pub.status;
 					
 					if (st == ELCORE_JOB_RUNNING)
 					{
@@ -174,7 +174,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 				}
 				case ELCORE_WAIT_NONBLOCK:
 				{
-					*((uint32_t*)devctl_data) = cur_job->status;
+					*((uint32_t*)devctl_data) = cur_job->job_pub.status;
 					
 					status = EOK;
 					nbytes = sizeof(uint32_t);
