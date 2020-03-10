@@ -209,6 +209,7 @@ typedef struct {
 //send job id, wait for complete, get result
 #define DCMD_ELCORE_JOB_WAIT	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 9, uint32_t)
 
+#define DCMD_ELCORE_JOB_CREATE
 
 
 

@@ -130,7 +130,7 @@ void *elcore_func_init(void *hdl, char *options)
 	
 	//FIXME:enable interrups
 	dsp_set_bit_reg32(dev, DLCR30M_MASKR, 3);
-	
+	/////////////////////////////////////////////////////////////////
 	if (sdma_init())
 	{
 		perror("sdma_init failure");
@@ -157,8 +157,25 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	delcore30m_t			*dev = hdl;
 	dsp_core				*core = &dev->core[core_num];
 
-	/*TODO: need to take this from the list or queue*/
-// 	dev->drvhdl.first_job->job_pub.status = ELCORE_JOB_RUNNING;
+	elcore_job_t			*cur_job = get_job_first_enqueued( &dev->drvhdl, core_num);
+	
+	if ( cur_job == NULL  )
+	{
+		printf("No jobs in queue for this core\n");
+		return EINVAL;
+	}
+	if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
+	{//TODO: this we can find out by reading DSCR
+		printf("Job is already running\n");
+		return EBUSY;
+	}
+	//enable interrupts
+	reg_value = delcore30m_readl_cmn(pdata, DELCORE30M_MASKR_DSP);
+	reg_value |= DELCORE30M_QSTR_CORE_MASK(i);
+	delcore30m_writel_cmn(pdata, DELCORE30M_MASKR_DSP, reg_value);
+
+	cur_job->job_pub.status = ELCORE_JOB_RUNNING;
+	core->job_id = cur_job->job_pub.id; 
 	
 	dsp_set_reg16(core, DLCR30M_PC, 0x0);
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
