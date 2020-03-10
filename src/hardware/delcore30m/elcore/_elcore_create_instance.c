@@ -36,6 +36,11 @@ static int _elcore_register_interface(void *data)
 		return (!EOK);
 	}
 
+	if ((drvhdl->job_hdl = elcore_job_hdl_init()) == NULL)
+    {
+        goto failed1;
+    }
+	
 	dev->drvhdl = drvhdl;
 
 	/* set up i/o handler functions */

@@ -136,6 +136,31 @@ enum elcore_core {
 #define _DCMD_ELCORE				_DCMD_MISC
 #define _DCMD_ELCORE_CODE			0x11
 
+enum elcore_job_status {
+	ELCORE_JOB_IDLE = 0,
+	ELCORE_JOB_ENQUEUED,
+	ELCORE_JOB_RUNNING,
+};
+
+enum elcore_job_result {
+	ELCORE_JOB_ERROR = -2,
+	ELCORE_JOB_CANCELLED = -1,
+	ELCORE_JOB_SUCCESS = 0,
+};
+
+//public part of job
+typedef struct _elcore_job_entry {
+	uint32_t				id;
+	enum elcore_job_status	status;
+	enum elcore_job_result	rc;
+	uint8_t					core; //TODO: cores was here. Jne job for one core?
+// 	unsigned int inum; /* actual number of input arguments */
+// 	unsigned int onum; /* actual number of output arguments */
+// 
+// 	int input[MAX_INPUTS];
+// 	int output[MAX_OUTPUTS];
+} ELCORE_JOB;
+
 #include <elcore_job_list.h>
 
 typedef struct {
@@ -179,9 +204,10 @@ typedef struct {
 #define DCMD_ELCORE_PRINT		__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 6)
 
 #define DCMD_ELCORE_RESET		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 7, int)
-/*FIXME: temporarily send elcore_wait_job at u32 and get elcore_job_status there.
- Lated need to identify job*/
+//send job id, get status
 #define DCMD_ELCORE_JOB_STATUS	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 8, uint32_t)
+//send job id, wait for complete, get result
+#define DCMD_ELCORE_JOB_WAIT	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 9, uint32_t)
 
 
 
@@ -260,7 +286,7 @@ extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr
 typedef struct _elcore_dev_entry_t {
 	iofunc_attr_t				attr;
 	void						*hdl;		/* Pointer to high-level handle */
-	elcore_job_t				*first_job;	/* TODO: make a list of jobs. Set it here to easyly use on both levels*/
+	void						*job_hdl;	/* TODO: make a list of jobs. Set it here to easyly use on both levels*/
 } ELCORE_DEV;
 
 

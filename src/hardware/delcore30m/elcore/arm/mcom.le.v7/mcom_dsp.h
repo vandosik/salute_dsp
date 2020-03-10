@@ -69,11 +69,13 @@
 #define DLCR30M_MASKR							DLCR30M_CMN_REGS	//R/W
 
 #define DLCR30M_QSTR							(DLCR30M_CMN_REGS + 4)	//R
-	#define DLCR30M_QSTR_PI(core_num)				(1<<(8*core_num))
-	#define DLCR30M_QSTR_SE(core_num)				(1<<(1 + 8*core_num))
-	#define DLCR30M_QSTR_BREAK(core_num)			(1<<(2 + 8*core_num))
-	#define DLCR30M_QSTR_STP(core_num)				(1<<(3 + 8*core_num))
-	#define DLCR30M_QSTR_dBREAK(core_num)			(1<<(4 + 8*core_num))
+	#define DLCR30M_QSTR_CORE_MASK(core_num)		(0xF << (8 * (core_num)))
+	#define DLCR30M_QSTR_MASK						(DLCR30M_QSTR_CORE_MASK(0) | DLCR30M_QSTR_CORE_MASK(1))
+	#define DLCR30M_QSTR_PI(core_num)				(1<<(8 * core_num))
+	#define DLCR30M_QSTR_SE(core_num)				(1<<(1 + 8 * core_num))
+	#define DLCR30M_QSTR_BREAK(core_num)			(1<<(2 + 8 * core_num))
+	#define DLCR30M_QSTR_STP(core_num)				(1<<(3 + 8 * core_num))
+	#define DLCR30M_QSTR_dBREAK(core_num)			(1<<(4 + 8 * core_num))
 	#define DLCR30M_QSTR_WAIT						(1<<5)
 	#define DLCR30M_QSTR_INT_MEM_ERR 				(1<<6)
 

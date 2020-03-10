@@ -158,7 +158,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	dsp_core				*core = &dev->core[core_num];
 
 	/*TODO: need to take this from the list or queue*/
-	dev->drvhdl.first_job->job_pub.status = ELCORE_JOB_RUNNING;
+// 	dev->drvhdl.first_job->job_pub.status = ELCORE_JOB_RUNNING;
 	
 	dsp_set_reg16(core, DLCR30M_PC, 0x0);
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
@@ -454,6 +454,10 @@ int elcore_interrupt_thread(void *hdl)
 {
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
+	uint32_t				stopped_cores;
+	uint32_t				val32, maskr_dsp;
+	int						it;
+	elcore_job_t			*cur_job;
 	
 	struct sigevent event;
 	
@@ -491,21 +495,75 @@ int elcore_interrupt_thread(void *hdl)
 
 		//reset irq
         //check all cores
-		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
-        
+// 		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
+        val32 = dsp_get_reg32(dev, DLCR30M_QSTR);
+		
+		stopped_cores = 0;
+		for (it = 0; it < DLCR30M_MAX_CORES; ++it)
+		{
+			if (val32 & DLCR30M_QSTR_CORE_MASK(it))
+			{
+				stopped_cores |= 1 << it;
+			}
+		}
+
+		if (!stopped_cores)
+		{
+			goto unmask;
+		}
+			
+		maskr_dsp = dsp_get_reg32(dev, DLCR30M_MASKR); //запретить прерывания от тех, откуда пришли?
+		maskr_dsp &= ~(val32 & DLCR30M_QSTR_MASK);
+		dsp_set_reg32 (dev, DLCR30M_MASKR, maskr_dsp);
+		
 // 		/*wait time to test blocking*/
 // 		delay(10000);
 		
-        dev->drvhdl.first_job->job_pub.status = ELCORE_JOB_IDLE;
-        dev->drvhdl.first_job->job_pub.rc = ELCORE_JOB_SUCCESS;
-        /*TODO: get the job from the list (queue) of jobs.*/
-		if (dev->drvhdl.first_job->rcvid != 0) //if its nonzero, we must manually wake up client by rcvid
+		for (it = 0; it < DLCR30M_MAX_CORES; ++it) //итерируемся по ядрам
 		{
-			/*FIXME: size and msg are hardcoded now*/
-			printf("%s: msgreply!\n", __func__);
-			MsgReply(dev->drvhdl.first_job->rcvid, 0, &dev->drvhdl.first_job->job_pub.status, sizeof(uint32_t));
+			if ( stopped_cores & (1 << it) )
+			{
+				cur_job = get_enqueued_by_id(&dev->drvhdl, dev->core[it].job_id);
+				
+				if (cur_job == NULL)
+				{
+					//BUG:TODO: what to do???
+					goto unmask;
+				}
+				//TODO: process the result of job
+				
+				
+				val32 = dsp_get_reg16(&dev->core[it], DLCR30M_DSCR);
+
+				if (val32 & (DLCR30M_DSCR_PI | DLCR30M_DSCR_SE | DLCR30M_DSCR_BRK))
+				{
+					cur_job->job_pub.rc = ELCORE_JOB_ERROR;
+				}
+				else
+				{
+					cur_job->job_pub.rc = ELCORE_JOB_SUCCESS;
+				}
+				
+				job_remove_from_queue(&dev->drvhdl, cur_job); //sets DELCORE30M_JOB_IDLE
+				//TODO: where to release job?
+				elcore_reset_core(dev, it);
+				
+				val32 = dsp_get_reg32(dev, DLCR30M_CSR);
+				val32 &= ~DLCR30M_CSR_SYNC_START;
+				dsp_set_reg32(dev, DLCR30M_CSR, val32);
+
+		        /*TODO: get the job from the list (queue) of jobs.*/
+				if (cur_job->rcvid != 0) //if its nonzero, we must manually wake up client by rcvid
+				{
+					/*FIXME: size and msg are hardcoded now*/
+					printf("%s: msgreply!\n", __func__);
+					MsgReply(cur_job->rcvid, 0, &cur_job->job_pub.status, sizeof(uint32_t));
+				}
+			}
 		}
 		
+		
+	unmask:
 		InterruptUnmask(dev->irq, dev->irq_hdl);
 	}
 	

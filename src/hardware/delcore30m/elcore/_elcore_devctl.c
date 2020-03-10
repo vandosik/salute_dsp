@@ -154,36 +154,52 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		}
 		case DCMD_ELCORE_JOB_STATUS:
 		{
-			enum elcore_wait_job    block_type = *((uint32_t*)devctl_data);
+			uint32_t    job_id = *((uint32_t*)devctl_data);
 			/*TODO: need select job from some kind of list (queue)*/
-			elcore_job_t*			cur_job = drvhdl->first_job;
+			elcore_job_t*			cur_job;
 			
-			switch (block_type)
+			if ((cur_job = get_enqueued_by_id(drvhdl, job_id)) == NULL)
 			{
-				case ELCORE_WAIT_BLOCK:
+				if ((cur_job = get_stored_by_id(drvhdl, job_id)) == NULL)
 				{
-					enum elcore_job_status st = cur_job->job_pub.status;
-					
-					if (st == ELCORE_JOB_RUNNING)
-					{
-						cur_job->rcvid = ctp->rcvid;
-						
-						return (_RESMGR_NOREPLY);
-					}
-					//if job is ready, we act like as NONBLOCK 
-				}
-				case ELCORE_WAIT_NONBLOCK:
-				{
-					*((uint32_t*)devctl_data) = cur_job->job_pub.status;
-					
-					status = EOK;
-					nbytes = sizeof(uint32_t);
-					
-					break;
-				}
-				default:
 					return EINVAL;
+				}
 			}
+			
+
+			*((uint32_t*)devctl_data) = cur_job->job_pub.status;
+			
+			status = EOK;
+			nbytes = sizeof(uint32_t);
+					
+
+			break;
+		}
+		case DCMD_ELCORE_JOB_WAIT:
+		{
+			uint32_t    job_id = *((uint32_t*)devctl_data);
+			/*TODO: need select job from some kind of list (queue)*/
+			elcore_job_t*			cur_job;
+			
+			if ((cur_job = get_enqueued_by_id(drvhdl, job_id)) == NULL)
+			{
+				if ((cur_job = get_stored_by_id(drvhdl, job_id)) == NULL)
+				{
+					return EINVAL;
+				}
+			}
+
+			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
+			{
+				cur_job->rcvid = ctp->rcvid;
+				
+				return (_RESMGR_NOREPLY);
+			}
+			//if job is ready, we act like as NONBLOCK 
+			*((uint32_t*)devctl_data) = cur_job->job_pub.rc;
+				
+			status = EOK;
+			nbytes = sizeof(uint32_t);
 
 			break;
 		}
