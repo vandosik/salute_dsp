@@ -12,8 +12,10 @@
 typedef struct _elcore_job {
 	ELCORE_JOB				job_pub;
 	int						rcvid;
-	uint32_t				code_paddr;
-	uint32_t				code_len;
+	uint32_t				code_dspaddr;
+	uint32_t				input_dspaddr[MAX_INPUTS];
+	uint32_t				outpu_dspaddr[MAX_OUTPUTS];
+    
 	struct _elcore_job		*next;
 } elcore_job_t;
 
@@ -29,7 +31,7 @@ typedef struct _elcore_job_hdl {
 void* elcore_job_hdl_init(void);
 //------------------------------------------
 //create job and set id
-elcore_job_t* alloc_job(void *hdl);
+elcore_job_t* alloc_job(void *hdl, ELCORE_JOB* job_pub);
 
 int release_job(void *hdl, elcore_job_t* job );
 

@@ -130,7 +130,16 @@ enum elcore_core {
      * The following devctls are used by a client application
      * to control the SPI interface.
      */
+enum delcore30m_memory_type {
+	DELCORE30M_MEMORY_XYRAM,
+	DELCORE30M_MEMORY_SYSTEM,
+};    
 
+struct elcore_buffer {
+// 	enum delcore30m_memory_type			type;
+	size_t								size;
+    uint32_t							client_paddr;
+};
 
 #include <devctl.h>
 #define _DCMD_ELCORE				_DCMD_MISC
@@ -148,17 +157,22 @@ enum elcore_job_result {
 	ELCORE_JOB_SUCCESS = 0,
 };
 
+#define MAX_INPUTS		1
+#define MAX_OUTPUTS		1
+
 //public part of job
 typedef struct _elcore_job_entry {
 	uint32_t				id;
 	enum elcore_job_status	status;
 	enum elcore_job_result	rc;
-	uint8_t					core; //TODO: cores was here. Jne job for one core?
-// 	unsigned int inum; /* actual number of input arguments */
-// 	unsigned int onum; /* actual number of output arguments */
+	uint8_t					core; //TODO: cores was here. One job for one core?
+	uint32_t inum; /* actual number of input arguments */
+	uint32_t onum; /* actual number of output arguments */
 // 
-// 	int input[MAX_INPUTS];
-// 	int output[MAX_OUTPUTS];
+	struct elcore_buffer input[MAX_INPUTS];
+	struct elcore_buffer output[MAX_OUTPUTS];
+	struct elcore_buffer code;
+
 } ELCORE_JOB;
 
 #include <elcore_job_list.h>
@@ -209,8 +223,11 @@ typedef struct {
 //send job id, wait for complete, get result
 #define DCMD_ELCORE_JOB_WAIT	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 9, uint32_t)
 
-#define DCMD_ELCORE_JOB_CREATE
+#define DCMD_ELCORE_JOB_CREATE	__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 10, ELCORE_JOB)
 
+#define DCMD_ELCORE_JOB_ENQUEUE	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 11, uint32_t)
+//TODO: set results then job is finished
+#define DCMD_ELCORE_JOB_RESULTS	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 12, uint32_t)
 
 
 // 

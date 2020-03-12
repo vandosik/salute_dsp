@@ -152,6 +152,72 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			msg->o.nbytes = nbytes;
 			break;
 		}
+        case DCMD_ELCORE_JOB_CREATE:
+        {
+			ELCORE_JOB		*new_pub_job = (ELCORE_JOB*)devctl_data;
+			elcore_job_t	*new_job;
+			int				it;        
+			//FIXME: check this at another place
+			if (new_pub_job->inum > MAX_INPUTS || new_pub_job->onum > MAX_OUTPUTS || new_pub_job->core > 2)
+			{
+				return EINVAL;
+			}
+			
+			if ((new_job = alloc_job(drvhdl, new_pub_job)) == NULL)
+			{
+				return ENOMEM;
+			}
+			//set code for job
+			printf("%s: set code: 0x%08x\n", __func__, new_pub_job->code.client_paddr);
+			//BUG: offset 0
+			status = dev->funcs->dma_send(drvhdl, new_pub_job->core,
+                          new_pub_job->code.client_paddr, 0, new_pub_job->code.size);
+            
+			if (status < 0)
+			{
+				return EINVAL;
+			}
+			
+			//set input data for job
+			for (it = 0; it < new_pub_job->inum; it++)
+            {
+				printf("%s: set input: 0x%08x\n", __func__, new_pub_job->input[it].client_paddr);
+				//BUG: offset 0
+				status = dev->funcs->dma_send(drvhdl, new_pub_job->core,
+                          new_pub_job->input[it].client_paddr, 0,new_pub_job->input[it].size);
+				if (status < 0)
+				{
+					return EINVAL;
+				}
+            }
+
+			
+			*((ELCORE_JOB*)devctl_data) = new_job->job_pub;
+			
+			status = EOK;
+			nbytes = sizeof(ELCORE_JOB);
+			
+            break;
+        }
+        case DCMD_ELCORE_JOB_ENQUEUE:
+        {
+			uint32_t			job_id = *((uint32_t*)devctl_data);
+			elcore_job_t*		cur_job;
+			
+			if ((cur_job = get_stored_by_id(drvhdl, job_id)) == NULL)
+			{
+				return EINVAL;
+			}
+			
+			if (job_enqueue( drvhdl, cur_job ))
+			{
+				return EINVAL;
+			}
+			
+			dev->funcs->start_core(drvhdl, cur_job->job_pub.core);
+			
+            break;
+        }
 		case DCMD_ELCORE_JOB_STATUS:
 		{
 			uint32_t    job_id = *((uint32_t*)devctl_data);
@@ -200,6 +266,43 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 				
 			status = EOK;
 			nbytes = sizeof(uint32_t);
+
+			break;
+		}
+		case DCMD_ELCORE_JOB_RESULTS:
+		{
+			uint32_t    job_id = *((uint32_t*)devctl_data);
+			/*TODO: need select job from some kind of list (queue)*/
+			elcore_job_t*			cur_job;
+			int						it;
+			
+			if ((cur_job = get_enqueued_by_id(drvhdl, job_id)) == NULL)
+			{
+				if ((cur_job = get_stored_by_id(drvhdl, job_id)) == NULL)
+				{
+					return EINVAL;
+				}
+			}
+
+			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
+			{
+				cur_job->rcvid = ctp->rcvid;
+				
+				return EBUSY;
+			}
+			
+			//set output data for job
+			for (it = 0; it < cur_job->job_pub.inum; it++)
+            {
+				printf("%s: set output: 0x%08x\n", __func__, cur_job->job_pub.output[it].client_paddr);
+				//BUG: offset 0
+				status = dev->funcs->dma_recv(drvhdl, cur_job->job_pub.core,
+                          cur_job->job_pub.output[it].client_paddr, 0, cur_job->job_pub.output[it].size);
+				if (status < 0)
+				{
+					return EINVAL;
+				}
+            }
 
 			break;
 		}

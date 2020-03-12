@@ -156,6 +156,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
 	dsp_core				*core = &dev->core[core_num];
+	uint32_t				val32;
 
 	elcore_job_t			*cur_job = get_job_first_enqueued( &dev->drvhdl, core_num);
 	
@@ -170,9 +171,9 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 		return EBUSY;
 	}
 	//enable interrupts
-	reg_value = delcore30m_readl_cmn(pdata, DELCORE30M_MASKR_DSP);
-	reg_value |= DELCORE30M_QSTR_CORE_MASK(i);
-	delcore30m_writel_cmn(pdata, DELCORE30M_MASKR_DSP, reg_value);
+	val32 = dsp_get_reg32(dev, DLCR30M_MASKR);
+	val32 |= DLCR30M_QSTR_CORE_MASK(core_num);
+	dsp_set_reg32(dev, DLCR30M_MASKR, val32);
 
 	cur_job->job_pub.status = ELCORE_JOB_RUNNING;
 	core->job_id = cur_job->job_pub.id; 

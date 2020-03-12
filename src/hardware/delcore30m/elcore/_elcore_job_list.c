@@ -13,6 +13,7 @@ void* elcore_job_hdl_init(void)
 
 static int job_put_to_storage(void *hdl, elcore_job_t* job )
 {
+    printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
     elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	elcore_job_t		*tmp_job = job_hdl->storage;
@@ -35,7 +36,7 @@ static int job_put_to_storage(void *hdl, elcore_job_t* job )
 	return 0;
 }
 
-elcore_job_t* alloc_job(void *hdl)
+elcore_job_t* alloc_job(void *hdl, ELCORE_JOB* job_pub)
 {
 	printf("%s: entry\n", __func__);
 	elcore_job_t* new_job;
@@ -45,6 +46,7 @@ elcore_job_t* alloc_job(void *hdl)
 		perror("Error allocating job");
 		return NULL;
 	}
+	new_job->job_pub = *(job_pub);
 	new_job->job_pub.id = ++id_gen; //TODO: make smth more complex
 	
 	job_put_to_storage(hdl, new_job);
@@ -54,6 +56,7 @@ elcore_job_t* alloc_job(void *hdl)
 
 static int job_remove_from_storage(elcore_job_t* storage, elcore_job_t* trg_job)
 {
+    printf("%s: entry\n", __func__);
 	elcore_job_t	*tmp_job = storage, *job_del;
 
 	
@@ -129,6 +132,7 @@ int job_enqueue( void *hdl, elcore_job_t* job )
 	{
 		job_hdl->queue = job;
 		job->next = NULL;
+        job->job_pub.status = ELCORE_JOB_ENQUEUED;
 		return 0;
 	}
 	while (tmp_job->next)
@@ -138,6 +142,8 @@ int job_enqueue( void *hdl, elcore_job_t* job )
 	
 	tmp_job->next = job;
 	job->next = NULL;
+	job->job_pub.status = ELCORE_JOB_ENQUEUED;
+    
 	return 0;
 }
 

@@ -138,21 +138,25 @@ int main( int argc, char** argv )
         .core = 0,
         .dma_src = src_paddr
     };
+    
+    ELCORE_JOB firs_job = {
+        .core = 0,
+        .inum = 0,
+        .onum = 0,
+        .code = {size, src_paddr}
+    };
     //BUG: delete this
     sdma_mem_dump(src_data, 40);
-    
-//     set src data
-//     strncpy(src_data, "rRaz raz raz this is hardbass, all v sportivkah adidas. And in niki pazani, listen to \
-//     to hardbass basy!!",DMA_TEST_MEM_SIZE-1 );
-//     src_data[DMA_TEST_MEM_SIZE-1] = '\0';
    
-    if (error = devctl( fd, DCMD_ELCORE_DMASEND, &dma_send, sizeof(elcore_dmasend_t), NULL ) )
+   
+    if (error = devctl( fd, DCMD_ELCORE_JOB_CREATE, &firs_job, sizeof(ELCORE_JOB), NULL ) )
     {
-        printf( "DCMD_ELCORE_DMASEND error: %s\n", strerror ( error ) );
+        printf( "DCMD_ELCORE_JOB_CREATE error: %s\n", strerror ( error ) );
         goto exit1;
     }
     
-    printf("\n\nProg uploaded\n\n");
+    printf("\n\Job uploaded< job id: %u\n\n", firs_job.id);
+    
     
     if ( error = devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL ) )
     {
@@ -160,9 +164,9 @@ int main( int argc, char** argv )
         goto exit1;
     }
     
-    if ( error = devctl( fd, DCMD_ELCORE_START, NULL, 0, NULL ) )
+    if ( error = devctl( fd, DCMD_ELCORE_JOB_ENQUEUE, &firs_job.id, sizeof(firs_job.id), NULL ) )
     {
-        printf( "DCMD_ELCORE_START error: %s\n", strerror ( error ) );
+        printf( "DCMD_ELCORE_JOB_ENQUEUE error: %s\n", strerror ( error ) );
         goto exit1;
     }
     
@@ -188,7 +192,17 @@ int main( int argc, char** argv )
 #endif
 
     printf("\n\nProg started\n\n");
+    
+    job_status = firs_job.id;
+    
+    if ( error = devctl( fd, DCMD_ELCORE_JOB_WAIT, &job_status, sizeof(job_status), NULL ) )
+    {
+        printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+        goto exit1;
+    }
 
+    printf("job rc: %d\n", job_status);
+    
     if ( error = devctl( fd, DCMD_ELCORE_STOP, NULL, 0, NULL ) )
     {
         printf( "DCMD_ELCORE_STOP error: %s\n", strerror ( error ) );
@@ -202,10 +216,11 @@ int main( int argc, char** argv )
         printf( "DCMD_ELCORE_PRINT error: %s\n", strerror ( error ) );
         goto exit1;
     }
+    
     //elcore_dmarecv_t = elcore_dmasend_t
-    if (error = devctl( fd, DCMD_ELCORE_DMARECV, &dma_send, sizeof(elcore_dmarecv_t), NULL ) )
+    if (error = devctl( fd, DCMD_ELCORE_JOB_RESULTS, &firs_job.id, sizeof(firs_job.id), NULL ) )
     {
-        printf( "DCMD_ELCORE_DMARECV error: %s\n", strerror ( error ) );
+        printf( "DCMD_ELCORE_JOB_RESULTS error: %s\n", strerror ( error ) );
         goto exit1;
     }
     
