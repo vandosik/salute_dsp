@@ -2,14 +2,18 @@
 #include <elcore-manager.h>
 #include <errno.h>
 
-static uint32_t		id_gen = 0; //variable to set unique ids to jobs
 
 void* elcore_job_hdl_init(void)
 {
 	printf("%s: entry\n", __func__);
 	return calloc(1, sizeof(elcore_job_hdl_t));
 }
-
+//TODO: make smth more complex
+static void gen_job_id(uint32_t* id)
+{
+	static uint32_t		id_gen = 0; //variable to set unique ids to jobs
+	id = id_gen++;
+}
 
 static int job_put_to_storage(void *hdl, elcore_job_t* job )
 {
@@ -47,7 +51,7 @@ elcore_job_t* alloc_job(void *hdl, ELCORE_JOB* job_pub)
 		return NULL;
 	}
 	new_job->job_pub = *(job_pub);
-	new_job->job_pub.id = ++id_gen; //TODO: make smth more complex
+	gen_job_id(&new_job->job_pub.id); 
 	
 	job_put_to_storage(hdl, new_job);
 	
@@ -164,6 +168,8 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 	{
 		job_hdl->queue = tmp_job->next;
 		tmp_job->job_pub.status = ELCORE_JOB_IDLE;
+        
+        job_put_to_storage(hdl, tmp_job);
 		
 		return 0;
 	}
@@ -175,6 +181,8 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 			tmp_job->next = job_del->next;
 			job_del->job_pub.status = ELCORE_JOB_IDLE;
 			
+            job_put_to_storage(hdl, tmp_job);
+            
 			return 0;
 		}
 		tmp_job = tmp_job->next;

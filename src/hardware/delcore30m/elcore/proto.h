@@ -58,7 +58,7 @@ extern iofunc_mount_t			_elcore_mount;
 
 typedef struct elcore_ocb {
 	iofunc_ocb_t		hdr;
-	uint32_t			core;
+	uint32_t			core; //FIXME: exactly need this?!
 } elcore_ocb_t;
 
 

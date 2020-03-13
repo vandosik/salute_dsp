@@ -177,7 +177,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			{
 				return EINVAL;
 			}
-			
+#if 0
 			//set input data for job
 			for (it = 0; it < new_pub_job->inum; it++)
             {
@@ -190,7 +190,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 					return EINVAL;
 				}
             }
-
+#endif
 			
 			*((ELCORE_JOB*)devctl_data) = new_job->job_pub;
 			
@@ -214,6 +214,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 				return EINVAL;
 			}
 			
+			//this func gets firs job in the queue
 			dev->funcs->start_core(drvhdl, cur_job->job_pub.core);
 			
             break;
@@ -290,7 +291,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 				
 				return EBUSY;
 			}
-			
+#if 0
 			//set output data for job
 			for (it = 0; it < cur_job->job_pub.inum; it++)
             {
@@ -303,6 +304,63 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 					return EINVAL;
 				}
             }
+#endif
+			break;
+		}
+		case DCMD_ELCORE_JOB_CANCEL:
+		{
+			uint32_t    job_id = *((uint32_t*)devctl_data);
+			/*TODO: need select job from some kind of list (queue)*/
+			elcore_job_t*			cur_job;
+			
+			if ((cur_job = get_enqueued_by_id(drvhdl, job_id)) == NULL)
+			{
+				return EINVAL;
+			}
+
+			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
+			{
+				dev->funcs->reset_core(drvhdl, cur_job->job_pub.core);
+			}
+			
+			//if job is ready, we act like as NONBLOCK 
+
+			job_remove_from_queue(drvhdl, cur_job);
+			//if cancel running job - try run new
+			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
+			{
+				dev->funcs->start_core(drvhdl, cur_job->job_pub.core);
+			}
+			
+			cur_job->job_pub.rc = ELCORE_JOB_CANCELLED;
+			cur_job->job_pub.status = ELCORE_JOB_IDLE;
+			
+
+			break;
+		}
+		case DCMD_ELCORE_JOB_RELEASE:
+		{
+			uint32_t    job_id = *((uint32_t*)devctl_data);
+			/*TODO: need select job from some kind of list (queue)*/
+			elcore_job_t*			cur_job;
+			
+			if ((cur_job = get_enqueued_by_id(drvhdl, job_id)) != NULL)
+			{
+				return EBUSY;
+			}
+
+			if ((cur_job = get_stored_by_id(drvhdl, job_id)) == NULL)
+			{
+				return EINVAL;
+			}
+			
+
+			//if cancel running job - try run new
+			if (release_job(drvhdl, cur_job))
+			{
+				return EINVAL;
+			}
+			
 
 			break;
 		}

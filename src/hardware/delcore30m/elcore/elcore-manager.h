@@ -229,6 +229,9 @@ typedef struct {
 //TODO: set results then job is finished
 #define DCMD_ELCORE_JOB_RESULTS	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 12, uint32_t)
 
+#define DCMD_ELCORE_JOB_CANCEL	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 13, uint32_t)
+
+#define DCMD_ELCORE_JOB_RELEASE	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 14, uint32_t)
 
 // 
 // 
@@ -280,6 +283,8 @@ uint32_t size);
 	int		(*start_core)(void *hdl, uint32_t core_num);
 	
 	int		(*stop_core)(void *hdl, uint32_t core_num);
+   //TODO: may be try to reset using stop/start
+	int		(*reset_core)(void *hdl, uint32_t core_num);
 // 	/*FIXME: depending on second parameter client thread blocks at devctl or not*/
 // 	int		(*job_status)(void *hdl, uint32_t job_block); 
 	

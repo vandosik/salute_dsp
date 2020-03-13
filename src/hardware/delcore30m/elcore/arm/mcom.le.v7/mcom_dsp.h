@@ -265,6 +265,7 @@ elcore_funcs_t elcore_funcs = {
 	elcore_core_read,
 	elcore_start_core,
 	elcore_stop_core,
+    elcore_reset_core,
 //     elcore_job_status,
 	dsp_cluster_print_regs,
 	elcore_ctl,

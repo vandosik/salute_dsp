@@ -220,7 +220,12 @@ int main( int argc, char** argv )
     
     writefile(src_data, "/tmp/output", &size);
     
-
+    
+    if (error = devctl( fd, DCMD_ELCORE_JOB_RELEASE, &firs_job.id, sizeof(firs_job.id), NULL ) )
+    {
+        printf( "DCMD_ELCORE_JOB_RELEASE error: %s\n", strerror ( error ) );
+        goto exit1;
+    }
     
 //     printf("Passed string: \n%s\n", src_data);
 

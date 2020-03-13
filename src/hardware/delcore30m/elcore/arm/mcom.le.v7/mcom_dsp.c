@@ -562,10 +562,13 @@ int elcore_interrupt_thread(void *hdl)
 					cur_job->job_pub.rc = ELCORE_JOB_SUCCESS;
 				}
 				
+				
 				job_remove_from_queue(&dev->drvhdl, cur_job); //sets DELCORE30M_JOB_IDLE
-				//TODO: where to release job?
+				//TODO: where to release job? now by client
 				elcore_reset_core(dev, it);
 				
+                //TODO: try to start core???
+                
 				val32 = dsp_get_reg32(dev, DLCR30M_CSR);
 				val32 &= ~DLCR30M_CSR_SYNC_START;
 				dsp_set_reg32(dev, DLCR30M_CSR, val32);
