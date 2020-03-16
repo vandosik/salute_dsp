@@ -178,7 +178,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	cur_job->job_pub.status = ELCORE_JOB_RUNNING;
 	core->job_id = cur_job->job_pub.id; 
 	
-	dsp_set_reg16(core, DLCR30M_PC, 0x0);
+	dsp_set_reg16(core, DLCR30M_PC, /*cur_job->job_pub.code.client_paddr*/cur_job->code_dspaddr);
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
 	
 	

@@ -102,6 +102,7 @@ int _elcore_init_iofunc(void);
 int _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb);
 int _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb);
 int _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb);
+int _elcore_mmap (resmgr_context_t *ctp, io_mmap_t *msg, elcore_ocb_t *ocb);
 // int _spi_iomsg(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
 // int _spi_iomsg_read(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);
 // int _spi_iomsg_cmdread(resmgr_context_t *ctp, io_msg_t *msg, spi_ocb_t *ocb);

@@ -51,7 +51,6 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
         return _RESMGR_NPARTS(0);
     }
 
-    
     /* check if message buffer is too short */
     if (nbytes > ctp->msg_max_size) {
         if (dev->buflen < nbytes) {

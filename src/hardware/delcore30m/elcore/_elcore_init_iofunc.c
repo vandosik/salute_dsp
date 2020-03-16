@@ -35,6 +35,7 @@ int _elcore_init_iofunc(void)
 	_elcore_io_funcs.read      = _elcore_read;
 	_elcore_io_funcs.write     = _elcore_write;
 	_elcore_io_funcs.devctl    = _elcore_devctl;
+    _elcore_io_funcs.mmap      = _elcore_mmap;
 // 	_elcore_io_funcs.close_ocb = _elcore_close_ocb;
 // 	_elcore_io_funcs.msg       = _elcore_iomsg;
 

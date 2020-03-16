@@ -28,6 +28,26 @@ Options:
 
 char* fw_path = "/tmp/input";
 
+int mem_dump(uint8_t* addr, uint32_t len)
+{
+	printf("%s: entry\n", __func__);
+	uint32_t iter = 0;
+	
+	printf("Numeric\n");
+	for (; iter < len; iter++)
+	{
+		if (iter % 16 == 0)
+		{
+			printf("\n");
+		}
+		printf(" %02x ", *(addr+iter));
+
+	}
+	printf("\n");
+    
+	return 0;
+}
+
 int getbytes(uint8_t* data, const char *filename, uint32_t *size)
 {
 	printf("%s: entry\n", __func__);
@@ -92,6 +112,8 @@ int main( int argc, char** argv )
     uint32_t size; //size of program
     uint8_t *src_data;
     uint64_t src_paddr;
+    
+    uint32_t *pram_addr;
 
 #if 0
     uint32_t src_paddr_1;
@@ -109,6 +131,14 @@ int main( int argc, char** argv )
         perror("error opening file");
         return -1;
     }
+    
+    
+    
+    if ((pram_addr = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE, 0, fd, 0)) == MAP_FAILED )
+    {
+        perror("DSP mmap error");
+    }
+    
     
 	if ((src_data = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
@@ -219,6 +249,12 @@ int main( int argc, char** argv )
     
     
     writefile(src_data, "/tmp/output", &size);
+    
+	uint32_t iter = 0;
+	
+    mem_dump(src_data, 64);
+    
+    mem_dump(pram_addr, 64);
     
     
     if (error = devctl( fd, DCMD_ELCORE_JOB_RELEASE, &firs_job.id, sizeof(firs_job.id), NULL ) )
