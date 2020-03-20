@@ -113,7 +113,7 @@ int main( int argc, char** argv )
     uint8_t *src_data;
     uint64_t src_paddr;
     
-    uint32_t *pram_addr;
+    uint8_t *pram_addr;
 
 #if 0
     uint32_t src_paddr_1;
@@ -252,9 +252,15 @@ int main( int argc, char** argv )
     
 	uint32_t iter = 0;
 	
-    mem_dump(src_data, 64);
+    memset( pram_addr, '_', size );
     
-    mem_dump(pram_addr, 64);
+    if( msync( pram_addr, size, MS_SYNC) == -1) {
+        perror("msync");
+    }
+    
+    mem_dump(src_data, size);
+    
+    mem_dump(pram_addr, size);
     
     
     if (error = devctl( fd, DCMD_ELCORE_JOB_RELEASE, &firs_job.id, sizeof(firs_job.id), NULL ) )

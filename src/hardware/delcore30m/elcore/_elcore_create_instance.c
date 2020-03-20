@@ -35,11 +35,11 @@ static int _elcore_register_interface(void *data)
 		free(dev->opts);
 		return (!EOK);
 	}
-
-	if ((drvhdl->job_hdl = elcore_job_hdl_init()) == NULL)
-    {
-        goto failed1;
-    }
+//call this at low level
+// 	if ((drvhdl->job_hdl = elcore_job_hdl_init(drvhdl->cores_num)) == NULL)
+//     {
+//         goto failed1;
+//     }
 	
 	dev->drvhdl = drvhdl;
 

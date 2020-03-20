@@ -24,6 +24,7 @@
 
 #include "proto.h"
 
+#define ELCORE_MAX_TRANSFER				0x10000
 
 int
 _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
@@ -66,17 +67,23 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		{
 			elcore_send_t	*send_cfg;
 			void			*send_buf;
+			int				send_len;
 
 			send_cfg = (elcore_send_t*)devctl_data;
 			send_buf = (void*)((uint8_t*)devctl_data + sizeof(elcore_send_t));
+			send_len = send_cfg->len;
 			
 			ocb->core = send_cfg->core;
 			
-			status = dev->funcs->write(drvhdl, ocb->core, send_buf, (void*)send_cfg->offset, send_cfg->len);
+			dev->funcs->write(drvhdl, ocb->core, send_buf, (void*)send_cfg->offset, &send_len);
 			
-			if (status >= 0)
+			if (send_len >= 0)
 			{
 				status = EOK;
+			}
+			else
+			{
+				return EINVAL;
 			}
 // 			msg->o.ret_val = status;
 // 			msg->o.nbytes = nbytes;
@@ -86,17 +93,17 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		{
 			elcore_recv_t	*recv_cfg;
 			void			*recv_buf;
+			int				recv_len;
 
 			recv_cfg = (elcore_recv_t*)devctl_data;
 			recv_buf = (void*)((uint8_t*)devctl_data + sizeof(elcore_recv_t));
+			recv_len = recv_cfg->len;
 			
 			ocb->core = recv_cfg->core;
 			
-			status = dev->funcs->read(drvhdl, ocb->core, recv_buf, (void*)recv_cfg->offset, recv_cfg->len);
-			
-			nbytes = status + sizeof(elcore_recv_t);
+			status = dev->funcs->read(drvhdl, ocb->core, recv_buf, (void*)recv_cfg->offset, &recv_len);
 
-			if (status >= 0)
+			if (recv_len >= 0)
 			{
 				status = EOK;
 			}
@@ -104,6 +111,8 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			{
 				return EINVAL;
 			}
+			
+			nbytes = recv_len + sizeof(elcore_recv_t);
 			
 // 			msg->o.ret_val = status;
 // 			msg->o.nbytes = nbytes;
@@ -115,13 +124,18 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 
 			dma_send = (elcore_dmasend_t*)devctl_data;
 			ocb->core = dma_send->core;
+			int send_len = dma_send->len;
 			
             printf("%s: dma_send src: 0x%08x\n", __func__, dma_send->dma_src);
-			status = dev->funcs->dma_send(drvhdl, ocb->core, dma_send->dma_src, dma_send->offset, dma_send->len);
+			dev->funcs->dma_send(drvhdl, ocb->core, dma_send->dma_src, dma_send->offset, &send_len);
             
-			if (status >= 0)
+			if (send_len >= 0)
 			{
 				status = EOK;
+			}
+			else
+			{
+				return EINVAL;
 			}
 // 			msg->o.ret_val = status;
 // 			msg->o.nbytes = nbytes;
@@ -133,13 +147,14 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 
 			dma_recv = (elcore_dmarecv_t*)devctl_data;
 			ocb->core = dma_recv->core;
+			int recv_len = dma_recv->len;
 			
             printf("%s: dma_recv src: 0x%08x\n", __func__, dma_recv->dma_dst);
-			status = dev->funcs->dma_recv(drvhdl, ocb->core, dma_recv->dma_dst, dma_recv->offset, dma_recv->len);
+			status = dev->funcs->dma_recv(drvhdl, ocb->core, dma_recv->dma_dst, dma_recv->offset, &recv_len);
             
 			nbytes = sizeof(elcore_dmarecv_t);
 
-			if (status >= 0)
+			if (recv_len >= 0)
 			{
 				status = EOK;
 			}
@@ -156,7 +171,9 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
         {
 			ELCORE_JOB		*new_pub_job = (ELCORE_JOB*)devctl_data;
 			elcore_job_t	*new_job;
-			int				it;        
+			int				it; 
+			int				code_send_size;
+			
 			//FIXME: check this at another place
 			if (new_pub_job->inum > MAX_INPUTS || new_pub_job->onum > MAX_OUTPUTS || new_pub_job->core > 2)
 			{
@@ -170,10 +187,14 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			//set code for job
 			printf("%s: set code: 0x%08x\n", __func__, new_pub_job->code.client_paddr);
 			//BUG: offset 0
-			status = dev->funcs->dma_send(drvhdl, new_pub_job->core,
-                          new_pub_job->code.client_paddr, 0, new_pub_job->code.size);
+			code_send_size = new_pub_job->code.size;
+			
+			new_job->code_dspaddr = dev->funcs->dma_send(drvhdl, new_pub_job->core,
+                          new_pub_job->code.client_paddr, 0x228, &code_send_size);
             
-			if (status < 0)
+            printf("%s: code_dspaddr: 0x%08x\n", __func__, new_job->code_dspaddr);
+            
+			if (code_send_size < 0)
 			{
 				return EINVAL;
 			}

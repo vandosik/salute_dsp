@@ -11,6 +11,34 @@
 #include <sdma.h>
 
 
+static uint32_t addr2delcore30m(uint32_t addr)
+{
+	return (((addr) & 0xFFFFF) >> 2);
+}
+
+static uint32_t get_dsp_addr(void *hdl, uint32_t offset)
+{
+	printf("%s: entry\n", __func__);
+	delcore30m_t			*dev = hdl;
+	uint32_t				dsp_addr;
+	
+	
+	uint32_t pram_size = ( dev->pm_conf + 1) * DLCR30M_BANK_SIZE;
+	
+
+	if (offset > pram_size)
+	{
+		//XYRAM adrrs per word, starting with 0x0000
+		dsp_addr = addr2delcore30m(offset - pram_size);
+	}
+	else
+	{
+		dsp_addr = addr2delcore30m(offset);
+	}
+
+	return dsp_addr;
+}
+
 int dsp_core_print_regs(dsp_core* core)
 {
    int iter = 0;
@@ -77,9 +105,71 @@ int dsp_cluster_print_regs(void *hdl)
     return 0;
 }
 
+static char *elcore_opts[] =
+{
+    "queue0",   //queue length / parts tp devide memory to
+	"queue1",
+    NULL
+};
+
+static int elcore_parce_opts(delcore30m_t *dev, char *optstring)
+{
+    char	*options, *freeptr, *c, *value;
+	int		num_val;
+	
+    if ( optstring == NULL )
+    {
+        return EOK;
+    }
+    freeptr = options = strdup(optstring);
+
+    while ( options && *options != '\0' )
+    {
+        c = options;
+
+		
+		
+        switch ( getsubopt(&options, elcore_opts, &value) )
+        {
+            case 0:
+					num_val = atoi(value);
+					printf("%s: got queue0 len: %u\n", __func__, num_val);
+					
+					if (num_val != 1 && num_val != 2 && num_val != 4 && num_val != 8)
+					{
+						fprintf(stderr,"%s: illegal mem parts\n",__func__);
+						return EINVAL;
+					}
+					
+					DLCR30M_SET_MEM_PARTS(&dev->core[0], num_val);
+                break;
+			case 1:
+					num_val = atoi(value);
+					printf("%s: got queue1 len: %u\n", __func__, num_val);
+				
+					if (num_val != 1 && num_val != 2 && num_val != 4 && num_val != 8)
+					{
+						fprintf(stderr,"%s: illegal mem parts\n",__func__);
+						return EINVAL;
+					}
+					
+					DLCR30M_SET_MEM_PARTS(&dev->core[1], num_val);
+
+                break;
+            default:
+                fprintf(stderr,"%s: unknown option %s\n",__func__, c);
+                return EINVAL;
+        }
+    }
+    free(freeptr);
+
+    return EOK;
+}
+
 void *elcore_func_init(void *hdl, char *options)
 {
 	delcore30m_t			*dev;
+	int						it;
 
 	dev = calloc(1, sizeof(delcore30m_t));
 	if ( dev == NULL )
@@ -87,10 +177,38 @@ void *elcore_func_init(void *hdl, char *options)
 	    printf("%s: error\n", __func__);
 	    return NULL;
 	}
-
+	//necessary manipulations
 	dev->drvhdl.hdl = hdl;
+	dev->drvhdl.cores_num = DLCR30M_MAX_CORES;
+	
+	dev->core_count = DLCR30M_MAX_CORES;
+    dev->irq = DLCR30M_IRQ_NUM;
 	dev->pbase = DLCR30M_BASE;
-    
+	//set defaults
+    DLCR30M_SET_MEM_PARTS(&dev->core[0], 1);
+	DLCR30M_SET_MEM_PARTS(&dev->core[1], 1);
+	
+	
+	if (elcore_parce_opts(dev, options) != EOK)
+	{
+		elcore_func_fini(dev);
+        
+        return NULL;
+	}
+	
+	if ((dev->drvhdl.job_hdl = elcore_job_hdl_init(dev->core_count)) == NULL)
+    {
+		free(dev);
+		        
+		return NULL;
+    }
+	
+	//TODO: set this somewhere else, to use jobs as less as possible on this layer
+	for (it = 0; it < dev->core_count; it++)
+	{
+		set_core_jobs_max( &dev->drvhdl, it, DLCR30M_GET_MEM_PARTS(&dev->core[it]));
+	}
+	
 	if ( (void *)( dev->base = mmap_device_memory( NULL, DLCR30M_SIZE,
 	        PROT_READ | PROT_WRITE | PROT_NOCACHE, 0,
 	        dev->pbase ) ) == MAP_FAILED )
@@ -102,8 +220,6 @@ void *elcore_func_init(void *hdl, char *options)
 	}
 
 	dev->regs = dev->base;
-	dev->core_count = DLCR30M_MAX_CORES;
-    dev->irq = DLCR30M_IRQ_NUM;
     
 	dev->core[0].id = 0;
 	dev->core[1].id = 1;
@@ -211,9 +327,11 @@ int		elcore_pram_config(void *hdl, uint32_t size)
 		break;
 	case 2:
 	case 3:
+        return -ENOTSUP; //TODO: temporary not avail
 		pmem_ctr = DLCR30M_PMCONF_3;
 		break;
 	case 4:
+        return -ENOTSUP; //TODO: temporary not avail
 		pmem_ctr = DLCR30M_PMCONF_4;
 		break;
 	default:
@@ -232,7 +350,7 @@ int		elcore_pram_config(void *hdl, uint32_t size)
 	return 0;
 }
 
-int elcore_core_read(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* to,  void* offset, uint32_t size)
+uint32_t elcore_core_read(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* to,  void* offset, int *size)
 {
 	delcore30m_t		*dev = hdl;
 // 	delcore30m_firmware *frw = (delcore30m_firmware*)data;
@@ -243,42 +361,47 @@ int elcore_core_read(void *hdl, /*void* data, void* offset*/uint32_t core_num, v
     
     if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
     {
-        if ((uintptr_t)(offset + size) > DLCR30M_BANK_SIZE)
+        if ((uintptr_t)(offset + *size) > DLCR30M_BANK_SIZE)
           {
-            if ((uintptr_t)(offset+size) < (DLCR30M_BANK_SIZE * 5))
+            if ((uintptr_t)(offset + *size) < (DLCR30M_BANK_SIZE * 5))
 			{
 			memcpy(to,(void*)(core->pram + (uintptr_t)offset), DLCR30M_BANK_SIZE - (uint32_t)offset);
 			memcpy(to + (uintptr_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset),
-			core->xyram,size - (uint32_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset));
+			core->xyram, *size - (uint32_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset));
+
 			}
 			else
 			{
-				return -1;
+				*size = -1;
+                return 0;
 			}
           }
         else
           {
-            memcpy(to,core->pram + (uintptr_t)offset,size);
+            memcpy(to,core->pram + (uintptr_t)offset,*size);
           }
     }
     else
     {
-        if ((uint32_t)((uintptr_t)offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5)) 
+        if ((uint32_t)((uintptr_t)offset - DLCR30M_BANK_SIZE + *size) < (DLCR30M_BANK_SIZE * 5)) 
 		{
-	        memcpy(to,core->xyram + (uintptr_t)(offset - DLCR30M_BANK_SIZE),size);
+	        memcpy(to,core->xyram + (uintptr_t)(offset - DLCR30M_BANK_SIZE),*size);
 		}
 		else
 		{
-			return -1;
+			*size = -1;
+			return 0;
 		}
     }
-	printf("%s: %u bytes had been read from offset: %u\n", __func__, size, (uint32_t)offset);
+	printf("%s: %u bytes had been read from offset: %u\n", __func__, *size, (uint32_t)offset);
     
-    return size;
+    
+    return get_dsp_addr(hdl, (uint32_t)offset);
 }
 
-int  elcore_core_write(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* from, void* offset, uint32_t 
-size)
+uint32_t  elcore_core_write(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* from, void* offset, 
+int 
+*size)
 {
 	delcore30m_t		*dev = hdl;
 // 	delcore30m_firmware *frw = (delcore30m_firmware*)data;
@@ -291,45 +414,48 @@ size)
 	if ((uintptr_t)offset < DLCR30M_BANK_SIZE)
 	{
 
-	     if ((uintptr_t)(offset + size) > DLCR30M_BANK_SIZE) //need offset use XYRAM
+	     if ((uintptr_t)(offset + *size) > DLCR30M_BANK_SIZE) //need offset use XYRAM
 	       {
-			   if ((uintptr_t)(offset+size) < (DLCR30M_BANK_SIZE * 5)) 
+			   if ((uintptr_t)(offset + *size) < (DLCR30M_BANK_SIZE * 5)) 
 			   {	//writing from pram we need to leave one xyram bank?? yes - 4, no - 5
 		         memcpy((void*)(core->pram + (uintptr_t)offset),from, DLCR30M_BANK_SIZE - (uintptr_t)offset);
 		         memcpy(core->xyram,from + (uint64_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset),
-						size - (uint32_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset));
+						*size - (uint32_t)(DLCR30M_BANK_SIZE - (uintptr_t)offset));
 			   }
 			   else
 			   {
-				   return -1;
+					*size = -1;
+					return 0;
 			   }
 	       }
 	     else
 	       {
-	         memcpy(core->pram + (uintptr_t)offset,from,size);
+	         memcpy(core->pram + (uintptr_t)offset,from, *size);
 	       }
 	 }
 	 else
 	 {
-	     if ((uint32_t)((uintptr_t)offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5))
+	     if ((uint32_t)((uintptr_t)offset - DLCR30M_BANK_SIZE + *size) < (DLCR30M_BANK_SIZE * 5))
 		 {
-		     memcpy(core->xyram + (uint64_t)((uintptr_t)offset - DLCR30M_BANK_SIZE), from, size);
+		     memcpy(core->xyram + (uint64_t)((uintptr_t)offset - DLCR30M_BANK_SIZE), from, *size);
 		 }
 		 else
 		 {
-			 return -1;
+			*size = -1;
+			return 0;
 		 }
 	 }
-	printf("%s: %u bytes had been written to offset: %u\n", __func__, size, (uint32_t)offset);
+	printf("%s: %u bytes had been written to offset: %u\n", __func__, *size, (uint32_t)offset);
 	
-	return size;
+    return get_dsp_addr(hdl, (uint32_t)offset);
 }
 
-int		elcore_set_pram(void *hdl, void *frmwr)
+
+int		elcore_set_pram(void *hdl, void *job)
 {
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
-	delcore30m_firmware *firmware = (delcore30m_firmware*)frmwr;
+	elcore_job_t *cur_job = (elcore_job_t*)job;
 	uint32_t pram_size;
 	
 // 	pram_size = dsp_get_reg32(dev, DLCR30M_CSR);
@@ -340,26 +466,34 @@ int		elcore_set_pram(void *hdl, void *frmwr)
 		pram_size = DLCR30M_BANK_SIZE;
 		break;
 	case DLCR30M_PMCONF_3:
+        return -ENOTSUP; //TODO: temporary not avail
 		pram_size = 3 * DLCR30M_BANK_SIZE;
 		break;
 	case DLCR30M_PMCONF_4:
+        return -ENOTSUP; //TODO: temporary not avail
 		pram_size = 4 * DLCR30M_BANK_SIZE;
 		break;
 	default:
 		return -EINVAL;
 	}
-	if (firmware->size > pram_size)
+	if (cur_job->job_pub.code.size > pram_size)
 	{
 		printf("Firmware is too big\n");
 		return -EINVAL;
 	}
 	
 // 	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
-	elcore_core_write(dev,firmware->cores, firmware->data, 0,firmware->size);
+// 	elcore_core_write(dev,firmware->cores, firmware->data, 0, &firmware->size);
+// 	
+// 	if (firmware->size < 0)
+// 	{
+// 		return EINVAL;
+// 	}
+// 	
 // 	elcore_core_write(dev, firmware, 0);
-	
-	dev->core[firmware->cores].fw_size = firmware->size;
-	dev->core[firmware->cores].fw_ready = DLCR30M_FWREADY;
+// 	
+// 	dev->core[firmware->cores].fw_size = firmware->size;
+// 	dev->core[firmware->cores].fw_ready = DLCR30M_FWREADY;
 	
 	return EOK;
 }
@@ -590,7 +724,7 @@ int elcore_interrupt_thread(void *hdl)
 	
 }
 
-int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, uint32_t size)
+uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size)
 {
 	delcore30m_t			*dev = hdl;
 	struct sdma_exchange	sdma_task;
@@ -611,9 +745,9 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 	if (offset < DLCR30M_BANK_SIZE)
 	{
 
-			if (offset + size > DLCR30M_BANK_SIZE) //need offset use XYRAM
+			if (offset + *size > DLCR30M_BANK_SIZE) //need offset use XYRAM
 			{
-			   if (offset + size < (DLCR30M_BANK_SIZE * 5)) 
+			   if (offset + *size < (DLCR30M_BANK_SIZE * 5)) 
 			   {	//writing from pram we need to leave one xyram bank?? yes - 4, no - 5
 				sdma_task.from = from;
 				sdma_task.to = core->pram_phys + offset;
@@ -624,7 +758,7 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
 					printf("Job prepare error: %s\n", strerror(-job_status));
-					goto exit1;
+					goto exit0;
 				}
 
 				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -638,13 +772,13 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 				sdma_task.from = from + (uint64_t)(DLCR30M_BANK_SIZE - offset);
 				sdma_task.to = core->xyram_phys;
 				sdma_task.channel = &chnl_0;
-				sdma_task.size = size - (DLCR30M_BANK_SIZE - offset);
+				sdma_task.size = *size - (DLCR30M_BANK_SIZE - offset);
 				sdma_task.iterations = 1;
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
 					printf("Job prepare error: %s\n", strerror(-job_status));
-					goto exit1;
+					goto exit0;
 				}
 
 				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -653,13 +787,11 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 					goto exit1;
 				}
 				
-				goto exit1;
-				
 				
 			   }
 			   else
 			   {
-				   return -1;
+					goto exit0;
 			   }
 			}
 			else
@@ -667,13 +799,13 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 				sdma_task.from = from;
 				sdma_task.to = core->pram_phys + offset;
 				sdma_task.channel = &chnl_0;
-				sdma_task.size = size;
+				sdma_task.size = *size;
 				sdma_task.iterations = 1;
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
 					printf("Job prepare error: %s\n", strerror(-job_status));
-					goto exit1;
+					goto exit0;
 				}
 
 				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -682,23 +814,22 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 					goto exit1;
 				}
 				
-// 				goto exit1;
 	       }
 	 }
 	 else
 	 { //put to XYRAM
-	     if ((offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5))
+	     if ((offset - DLCR30M_BANK_SIZE + *size) < (DLCR30M_BANK_SIZE * 5))
 		 {
 			sdma_task.from = from;
 			sdma_task.to = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
 			sdma_task.channel = &chnl_0;
-			sdma_task.size = size;
+			sdma_task.size = *size;
 			sdma_task.iterations = 1;
 			
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 			{
 				printf("Job prepare error: %s\n", strerror(-job_status));
-				goto exit1;
+				goto exit0;
 			}
 
 			if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -707,26 +838,30 @@ int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset
 				goto exit1;
 			}
 				
-			 goto exit1;
 		 }
 		 else
 		 {
-			 return -1;
+			goto exit0;
 		 }
 	 }
-	printf("%s: %u bytes had been written to offset: %u\n", __func__, size, offset);
+ 
+	printf("%s: %u bytes had been written to offset: %u\n", __func__, *size, offset);
 	sdma_mem_dump(core->pram + offset, 40);
 	
+	sdma_release_task(&sdma_task);
+
+	return get_dsp_addr(hdl, offset);
 	
-	exit1:
-        sdma_release_task(&sdma_task);
-//     exit0:
-//         sdma_fini();
+exit1:
 	
-	return size;
+	sdma_release_task(&sdma_task);
+exit0:
+	*size = -1;
+
+	return 0;
 }
 
-int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, uint32_t size)
+uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size)
 {
 	delcore30m_t			*dev = hdl;
 	struct sdma_exchange	sdma_task;
@@ -746,9 +881,9 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 	
     if (offset < DLCR30M_BANK_SIZE)
     {
-        if ((offset + size) > DLCR30M_BANK_SIZE)
+        if ((offset + *size) > DLCR30M_BANK_SIZE)
           {
-            if ((offset+size) < (DLCR30M_BANK_SIZE * 5))
+            if ((offset + *size) < (DLCR30M_BANK_SIZE * 5))
 			{
 				sdma_task.from = core->pram_phys + offset;
 				sdma_task.to = to;
@@ -759,7 +894,7 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
 					printf("Job prepare error: %s\n", strerror(-job_status));
-					goto exit1;
+					goto exit0;
 				}
 
 				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -773,13 +908,13 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 				sdma_task.from = core->xyram_phys;
 				sdma_task.to = to + (DLCR30M_BANK_SIZE - offset);
 				sdma_task.channel = &chnl_0;
-				sdma_task.size = size - (DLCR30M_BANK_SIZE - offset);
+				sdma_task.size = *size - (DLCR30M_BANK_SIZE - offset);
 				sdma_task.iterations = 1;
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
 					printf("Job prepare error: %s\n", strerror(-job_status));
-					goto exit1;
+					goto exit0;
 				}
 
 				if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -788,11 +923,10 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 					goto exit1;
 				}
 				
-				goto exit1;
 			}
 			else
 			{
-				return -1;
+				goto exit0;
 			}
 		}
 		else
@@ -800,13 +934,13 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 			sdma_task.from = core->pram_phys + offset;
 			sdma_task.to = to;
 			sdma_task.channel = &chnl_0;
-			sdma_task.size = size;
+			sdma_task.size = *size;
 			sdma_task.iterations = 1;
 
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 			{
 				printf("Job prepare error: %s\n", strerror(-job_status));
-				goto exit1;
+				goto exit0;
 			}
 
 			if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -815,23 +949,22 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 				goto exit1;
 			}
 
-// 			goto exit1;
 		}
 	}
 	else
 	{
-        if ((offset - DLCR30M_BANK_SIZE + size) < (DLCR30M_BANK_SIZE * 5)) 
+        if ((offset - DLCR30M_BANK_SIZE + *size) < (DLCR30M_BANK_SIZE * 5)) 
 		{
 			sdma_task.from = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
 			sdma_task.to = to;
 			sdma_task.channel = &chnl_0;
-			sdma_task.size = size;
+			sdma_task.size = *size;
 			sdma_task.iterations = 1;
 			
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 			{
 				printf("Job prepare error: %s\n", strerror(-job_status));
-				goto exit1;
+				goto exit0;
 			}
 
 			if ((job_status = sdma_transfer(&sdma_task)) != 0 )
@@ -840,22 +973,26 @@ int elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, 
 				goto exit1;
 			}
 				
-			goto exit1;
 		}
 		else
 		{
-			return -1;
+			goto exit0;
 		}
     }
-	printf("%s: %u bytes had been read from offset: %u\n", __func__, size, offset);
+	printf("%s: %u bytes had been read from offset: %u\n", __func__, *size, offset);
 	sdma_mem_dump(core->pram + offset, 40);
 	
-	exit1:
-        sdma_release_task(&sdma_task);
-//     exit0:
-//         sdma_fini();
+	sdma_release_task(&sdma_task);
 
-    return size;
+	return get_dsp_addr(hdl, offset);
+	
+exit1:
+	
+	sdma_release_task(&sdma_task);
+exit0:
+	*size = -1;
+
+	return 0;
 }
 
 void elcore_func_fini(void *hdl)
@@ -864,6 +1001,8 @@ void elcore_func_fini(void *hdl)
 
     InterruptDetach(dev->irq_hdl);
     
+	elcore_job_hdl_fini(&dev->drvhdl);
+	
     munmap_device_memory(dev->base ,DLCR30M_SIZE);
     free(hdl);
     

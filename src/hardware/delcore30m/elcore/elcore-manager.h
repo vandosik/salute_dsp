@@ -274,11 +274,11 @@ typedef struct {
     
     void	(*fini)(void *hdl);
     
-    int		(*write)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
-uint32_t size);
+    uint32_t		(*write)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
+int *size);
     
-    int		(*read)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
-uint32_t size);
+    uint32_t		(*read)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
+int *size);
 	
 	int		(*start_core)(void *hdl, uint32_t core_num);
 	
@@ -294,9 +294,9 @@ uint32_t size);
    
 	int		(*irq_thread)(void *hdl);
 
-	int		(*dma_send)( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, uint32_t size);
+	uint32_t		(*dma_send)( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size);
 
-	int		(*dma_recv)(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, uint32_t size);
+	uint32_t		(*dma_recv)(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size);
     
 
 } elcore_funcs_t;
@@ -308,8 +308,9 @@ extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr
  */
 typedef struct _elcore_dev_entry_t {
 	iofunc_attr_t				attr;
+	uint32_t					cores_num;	//quantity of cores
 	void						*hdl;		/* Pointer to high-level handle */
-	void						*job_hdl;	/* TODO: make a list of jobs. Set it here to easyly use on both levels*/
+	void						*job_hdl;	/* Set it here to easyly use on both levels*/
 } ELCORE_DEV;
 
 

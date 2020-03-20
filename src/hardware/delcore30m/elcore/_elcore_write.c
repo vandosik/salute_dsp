@@ -74,14 +74,15 @@ _elcore_write(resmgr_context_t *ctp, io_write_t *msg, elcore_ocb_t *ocb)
     {
         buf = ((uint8_t *)msg) + sizeof(msg->i);
     }
-	nbytes =  dev->funcs->write(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), nbytes);
-	//move in the file
-	ocb->hdr.offset += nbytes;
+	dev->funcs->write(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), &nbytes);
+
 
 // 	if (nbytes == 0)
 // 		return EAGAIN;
 
 	if (nbytes > 0) {
+		//move in the file
+		ocb->hdr.offset += nbytes;
 		_IO_SET_WRITE_NBYTES(ctp, nbytes);
 		return _RESMGR_NPARTS(0);
 	}

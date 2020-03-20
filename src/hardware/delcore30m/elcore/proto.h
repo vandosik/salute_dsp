@@ -78,7 +78,7 @@ typedef struct elcore_dev {
 	uint8_t				*dmabuf;
 	unsigned			buflen;
 
-	void				*drvhdl;
+	void				*drvhdl; // pointer to ELCORE_DEV
 	void				*dlhdl;  // dll handler
 
 	pthread_t			tid;

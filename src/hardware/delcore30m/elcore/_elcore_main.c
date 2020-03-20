@@ -170,6 +170,10 @@ cleanup:
 		/*
 		 * Disable hardware
 		 */
+        //call thia at low level
+//         elcore_job_hdl_fini(&dev->drvhdl);
+        
+        
 		dev->funcs->fini(dev->drvhdl);
 		head = dev->next;
 		free(dev);

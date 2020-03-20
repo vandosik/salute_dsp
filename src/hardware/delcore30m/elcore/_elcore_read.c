@@ -68,11 +68,10 @@ _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
         buf = (uint8_t *)msg;
     }
 
-	nbytes = dev->funcs->read(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), nbytes);
-
-	ocb->hdr.offset += nbytes;
+	dev->funcs->read(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), &nbytes);
 	
 	if (nbytes > 0) {
+		ocb->hdr.offset += nbytes;
 		_IO_SET_READ_NBYTES(ctp, nbytes);
 		return _RESMGR_PTR(ctp, buf, nbytes);
 	}

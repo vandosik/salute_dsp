@@ -194,21 +194,28 @@
 #define dsp_clr_bit_reg64(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg64(CORE_VAR,REG_NAME, \
 														dsp_get_reg64(CORE_VAR,REG_NAME) & ~(1<<BIT_NUM))
 
-#define addr2delcore30m(addr)					((addr & 0xFFFFF) >> 2)
-
 typedef struct delcore30m_firmware {
 	uint32_t		cores;
-	size_t			size;
+	int				size;
 	uint8_t			*data;
 } delcore30m_firmware;
 
 #define DLCR30M_FWREADY							1
 #define DLCR30M_FWEMPTY							0
 
+
 #include <sdma.h>
 
 typedef struct {
 	struct delcore30m_t*	cluster;//указател на структуру кластера
+	uint32_t				mem_config; //first byte - length of queue/ memory parts
+										//second byte - information about vacanty of part
+#define 		DLCR30M_GET_MEM_PARTS(core)			((core)->mem_config & 0xFF)
+#define			DLCR30M_SET_MEM_PARTS(core, n)		((core)->mem_config = (((core)->mem_config & (~0xFF)) | n))
+#define			DLCR30M_SET_PART_BUSY(core, n)		((core)->mem_config = ((core)->mem_config | ((1 << (n - 1)) << 8)))
+#define			DLCR30M_SET_PART_FREE(core, n)		((core)->mem_config = ((core)->mem_config & ~((1 << (n - 1)) << 8)))
+#define			DLCR30M_CHECK_MEM_PART(core, n)		(((core)->mem_config & ((1 << (n - 1)) << 8)) >> (8 + n - 1))
+
 	uint8_t*				xyram;
 	uint32_t				xyram_phys;
 	uint8_t*				pram;
@@ -245,15 +252,16 @@ extern int		elcore_release_pram(void *hdl, uint32_t core_num); //realease pram o
 extern int		elcore_reset_core(void *hdl, uint32_t core_num);
 extern int		elcore_start_core(void *hdl, uint32_t core_num);
 extern int		elcore_stop_core(void *hdl, uint32_t core_num);
-extern int		elcore_core_read(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
-uint32_t size); //use firmware struct as data
-extern int		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
-uint32_t size);
+extern uint32_t		elcore_core_read(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
+int *size); //use firmware struct as data
+extern uint32_t		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* 
+offset, 
+int *size);
 extern int dsp_cluster_print_regs(void *hdl);
 extern int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
 extern int elcore_interrupt_thread(void *hdl);
-extern int elcore_dmarecv( void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, uint32_t size);
-extern int elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, uint32_t size);
+extern uint32_t elcore_dmarecv( void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size);
+extern uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size);
 
 // extern int elcore_job_status(void *hdl, uint32_t job_block); 
 

@@ -3,16 +3,71 @@
 #include <errno.h>
 
 
-void* elcore_job_hdl_init(void)
+void* elcore_job_hdl_init(uint32_t cores_num)
 {
 	printf("%s: entry\n", __func__);
-	return calloc(1, sizeof(elcore_job_hdl_t));
+    
+	elcore_job_hdl_t			*job_hdl;
+	if ( (job_hdl = calloc(1, sizeof(elcore_job_hdl_t))) == NULL)
+	{
+		return NULL;
+	}
+	//TODO: do we need this dynamic allocation?
+	job_hdl->cores_num = cores_num;
+	job_hdl->core_jobs_max = calloc(cores_num * 2, sizeof(uint32_t));
+	job_hdl->core_jobs_cnt = job_hdl->core_jobs_max + cores_num;
+	
+	if ( !job_hdl->core_jobs_max || !job_hdl->core_jobs_cnt )
+	{
+		return NULL;
+	}
+	
+	return job_hdl;
 }
+
+int set_core_jobs_max( void* hdl, uint32_t core_num, uint32_t val )
+{
+	printf("%s: entry try set core%u  to %u\n", __func__, core_num, val);
+	ELCORE_DEV			*drvhdl = hdl;
+    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	
+	
+	job_hdl->core_jobs_max[core_num] = val;
+	
+	return 0;
+	
+}
+
+//TODO: BUG: need release jobs here?
+void elcore_job_hdl_fini(void* hdl)
+{
+	printf("%s: entry\n", __func__);
+	ELCORE_DEV			*drvhdl = hdl;
+    elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
+	int it = 0;
+	
+	for (; it < job_hdl->cores_num; it++)
+	{
+		if (job_hdl->core_jobs_cnt[it] > 0)
+		{
+			printf("%s: not all jobs released\n", __func__);
+			
+			return;
+		}
+	}
+	
+	free(job_hdl->core_jobs_max);
+	
+	free(job_hdl);
+	
+	
+}
+
 //TODO: make smth more complex
 static void gen_job_id(uint32_t* id)
 {
 	static uint32_t		id_gen = 0; //variable to set unique ids to jobs
-	id = id_gen++;
+	*id = id_gen++;
 }
 
 static int job_put_to_storage(void *hdl, elcore_job_t* job )
@@ -43,7 +98,15 @@ static int job_put_to_storage(void *hdl, elcore_job_t* job )
 elcore_job_t* alloc_job(void *hdl, ELCORE_JOB* job_pub)
 {
 	printf("%s: entry\n", __func__);
-	elcore_job_t* new_job;
+	elcore_job_t*		new_job;
+	ELCORE_DEV			*drvhdl = hdl;
+	elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
+	
+	if ( !(job_hdl->core_jobs_cnt[job_pub->core] < job_hdl->core_jobs_max[job_pub->core]) )
+	{
+		printf("No vacant jobs for core %u\n", job_pub->core);
+		return NULL;
+	}
 	
 	if ((new_job = calloc(1, sizeof(elcore_job_t))) == NULL)
 	{
@@ -52,8 +115,11 @@ elcore_job_t* alloc_job(void *hdl, ELCORE_JOB* job_pub)
 	}
 	new_job->job_pub = *(job_pub);
 	gen_job_id(&new_job->job_pub.id); 
+	++(job_hdl->core_jobs_cnt[job_pub->core]);
 	
 	job_put_to_storage(hdl, new_job);
+	
+	
 	
 	return new_job;
 }
@@ -93,7 +159,7 @@ int release_job(void *hdl, elcore_job_t* job )
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+    elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
 	
 	if (job == NULL || job->job_pub.status != ELCORE_JOB_IDLE)
 	{
@@ -107,7 +173,10 @@ int release_job(void *hdl, elcore_job_t* job )
 		return -1;
 	}
 	
+	--(job_hdl->core_jobs_cnt[job->job_pub.core]);
+	
 	free(job);
+	
 	
 	return 0;
 	
@@ -314,26 +383,7 @@ elcore_job_t* get_stored_by_id( void *hdl , uint32_t id)
 	return NULL;
 }
 
-// int add_job_last( void *hdl, elcore_job_t* job )
-// {
-// 	ELCORE_DEV		*drvhdl = hdl;
-// 	elcore_job_t	*tmp_job = drvhdl->first_job;
-// 	
-// 	if (!tmp_job)
-// 	{
-// 		drvhdl->first_job = job;
-// 		job->next = NULL;
-// 		return 0;
-// 	}
-// 	while (tmp_job->next)
-// 	{
-// 		tmp_job = tmp_job->next;
-// 	}
-// 	
-// 	tmp_job->next = job;
-// 	job->next = NULL;
-// 	return 0;
-// }
+
 
 
 // int		remove_job_by_id( void *hdl , uint32_t id)
