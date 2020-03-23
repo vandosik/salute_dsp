@@ -207,7 +207,7 @@ typedef struct delcore30m_firmware {
 #include <sdma.h>
 
 typedef struct {
-	struct delcore30m_t*	cluster;//указател на структуру кластера
+	struct delcore30m_t*	cluster;
 	uint32_t				mem_config; //first byte - length of queue/ memory parts
 										//second byte - information about vacanty of part
 #define 		DLCR30M_GET_MEM_PARTS(core)			((core)->mem_config & 0xFF)
@@ -215,6 +215,8 @@ typedef struct {
 #define			DLCR30M_SET_PART_BUSY(core, n)		((core)->mem_config = ((core)->mem_config | ((1 << (n - 1)) << 8)))
 #define			DLCR30M_SET_PART_FREE(core, n)		((core)->mem_config = ((core)->mem_config & ~((1 << (n - 1)) << 8)))
 #define			DLCR30M_CHECK_MEM_PART(core, n)		(((core)->mem_config & ((1 << (n - 1)) << 8)) >> (8 + n - 1))
+
+#define			DLCR30M_NO_MEM_PARTS				0
 
 	uint8_t*				xyram;
 	uint32_t				xyram_phys;
@@ -244,26 +246,25 @@ typedef struct {
 } delcore30m_t;
 
 
-extern void*	elcore_func_init(void *hdl, char *options);
-extern void		elcore_func_fini(void *hdl);
-//must not be firmware structure, or define it at public 
-extern int		elcore_set_pram(void *hdl, void *frmwr);  //copy data to pram of target core, must
-extern int		elcore_release_pram(void *hdl, uint32_t core_num); //realease pram of
-extern int		elcore_reset_core(void *hdl, uint32_t core_num);
-extern int		elcore_start_core(void *hdl, uint32_t core_num);
-extern int		elcore_stop_core(void *hdl, uint32_t core_num);
-extern uint32_t		elcore_core_read(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
-int *size); //use firmware struct as data
-extern uint32_t		elcore_core_write(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* 
-offset, 
-int *size);
-extern int dsp_cluster_print_regs(void *hdl);
-extern int elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
-extern int elcore_interrupt_thread(void *hdl);
-extern uint32_t elcore_dmarecv( void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size);
-extern uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size);
+extern void*		elcore_func_init(void *hdl, char *options);
+extern void			elcore_func_fini(void *hdl);
 
-// extern int elcore_job_status(void *hdl, uint32_t job_block); 
+extern int			elcore_reset_core(void *hdl, uint32_t core_num);
+extern int			elcore_start_core(void *hdl, uint32_t core_num);
+extern int			elcore_stop_core(void *hdl, uint32_t core_num);
+extern uint32_t		elcore_core_read(void *hdl, uint32_t core_num, void* to,
+									 void* offset,int *size);
+extern uint32_t		elcore_core_write(void *hdl, uint32_t core_num, void* from,
+									  void* offset, int *size);
+extern int			dsp_cluster_print_regs(void *hdl);
+extern int			elcore_ctl(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info );
+extern int			elcore_interrupt_thread(void *hdl);
+extern uint32_t		elcore_dmarecv( void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size);
+extern uint32_t		elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size);
+extern int			elcore_set_prog( void *hdl, void *job);
+extern int			elcore_set_data( void *hdl, void *job);
+
+extern int			release_mem(void *hdl, void *job);
 
 elcore_funcs_t elcore_funcs = {
 	sizeof(elcore_funcs_t),
@@ -274,11 +275,14 @@ elcore_funcs_t elcore_funcs = {
 	elcore_start_core,
 	elcore_stop_core,
     elcore_reset_core,
-//     elcore_job_status,
 	dsp_cluster_print_regs,
 	elcore_ctl,
 	elcore_interrupt_thread,
 	elcore_dmasend,
-	elcore_dmarecv
+	elcore_dmarecv,
+	elcore_set_prog,
+	elcore_set_data,
+	release_mem,
+	
 };
 #endif

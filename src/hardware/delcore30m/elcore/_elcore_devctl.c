@@ -171,8 +171,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
         {
 			ELCORE_JOB		*new_pub_job = (ELCORE_JOB*)devctl_data;
 			elcore_job_t	*new_job;
-			int				it; 
-			int				code_send_size;
+			int				it;
 			
 			//FIXME: check this at another place
 			if (new_pub_job->inum > MAX_INPUTS || new_pub_job->onum > MAX_OUTPUTS || new_pub_job->core > 2)
@@ -184,34 +183,16 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			{
 				return ENOMEM;
 			}
-			//set code for job
-			printf("%s: set code: 0x%08x\n", __func__, new_pub_job->code.client_paddr);
-			//BUG: offset 0
-			code_send_size = new_pub_job->code.size;
-			
-			new_job->code_dspaddr = dev->funcs->dma_send(drvhdl, new_pub_job->core,
-                          new_pub_job->code.client_paddr, 0x228, &code_send_size);
-            
-            printf("%s: code_dspaddr: 0x%08x\n", __func__, new_job->code_dspaddr);
-            
-			if (code_send_size < 0)
+
+			if ((status = dev->funcs->set_prog(drvhdl, new_job)) != EOK)
 			{
-				return EINVAL;
+			    return status;
 			}
-#if 0
-			//set input data for job
-			for (it = 0; it < new_pub_job->inum; it++)
-            {
-				printf("%s: set input: 0x%08x\n", __func__, new_pub_job->input[it].client_paddr);
-				//BUG: offset 0
-				status = dev->funcs->dma_send(drvhdl, new_pub_job->core,
-                          new_pub_job->input[it].client_paddr, 0,new_pub_job->input[it].size);
-				if (status < 0)
-				{
-					return EINVAL;
-				}
-            }
-#endif
+			
+			if ((status = dev->funcs->set_data(drvhdl, new_job)) != EOK)
+			{
+			    return status;
+			}
 			
 			*((ELCORE_JOB*)devctl_data) = new_job->job_pub;
 			
@@ -366,17 +347,19 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			elcore_job_t*			cur_job;
 			
 			if ((cur_job = get_enqueued_by_id(drvhdl, job_id)) != NULL)
-			{
+			{	//first remove from queue
 				return EBUSY;
 			}
 
+			
 			if ((cur_job = get_stored_by_id(drvhdl, job_id)) == NULL)
 			{
 				return EINVAL;
 			}
+			//free mem resources on dsp
+			dev->funcs->release_mem(drvhdl, cur_job);
 			
-
-			//if cancel running job - try run new
+			//TODO: if cancel running job - try run new
 			if (release_job(drvhdl, cur_job))
 			{
 				return EINVAL;

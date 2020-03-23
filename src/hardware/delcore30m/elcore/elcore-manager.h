@@ -274,30 +274,34 @@ typedef struct {
     
     void	(*fini)(void *hdl);
     
-    uint32_t		(*write)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* from, void* offset, 
+    uint32_t		(*write)(void *hdl, uint32_t core_num, void* from, void* offset, 
 int *size);
     
-    uint32_t		(*read)(void *hdl, /*void *data, void* offset*/uint32_t core_num, void* to, void* offset, 
+    uint32_t		(*read)(void *hdl, uint32_t core_num, void* to, void* offset, 
 int *size);
 	
 	int		(*start_core)(void *hdl, uint32_t core_num);
 	
 	int		(*stop_core)(void *hdl, uint32_t core_num);
    //TODO: may be try to reset using stop/start
-	int		(*reset_core)(void *hdl, uint32_t core_num);
-// 	/*FIXME: depending on second parameter client thread blocks at devctl or not*/
-// 	int		(*job_status)(void *hdl, uint32_t job_block); 
+	int		(*reset_core)(void *hdl, uint32_t core_num); 
 	
 	int		(*print)(void *hdl);
     
 	int		(*ctl)(void *hdl, int cmd, void *msg, int msglen, int *nbytes, int *info);
    
 	int		(*irq_thread)(void *hdl);
-
+    //need this?
 	uint32_t		(*dma_send)( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size);
-
+    //need this?
 	uint32_t		(*dma_recv)(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size);
     
+	int			(*set_prog)( void *hdl, void *job);
+
+	int			(*set_data)( void *hdl, void *job);
+	
+	int			(*release_mem)(void *hdl, void *job);
+
 
 } elcore_funcs_t;
 

@@ -11,6 +11,7 @@
 typedef struct _elcore_job {
 	ELCORE_JOB				job_pub;
 	int						rcvid;
+	uint8_t					mem_part;
 	uint32_t				code_dspaddr;
 	uint32_t				input_dspaddr[MAX_INPUTS];
 	uint32_t				outpu_dspaddr[MAX_OUTPUTS];

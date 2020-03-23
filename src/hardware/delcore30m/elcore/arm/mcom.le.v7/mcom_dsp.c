@@ -350,7 +350,7 @@ int		elcore_pram_config(void *hdl, uint32_t size)
 	return 0;
 }
 
-uint32_t elcore_core_read(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* to,  void* offset, int *size)
+uint32_t elcore_core_read(void *hdl, uint32_t core_num, void* to,  void* offset, int *size)
 {
 	delcore30m_t		*dev = hdl;
 // 	delcore30m_firmware *frw = (delcore30m_firmware*)data;
@@ -399,7 +399,7 @@ uint32_t elcore_core_read(void *hdl, /*void* data, void* offset*/uint32_t core_n
     return get_dsp_addr(hdl, (uint32_t)offset);
 }
 
-uint32_t  elcore_core_write(void *hdl, /*void* data, void* offset*/uint32_t core_num, void* from, void* offset, 
+uint32_t  elcore_core_write(void *hdl, uint32_t core_num, void* from, void* offset, 
 int 
 *size)
 {
@@ -451,12 +451,32 @@ int
 }
 
 
-int		elcore_set_pram(void *hdl, void *job)
+int		elcore_set_prog( void *hdl, void *job)
 {
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
-	elcore_job_t *cur_job = (elcore_job_t*)job;
-	uint32_t pram_size;
+	elcore_job_t			*cur_job = (elcore_job_t*)job;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+	uint32_t pram_size, mem_parts;
+	int		part_n, code_send_size;
+    
+    mem_parts = DLCR30M_GET_MEM_PARTS(cur_core);
+    
+    printf("%s: mem_parts for core %u: %u\n", __func__, cur_job->job_pub.core, mem_parts);
+    
+    for ( part_n = 1; part_n <= mem_parts; part_n++) //find first free mem part
+	{
+		if ( !DLCR30M_CHECK_MEM_PART(cur_core, part_n) )
+		{
+			break;
+		}
+	}
+	
+	if (part_n > mem_parts) //no vacant mem parts
+	{
+		return EBUSY;
+	}
+	
 	
 // 	pram_size = dsp_get_reg32(dev, DLCR30M_CSR);
 	
@@ -466,38 +486,143 @@ int		elcore_set_pram(void *hdl, void *job)
 		pram_size = DLCR30M_BANK_SIZE;
 		break;
 	case DLCR30M_PMCONF_3:
-        return -ENOTSUP; //TODO: temporary not avail
+        return ENOTSUP; //TODO: temporary not avail
 		pram_size = 3 * DLCR30M_BANK_SIZE;
 		break;
 	case DLCR30M_PMCONF_4:
-        return -ENOTSUP; //TODO: temporary not avail
+        return ENOTSUP; //TODO: temporary not avail
 		pram_size = 4 * DLCR30M_BANK_SIZE;
 		break;
 	default:
-		return -EINVAL;
+		return EINVAL;
 	}
-	if (cur_job->job_pub.code.size > pram_size)
+
+	code_send_size = cur_job->job_pub.code.size;
+	pram_size = pram_size / mem_parts; //mem per one block
+	
+	if (code_send_size > pram_size)
 	{
 		printf("Firmware is too big\n");
-		return -EINVAL;
+		return ENOMEM;
 	}
 	
-// 	memcpy(dev->core[firmware->cores].pram, firmware->data, firmware->size);
-// 	elcore_core_write(dev,firmware->cores, firmware->data, 0, &firmware->size);
-// 	
-// 	if (firmware->size < 0)
-// 	{
-// 		return EINVAL;
-// 	}
-// 	
-// 	elcore_core_write(dev, firmware, 0);
-// 	
-// 	dev->core[firmware->cores].fw_size = firmware->size;
-// 	dev->core[firmware->cores].fw_ready = DLCR30M_FWREADY;
+	if (1)
+	{	//use dma
+		cur_job->code_dspaddr = elcore_dmasend(dev, cur_job->job_pub.core, cur_job->job_pub.code.client_paddr,
+										(part_n - 1) * pram_size, &code_send_size);
+	}
+	else
+	{	//not use dma, need to mmap paddr
+// 		cur_job->code_dspaddr = elcore_core_write(dev, cur_job->job_pub.core, cur_job->job_pub.code.client_paddr,
+// 										(part_n - 1) * pram_size, &code_send_size);
+	}
+	
+	
+	if (code_send_size < 0)
+	{
+		return EINVAL;
+	}
+
+	cur_job->mem_part = part_n;
 	
 	return EOK;
 }
 
+int		elcore_set_data( void *hdl, void *job)
+{
+	printf("%s: entry\n", __func__);
+	delcore30m_t			*dev = hdl;
+	elcore_job_t			*cur_job = (elcore_job_t*)job;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+	uint32_t  xyram_size, mem_parts, xy_offset;
+	int		part_n, i, data_send_size;
+    
+    mem_parts = DLCR30M_GET_MEM_PARTS(cur_core);
+	part_n = cur_job->mem_part;
+    
+    printf("%s: mem_parts for core %u: %u\n", __func__, cur_job->job_pub.core, mem_parts);
+   
+	
+	if (part_n > mem_parts && part_n == DLCR30M_NO_MEM_PARTS) //call set pram first
+	{
+		return EBUSY;
+	}
+	
+	switch (dev->pm_conf)
+	{
+	case DLCR30M_PMCONF_1:
+		xyram_size = 4 * DLCR30M_BANK_SIZE;
+		break;
+	case DLCR30M_PMCONF_3:
+        return ENOTSUP; //TODO: temporary not avail
+		xyram_size = 2 * DLCR30M_BANK_SIZE;
+		break;
+	case DLCR30M_PMCONF_4:
+        return ENOTSUP; //TODO: temporary not avail
+		xyram_size = DLCR30M_BANK_SIZE;
+		break;
+	default:
+		return EINVAL;
+	}
+
+	xyram_size = xyram_size / mem_parts; //mem per one block
+	
+	for (i = 0, data_send_size = 0; i < cur_job->job_pub.inum /*+ cur_job->job_pub.onum*/; i++)
+	{
+		data_send_size += cur_job->job_pub.input[i].size;
+		//data_send_size += cur_job->job_pub.output[i].size;
+	}
+	
+	if (data_send_size > xyram_size)
+	{
+		printf("Firmware is too big\n");
+		return ENOMEM;
+	}
+	//starting offset for first data block
+	xy_offset = DLCR30M_BANK_SIZE + (part_n - 1) * xyram_size; 
+	
+	for (i = 0  ; i < cur_job->job_pub.inum; i++)
+	{
+		data_send_size = cur_job->job_pub.input[i].size;
+		
+		if (1)
+		{	//use dma
+			cur_job->input_dspaddr[i] = elcore_dmasend(dev, cur_job->job_pub.core,
+				cur_job->job_pub.input[i].client_paddr, xy_offset, &data_send_size);
+		}
+		else
+		{	//not use dma, need to mmap paddr
+// 			cur_job->input_dspaddr[i] = elcore_core_write(dev, cur_job->job_pub.core,
+// 				cur_job->job_pub.input[i].client_paddr, xy_offset, &data_send_size);
+		}
+		
+		if (data_send_size < 0)
+		{
+			return EINVAL;
+		}
+		
+		xy_offset += data_send_size;
+		
+	}
+	printf("%s: sum size: %u\n", __func__, xy_offset - DLCR30M_BANK_SIZE);
+	//set part busy at mem_config
+	DLCR30M_SET_PART_BUSY(cur_core, part_n);
+	
+	return EOK;
+}
+
+int			release_mem(void *hdl, void *job)
+{
+	printf("%s: entry\n", __func__);
+	delcore30m_t			*dev = hdl;
+	elcore_job_t			*cur_job = (elcore_job_t*)job;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+	
+	DLCR30M_SET_PART_FREE(cur_core, cur_job->mem_part);
+	cur_job->mem_part = DLCR30M_NO_MEM_PARTS;
+	
+	return EOK;
+}
 int		elcore_release_pram(void *hdl, uint32_t core_num)
 {
 	delcore30m_t			*dev = hdl;
@@ -994,6 +1119,8 @@ exit0:
 
 	return 0;
 }
+
+
 
 void elcore_func_fini(void *hdl)
 {
