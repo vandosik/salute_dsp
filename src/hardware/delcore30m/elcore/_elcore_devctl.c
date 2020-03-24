@@ -289,24 +289,13 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 
 			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
 			{
-				cur_job->rcvid = ctp->rcvid;
-				
+//                 status = EOK;
+//                 nbytes
 				return EBUSY;
 			}
-#if 0
-			//set output data for job
-			for (it = 0; it < cur_job->job_pub.inum; it++)
-            {
-				printf("%s: set output: 0x%08x\n", __func__, cur_job->job_pub.output[it].client_paddr);
-				//BUG: offset 0
-				status = dev->funcs->dma_recv(drvhdl, cur_job->job_pub.core,
-                          cur_job->job_pub.output[it].client_paddr, 0, cur_job->job_pub.output[it].size);
-				if (status < 0)
-				{
-					return EINVAL;
-				}
-            }
-#endif
+			
+            status = dev->funcs->get_data(drvhdl, cur_job);
+
 			break;
 		}
 		case DCMD_ELCORE_JOB_CANCEL:

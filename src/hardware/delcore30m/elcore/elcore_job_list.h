@@ -13,8 +13,11 @@ typedef struct _elcore_job {
 	int						rcvid;
 	uint8_t					mem_part;
 	uint32_t				code_dspaddr;
-	uint32_t				input_dspaddr[MAX_INPUTS];
-	uint32_t				outpu_dspaddr[MAX_OUTPUTS];
+	uint32_t				code_cpuaddr;
+	uint32_t				input_dspaddr[MAX_INPUTS]; //in dsp addressing
+	uint32_t				output_dspaddr[MAX_OUTPUTS]; //in dsp adressing
+	uint32_t				input_cpupaddr[MAX_INPUTS]; //in cpu adressing
+	uint32_t				output_cpupaddr[MAX_INPUTS]; //in cpu adressing
     
 	struct _elcore_job		*next;
 } elcore_job_t;

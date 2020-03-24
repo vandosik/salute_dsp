@@ -16,17 +16,16 @@ static uint32_t addr2delcore30m(uint32_t addr)
 	return (((addr) & 0xFFFFF) >> 2);
 }
 
-static uint32_t get_dsp_addr(void *hdl, uint32_t offset)
+static uint32_t get_dsp_addr(delcore30m_t *dev, uint32_t offset)
 {
 	printf("%s: entry\n", __func__);
-	delcore30m_t			*dev = hdl;
 	uint32_t				dsp_addr;
 	
 	
 	uint32_t pram_size = ( dev->pm_conf + 1) * DLCR30M_BANK_SIZE;
 	
 
-	if (offset > pram_size)
+	if (offset >= pram_size)
 	{
 		//XYRAM adrrs per word, starting with 0x0000
 		dsp_addr = addr2delcore30m(offset - pram_size);
@@ -83,6 +82,8 @@ int dsp_core_print_regs(dsp_core* core)
     printf("\tR%u:\t\t%4.8X\n", iter, dsp_get_reg32(core,
                                                     (!(iter % 2)? DLCR30M_R2L(iter):DLCR30M_R1L(iter))));
     }
+    
+    sdma_mem_dump(core->xyram, 16);
 
     return 0;
 }
@@ -267,6 +268,39 @@ void *elcore_func_init(void *hdl, char *options)
 
 // int		elcore_wait_irq
 
+
+static uint32_t set_args(delcore30m_t *dev, elcore_job_t *cur_job)
+{
+	printf("%s: entry\n", __func__);
+	int i;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+
+// 	int inregs = min(desc->num_bufs, 2);
+
+// 	int instack = desc->num_bufs - inregs;
+// 	u64 *stack = (u64 *)desc->pdata->stack[core].vaddr - instack +
+// 		     STACK_SIZE / sizeof(u64);
+
+	/* Set registers R2 and R4 */
+	for (i = 0; i < cur_job->job_pub.inum; ++i)
+	{
+		dsp_set_reg32(cur_core, DLCR30M_R2L(i * 2 + 2), cur_job->input_dspaddr[i]);
+	}
+	for (i = 0; i < cur_job->job_pub.onum; ++i)
+	{
+		dsp_set_reg32(cur_core, DLCR30M_R2L((cur_job->job_pub.inum + i) * 2 + 2), cur_job->output_dspaddr[i]);
+	}
+	
+	
+	/* Args 0 and 1 in R2 and R4. Each arg - 8 bytes */
+// 	for (i = 2; i < desc->num_bufs; ++i) {
+// 		dma_address = sg_dma_address(desc->bufs[i].sgt->sgl);
+// 		stack[i - 2] = dma_address;
+// 	}
+// 	return (u8 *)stack - (u8 *)desc->pdata->stack[core].vaddr;
+	return 0;
+}
+
 int		elcore_start_core(void *hdl, uint32_t core_num)
 {
 	printf("%s: entry\n", __func__);
@@ -286,15 +320,22 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 		printf("Job is already running\n");
 		return EBUSY;
 	}
+	
+	set_args(dev, cur_job);
+	
+	printf("%s: 1\n", __func__);
+	
+	dsp_set_reg16(core, DLCR30M_PC,cur_job->code_dspaddr);
+	printf("%s: 2\n", __func__);
 	//enable interrupts
 	val32 = dsp_get_reg32(dev, DLCR30M_MASKR);
 	val32 |= DLCR30M_QSTR_CORE_MASK(core_num);
 	dsp_set_reg32(dev, DLCR30M_MASKR, val32);
-
+	printf("%s: 3\n", __func__);
 	cur_job->job_pub.status = ELCORE_JOB_RUNNING;
 	core->job_id = cur_job->job_pub.id; 
 	
-	dsp_set_reg16(core, DLCR30M_PC, /*cur_job->job_pub.code.client_paddr*/cur_job->code_dspaddr);
+	
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
 	
 	
@@ -522,7 +563,8 @@ int		elcore_set_prog( void *hdl, void *job)
 	{
 		return EINVAL;
 	}
-
+	
+	cur_job->code_cpuaddr = cur_core->pram_phys + (part_n - 1) * pram_size;
 	cur_job->mem_part = part_n;
 	
 	return EOK;
@@ -567,10 +609,14 @@ int		elcore_set_data( void *hdl, void *job)
 
 	xyram_size = xyram_size / mem_parts; //mem per one block
 	
-	for (i = 0, data_send_size = 0; i < cur_job->job_pub.inum /*+ cur_job->job_pub.onum*/; i++)
+	for (i = 0, data_send_size = 0; i < cur_job->job_pub.inum; i++)
 	{
 		data_send_size += cur_job->job_pub.input[i].size;
-		//data_send_size += cur_job->job_pub.output[i].size;
+	}
+	
+	for (i = 0; i < cur_job->job_pub.onum ; i++)
+	{
+		data_send_size += cur_job->job_pub.output[i].size;
 	}
 	
 	if (data_send_size > xyram_size)
@@ -589,6 +635,8 @@ int		elcore_set_data( void *hdl, void *job)
 		{	//use dma
 			cur_job->input_dspaddr[i] = elcore_dmasend(dev, cur_job->job_pub.core,
 				cur_job->job_pub.input[i].client_paddr, xy_offset, &data_send_size);
+			
+			printf("%s: input_dspaddr 0x%04x\n", __func__, cur_job->input_dspaddr[i]);
 		}
 		else
 		{	//not use dma, need to mmap paddr
@@ -600,14 +648,63 @@ int		elcore_set_data( void *hdl, void *job)
 		{
 			return EINVAL;
 		}
+		cur_job->input_cpupaddr[i] = cur_core->xyram_phys + xy_offset;
+		xy_offset += data_send_size;
+		
+	}
+	
+	//TODO: NEED THE SAME CYCLE FOR OUTPUT?
+	for (i = 0  ; i < cur_job->job_pub.onum; i++)
+	{
+		data_send_size = cur_job->job_pub.output[i].size;
+		
+		cur_job->output_dspaddr[i] = get_dsp_addr(dev, xy_offset);
+		cur_job->output_cpupaddr[i] = cur_core->xyram_phys + xy_offset - DLCR30M_BANK_SIZE;
+		
+		printf("%s: output_dspaddr 0x%04x\n", __func__, cur_job->output_dspaddr[i]);
 		
 		xy_offset += data_send_size;
 		
 	}
+	
+	
 	printf("%s: sum size: %u\n", __func__, xy_offset - DLCR30M_BANK_SIZE);
 	//set part busy at mem_config
 	DLCR30M_SET_PART_BUSY(cur_core, part_n);
 	
+	return EOK;
+}
+
+int			elcore_get_data( void *hdl, void *job)
+{
+	printf("%s: entry\n", __func__);
+	delcore30m_t			*dev = hdl;
+	elcore_job_t			*cur_job = (elcore_job_t*)job;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+	int						i, data_read_size;
+	uint32_t				xy_offset;
+	
+	
+	for (i = 0  ; i < cur_job->job_pub.onum; i++)
+	{
+		data_read_size = cur_job->job_pub.output[i].size;
+		xy_offset = cur_job->output_cpupaddr[i] - cur_core->xyram_phys + DLCR30M_BANK_SIZE;
+		
+		if (1)
+		{//using dma
+			elcore_dmarecv(dev, cur_job->job_pub.core,
+				cur_job->job_pub.output[i].client_paddr, xy_offset, &data_read_size);
+		}
+		else
+		{//no dma
+			
+		}
+		
+		if (data_read_size < 0)
+		{
+			return EINVAL;
+		}
+	}
 	return EOK;
 }
 
@@ -971,7 +1068,7 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 	 }
  
 	printf("%s: %u bytes had been written to offset: %u\n", __func__, *size, offset);
-	sdma_mem_dump(core->pram + offset, 40);
+// 	sdma_mem_dump(core->pram + offset, 40);
 	
 	sdma_release_task(&sdma_task);
 
@@ -1105,7 +1202,7 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 		}
     }
 	printf("%s: %u bytes had been read from offset: %u\n", __func__, *size, offset);
-	sdma_mem_dump(core->pram + offset, 40);
+// 	sdma_mem_dump(core->pram + offset, 40);
 	
 	sdma_release_task(&sdma_task);
 

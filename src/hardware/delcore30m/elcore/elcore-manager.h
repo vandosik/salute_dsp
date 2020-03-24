@@ -299,6 +299,8 @@ int *size);
 	int			(*set_prog)( void *hdl, void *job);
 
 	int			(*set_data)( void *hdl, void *job);
+    
+	int			(*get_data)( void *hdl, void *job);
 	
 	int			(*release_mem)(void *hdl, void *job);
 

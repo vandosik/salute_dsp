@@ -72,10 +72,10 @@
 	#define DLCR30M_QSTR_CORE_MASK(core_num)		(0xF << (8 * (core_num)))
 	#define DLCR30M_QSTR_MASK						(DLCR30M_QSTR_CORE_MASK(0) | DLCR30M_QSTR_CORE_MASK(1))
 	#define DLCR30M_QSTR_PI(core_num)				(1<<(8 * core_num))
-	#define DLCR30M_QSTR_SE(core_num)				(1<<(1 + 8 * core_num))
-	#define DLCR30M_QSTR_BREAK(core_num)			(1<<(2 + 8 * core_num))
-	#define DLCR30M_QSTR_STP(core_num)				(1<<(3 + 8 * core_num))
-	#define DLCR30M_QSTR_dBREAK(core_num)			(1<<(4 + 8 * core_num))
+	#define DLCR30M_QSTR_SE(core_num)				(1<<(1 + 8 * (core_num)))
+	#define DLCR30M_QSTR_BREAK(core_num)			(1<<(2 + 8 * (core_num)))
+	#define DLCR30M_QSTR_STP(core_num)				(1<<(3 + 8 * (core_num)))
+	#define DLCR30M_QSTR_dBREAK(core_num)			(1<<(4 + 8 * (core_num)))
 	#define DLCR30M_QSTR_WAIT						(1<<5)
 	#define DLCR30M_QSTR_INT_MEM_ERR 				(1<<6)
 
@@ -100,8 +100,8 @@
 	#define DLCR30M_CSR_HEN							(1 << 16)
 	#define DLCR30M_CSR_DEN							(1 << 17)
 	#define DLCR30M_CSR_LEN							(1 << 18)
-	#define DLCR30M_CSR_DPTR(val)					((val & 0x3) << 20)
-	#define DLCR30M_CSR_LIMIT(val)					((val & 0x3F) << 24)
+	#define DLCR30M_CSR_DPTR(val)					(((val) & 0x3) << 20)
+	#define DLCR30M_CSR_LIMIT(val)					(((val) & 0x3F) << 24)
 
 #define DLCR30M_TOTAL_RUN						(DLCR30M_CMN_REGS + 12)	//R/W
 
@@ -132,25 +132,25 @@
 #define DLCR30M_SP								0x138			//R/W 16
 #define DLCR30M_SAR0							0x13C			//R/W 16
 #define DLCR30M_CNTR							0x140			//R/W 16
-#define DLCR30M_SAR(num)						(num * 4 + 0x144)//R/W 16
+#define DLCR30M_SAR(num)						((num) * 4 + 0x144)//R/W 16
 
 #define DLCR30M_CCR								0x160			//R/W 16
 #define DLCR30M_PDNR							0x164			//R/W 16
 #define DLCR30M_SFR								0x168			//R/W 32
-#define DLCR30M_QMASKR(num)						(num * 4 + 0x170)//R/W 32
+#define DLCR30M_QMASKR(num)						((num) * 4 + 0x170)//R/W 32
 
-#define DLCR30M_A(index)						(index * 4 + 0x80)//R/W 32
-#define DLCR30M_I(index)						(index * 4 + 0xA0)//R/W 32/16??????
-#define DLCR30M_M(index)						(index * 8 + 0xC0)//R/W 32/16?????
+#define DLCR30M_A(index)						((index) * 4 + 0x80)//R/W 32
+#define DLCR30M_I(index)						((index) * 4 + 0xA0)//R/W 32/16??????
+#define DLCR30M_M(index)						((index) * 8 + 0xC0)//R/W 32/16?????
 #define DLCR30M_AT								0xE0				//R/W 32
 #define DLCR30M_IT								0xE4				//R/W 16
 #define DLCR30M_MT								0xE8				//R/W 16
 #define DLCR30M_DT								0xEC				//R/W 16
 #define DLCR30M_IVAR							0xFC				//R/W 16
 
-#define DLCR30M_R2L(index)						(index * 2)		 //R/W? 32    0,2,4...30
-#define DLCR30M_R1L(index)						(0x40 + (index * 2 - 2))//R/W? 32   1,3,5...31  
-#define DLCR30M_AC(index)						(index * 4 + 0x200)
+#define DLCR30M_R2L(index)						((index) * 2)		 //R/W? 32    0,2,4...30
+#define DLCR30M_R1L(index)						(0x40 + ((index) * 2 - 2))//R/W? 32   1,3,5...31  
+#define DLCR30M_AC(index)						((index) * 4 + 0x200)
 // #define DLCR30M_PB_ERR_SR 0x340				//R/W? 32
 
 #define DLCR30M_dbDCSR							0x500			//R/W 16
@@ -165,7 +165,7 @@
 #define DLCR30M_dbPCe3							0x538			//R 16
 #define DLCR30M_dbSAR0							0x53C			//R/W 16
 #define DLCR30M_dbCNTR							0x540			//R/W 16
-#define DLCR30M_dbSAR(index)					(index * 4 + 0x544) //R/W 16
+#define DLCR30M_dbSAR(index)					((index) * 4 + 0x544) //R/W 16
 
 
 #define dsp_get_reg16(CORE_VAR,REG_NAME)						*((uint16_t*)((CORE_VAR)->regs + REG_NAME))
@@ -263,6 +263,7 @@ extern uint32_t		elcore_dmarecv( void *hdl, uint32_t core_num, uint32_t to,  uin
 extern uint32_t		elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size);
 extern int			elcore_set_prog( void *hdl, void *job);
 extern int			elcore_set_data( void *hdl, void *job);
+extern int			elcore_get_data( void *hdl, void *job);
 
 extern int			release_mem(void *hdl, void *job);
 
@@ -282,6 +283,7 @@ elcore_funcs_t elcore_funcs = {
 	elcore_dmarecv,
 	elcore_set_prog,
 	elcore_set_data,
+    elcore_get_data,
 	release_mem,
 	
 };
