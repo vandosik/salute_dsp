@@ -188,7 +188,7 @@ int main( int argc, char** argv )
     (*(uint32_t*)(arg_data + 4)) = 0x11111111;
     
     ELCORE_JOB firs_job = {
-        .core = 0,
+        .core = 1,
         .inum = 1,
         .input[0] = {size_2, arg_paddr},
         .onum = 1,

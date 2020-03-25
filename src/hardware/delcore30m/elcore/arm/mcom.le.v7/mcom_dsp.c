@@ -16,22 +16,23 @@ static uint32_t addr2delcore30m(uint32_t addr)
 	return (((addr) & 0xFFFFF) >> 2);
 }
 
-static uint32_t get_dsp_addr(delcore30m_t *dev, uint32_t offset)
+static uint32_t get_dsp_addr(delcore30m_t *dev, uint32_t offset, uint8_t core)
 {
 	printf("%s: entry\n", __func__);
 	uint32_t				dsp_addr;
 	
-	
+	//no supported only one block for pram and four for xyram
 	uint32_t pram_size = ( dev->pm_conf + 1) * DLCR30M_BANK_SIZE;
 	
 
 	if (offset >= pram_size)
 	{
-		//XYRAM adrrs per word, starting with 0x0000
-		dsp_addr = addr2delcore30m(offset - pram_size);
+		//XYRAM adrrs per word, starting with 0x0000 for all cores
+        //for 2nd core xyram addrs starts with 0x8000
+		dsp_addr = addr2delcore30m(offset - pram_size) + (0x8000 * core);
 	}
 	else
-	{
+	{  //PRAM
 		dsp_addr = addr2delcore30m(offset);
 	}
 
@@ -269,7 +270,7 @@ void *elcore_func_init(void *hdl, char *options)
 // int		elcore_wait_irq
 
 
-static uint32_t set_args(delcore30m_t *dev, elcore_job_t *cur_job)
+static uint32_t elcore_set_args(delcore30m_t *dev, elcore_job_t *cur_job)
 {
 	printf("%s: entry\n", __func__);
 	int i;
@@ -284,10 +285,13 @@ static uint32_t set_args(delcore30m_t *dev, elcore_job_t *cur_job)
 	/* Set registers R2 and R4 */
 	for (i = 0; i < cur_job->job_pub.inum; ++i)
 	{
+        printf("%s: set R%u to 0x%08x  \n", __func__, i * 2 + 2, cur_job->input_dspaddr[i] );
 		dsp_set_reg32(cur_core, DLCR30M_R2L(i * 2 + 2), cur_job->input_dspaddr[i]);
 	}
 	for (i = 0; i < cur_job->job_pub.onum; ++i)
 	{
+        printf("%s: set R%u to 0x%08x \n", __func__, (cur_job->job_pub.inum + i) * 2 + 2, cur_job->output_dspaddr[i] 
+);
 		dsp_set_reg32(cur_core, DLCR30M_R2L((cur_job->job_pub.inum + i) * 2 + 2), cur_job->output_dspaddr[i]);
 	}
 	
@@ -321,17 +325,16 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 		return EBUSY;
 	}
 	
-	set_args(dev, cur_job);
+	elcore_set_args(dev, cur_job);
 	
-	printf("%s: 1\n", __func__);
 	
 	dsp_set_reg16(core, DLCR30M_PC,cur_job->code_dspaddr);
-	printf("%s: 2\n", __func__);
+
 	//enable interrupts
 	val32 = dsp_get_reg32(dev, DLCR30M_MASKR);
 	val32 |= DLCR30M_QSTR_CORE_MASK(core_num);
 	dsp_set_reg32(dev, DLCR30M_MASKR, val32);
-	printf("%s: 3\n", __func__);
+
 	cur_job->job_pub.status = ELCORE_JOB_RUNNING;
 	core->job_id = cur_job->job_pub.id; 
 	
@@ -437,7 +440,7 @@ uint32_t elcore_core_read(void *hdl, uint32_t core_num, void* to,  void* offset,
 	printf("%s: %u bytes had been read from offset: %u\n", __func__, *size, (uint32_t)offset);
     
     
-    return get_dsp_addr(hdl, (uint32_t)offset);
+    return get_dsp_addr(hdl, (uint32_t)offset, core_num);
 }
 
 uint32_t  elcore_core_write(void *hdl, uint32_t core_num, void* from, void* offset, 
@@ -488,7 +491,7 @@ int
 	 }
 	printf("%s: %u bytes had been written to offset: %u\n", __func__, *size, (uint32_t)offset);
 	
-    return get_dsp_addr(hdl, (uint32_t)offset);
+    return get_dsp_addr(hdl, (uint32_t)offset, core_num);
 }
 
 
@@ -658,7 +661,7 @@ int		elcore_set_data( void *hdl, void *job)
 	{
 		data_send_size = cur_job->job_pub.output[i].size;
 		
-		cur_job->output_dspaddr[i] = get_dsp_addr(dev, xy_offset);
+		cur_job->output_dspaddr[i] = get_dsp_addr(dev, xy_offset, cur_job->job_pub.core);
 		cur_job->output_cpupaddr[i] = cur_core->xyram_phys + xy_offset - DLCR30M_BANK_SIZE;
 		
 		printf("%s: output_dspaddr 0x%04x\n", __func__, cur_job->output_dspaddr[i]);
@@ -1072,7 +1075,7 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 	
 	sdma_release_task(&sdma_task);
 
-	return get_dsp_addr(hdl, offset);
+	return get_dsp_addr(hdl, offset, core_num);
 	
 exit1:
 	
@@ -1206,7 +1209,7 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 	
 	sdma_release_task(&sdma_task);
 
-	return get_dsp_addr(hdl, offset);
+	return get_dsp_addr(hdl, offset, core_num);
 	
 exit1:
 	
