@@ -29,7 +29,7 @@ static uint32_t get_dsp_addr(delcore30m_t *dev, uint32_t offset, uint8_t core)
 	{
 		//XYRAM adrrs per word, starting with 0x0000 for all cores
         //for 2nd core xyram addrs starts with 0x8000
-		dsp_addr = addr2delcore30m(offset - pram_size) + (0x8000 * core);
+		dsp_addr = addr2delcore30m(offset - pram_size) + (addr2delcore30m(DLCR30M_BANK_SIZE * 4) * core);
 	}
 	else
 	{  //PRAM
