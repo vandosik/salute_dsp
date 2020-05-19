@@ -22,18 +22,24 @@ void* elcore_job_hdl_init(uint32_t cores_num)
 	}
 	//TODO: do we need this dynamic allocation?
 	job_hdl->cores_num = cores_num;
-	job_hdl->core_jobs_max = calloc(cores_num * 2, sizeof(uint32_t));
+	job_hdl->core_jobs_max = calloc(cores_num * 2, sizeof(uint32_t)); //get one page, instead of  two
 	job_hdl->core_jobs_cnt = job_hdl->core_jobs_max + cores_num;
 	
 	if ( !job_hdl->core_jobs_max || !job_hdl->core_jobs_cnt )
 	{
+		free(job_hdl);
+        
 		return NULL;
 	}
 	
 	if (pthread_mutex_init( &jobs_mutex,NULL ) != EOK)
-    {   //TODO: free alloced mem?
-        return NULL;
-    }
+	{   //TODO: free alloced mem?
+	    
+		free(job_hdl->core_jobs_max);
+		free(job_hdl);
+	    
+	    return NULL;
+	}
 	
 	return job_hdl;
 }
@@ -57,7 +63,7 @@ void elcore_job_hdl_fini(void* hdl)
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
 	int it = 0;
 	
 	for (; it < job_hdl->cores_num; it++)
@@ -88,7 +94,7 @@ static int job_put_to_storage(void *hdl, elcore_job_t* job )
 {
 	printf("%s: entry job_id: %u\n", __func__, job->job_pub.id);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	elcore_job_t		*tmp_job = job_hdl->storage;
 	
 	if (!tmp_job)
@@ -142,17 +148,16 @@ elcore_job_t* alloc_job(void *hdl, ELCORE_JOB* job_pub)
 	
 	unlock_return(new_job);
 }
-
+//static funcs not need locks
 static int job_remove_from_storage(elcore_job_t** storage, elcore_job_t* trg_job)
 {
 	printf("%s: entry job_id: %u\n", __func__, trg_job->job_pub.id);
 	elcore_job_t	*tmp_job = *storage, *job_del;
 
-	elcore_jobs_lock();
 	
 	if (!tmp_job)
 	{
-		unlock_return(-1);
+		return -1;
 	}
 	
 	if (tmp_job == trg_job)
@@ -160,7 +165,7 @@ static int job_remove_from_storage(elcore_job_t** storage, elcore_job_t* trg_job
 		*storage = tmp_job->next;
 		
 		
-		unlock_return(0);
+		return 0;
 	}
 	while (tmp_job->next)
 	{
@@ -169,18 +174,18 @@ static int job_remove_from_storage(elcore_job_t** storage, elcore_job_t* trg_job
 			job_del = tmp_job->next;
 			tmp_job->next = job_del->next;
 			
-			unlock_return(0);
+			return 0;
 		}
 		tmp_job = tmp_job->next;
 	}
-	unlock_return(-1);
+	return -1;
 }
 
 int release_job(void *hdl, elcore_job_t* job )
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = drvhdl->job_hdl;
 	
 	elcore_jobs_lock();
 	
@@ -208,7 +213,7 @@ int job_enqueue( void *hdl, elcore_job_t* job )
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	
 	elcore_jobs_lock();
 	
@@ -232,7 +237,7 @@ int job_enqueue( void *hdl, elcore_job_t* job )
 	{
 		job_hdl->queue = job;
 		job->next = NULL;
-        job->job_pub.status = ELCORE_JOB_ENQUEUED;
+		job->job_pub.status = ELCORE_JOB_ENQUEUED;
 		unlock_return(0);
 	}
 	while (tmp_job->next)
@@ -251,7 +256,7 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	
 	elcore_jobs_lock();
 	
@@ -268,7 +273,7 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 		job_hdl->queue = tmp_job->next;
 		tmp_job->job_pub.status = ELCORE_JOB_IDLE;
         
-        job_put_to_storage(hdl, tmp_job);
+		job_put_to_storage(hdl, tmp_job);
 		
 		unlock_return(0);
 	}
@@ -280,7 +285,7 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 			tmp_job->next = job_del->next;
 			job_del->job_pub.status = ELCORE_JOB_IDLE;
 			
-            job_put_to_storage(hdl, tmp_job);
+			job_put_to_storage(hdl, tmp_job);
             
 			unlock_return(0);
 		}
@@ -319,12 +324,12 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 // 	return NULL;
 // }
 
-//TODO: may more than jne core do job?
+//TODO: may more than one core do job?
 elcore_job_t* get_job_first_enqueued( void *hdl, uint8_t core )
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	
 	elcore_jobs_lock();
 	
@@ -358,7 +363,7 @@ elcore_job_t* get_job_first_enqueued( void *hdl, uint8_t core )
 // 	}
 // 	while (tmp_job->next)
 // 	{
-// 		tmp_job = tmp_job->next;
+// 		tmp_job = tmp_job->njob_put_to_storageext;
 // 	}
 // 	return tmp_job;
 // }
@@ -367,7 +372,7 @@ elcore_job_t* get_enqueued_by_id( void *hdl , uint32_t id)
 {
 	printf("%s: entry\n", __func__);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	
 	elcore_jobs_lock();
 	
@@ -398,7 +403,7 @@ elcore_job_t* get_stored_by_id( void *hdl , uint32_t id)
 {
 	printf("%s: entry job_id: %u\n", __func__, id);
 	ELCORE_DEV			*drvhdl = hdl;
-    elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
+	elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl;
 	
 	elcore_jobs_lock();
 	

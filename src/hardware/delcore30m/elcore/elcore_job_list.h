@@ -26,8 +26,8 @@ typedef struct _elcore_job_hdl {
 	elcore_job_t			*storage;
 	elcore_job_t			*queue;
 	int						cores_num;
-	uint32_t*				core_jobs_max; //max jobs fore core
-	uint32_t*				core_jobs_cnt; //current quantity of jobs for core
+	uint32_t				*core_jobs_max; //max jobs fore core
+	uint32_t				*core_jobs_cnt; //current quantity of jobs for core
 } elcore_job_hdl_t;
 
 //funcs to operate with jobs list

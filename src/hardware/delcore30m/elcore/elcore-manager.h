@@ -175,7 +175,9 @@ typedef struct _elcore_job_entry {
 
 } ELCORE_JOB;
 
+//TODO: move this somewhere else
 #include <elcore_job_list.h>
+
 
 typedef struct {
 	uint32_t	len;

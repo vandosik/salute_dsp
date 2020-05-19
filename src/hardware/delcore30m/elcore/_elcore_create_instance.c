@@ -25,13 +25,14 @@
 #include "proto.h"
 
 static int _elcore_register_interface(void *data)
-{printf("%s()\n", __func__);
+{
 	elcore_dev_t		*dev = data;
 	ELCORE_DEV			*drvhdl;
 	resmgr_attr_t		rattr;
 	char				devname[PATH_MAX + 1];
 
-	if ((drvhdl = dev->funcs->init(dev, dev->opts)) == NULL) {
+	if ((drvhdl = dev->funcs->init(dev, dev->opts)) == NULL)
+	{
 		free(dev->opts);
 		return (!EOK);
 	}
@@ -56,7 +57,8 @@ static int _elcore_register_interface(void *data)
 	/* register device name */
 	snprintf(devname, PATH_MAX, "/dev/elcore%d", dev->devnum);
 	if (-1 == (dev->id = resmgr_attach(dev->dpp, &rattr, devname, _FTYPE_ANY, 0,
-					&_elcore_connect_funcs, &_elcore_io_funcs, (void *)drvhdl))) {
+					&_elcore_connect_funcs, &_elcore_io_funcs, (void *)drvhdl))) 
+	{
 		perror("resmgr_attach() failed");
 		goto failed1;
 	}
@@ -76,13 +78,14 @@ failed1:
 }
 
 static void* _elcore_driver_thread(void *data)
-{printf("%s()\n", __func__);
+{
 	elcore_dev_t	*dev = data;
 
 	if (_elcore_register_interface(data) != EOK)
 		return NULL;
 
-	while (1) {
+	while (1) 
+	{
 		if ((dev->ctp = dispatch_block(dev->ctp)) != NULL)
 			dispatch_handler(dev->ctp);
 		else
@@ -93,11 +96,12 @@ static void* _elcore_driver_thread(void *data)
 }
 
 int _elcore_create_instance(elcore_dev_t *dev)
-{printf("%s()\n", __func__);
+{
 	pthread_attr_t		pattr;
 	struct sched_param	param;
 
-	if (NULL == (dev->dpp = dispatch_create())) {
+	if (NULL == (dev->dpp = dispatch_create())) 
+	{
 		perror("dispatch_create() failed");
 		goto failed0;
 	}
@@ -109,7 +113,8 @@ int _elcore_create_instance(elcore_dev_t *dev)
 	pthread_attr_setinheritsched(&pattr, PTHREAD_EXPLICIT_SCHED);
 
 	// Create thread for this interface
-	if (pthread_create(NULL, &pattr, (void *)_elcore_driver_thread, dev) != EOK) {
+	if (pthread_create(NULL, &pattr, (void *)_elcore_driver_thread, dev) != EOK) 
+	{
 		perror("pthread_create() failed");
 		goto failed1;
 	}
@@ -118,7 +123,8 @@ int _elcore_create_instance(elcore_dev_t *dev)
 		delay(1);
 	}
 
-	if (pthread_create(NULL, NULL, dev->funcs->irq_thread, dev->drvhdl) != EOK) {
+	if (pthread_create(NULL, NULL, dev->funcs->irq_thread, dev->drvhdl) != EOK) 
+	{
 		perror("pthread_create() failed");
 		goto failed1;
 	}

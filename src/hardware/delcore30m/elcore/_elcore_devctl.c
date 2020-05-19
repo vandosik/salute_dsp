@@ -30,7 +30,7 @@ int
 _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 {printf("%s()\n", __func__);
 	int			status;
-    int			nbytes = 0;
+	int			nbytes = 0;
 	ELCORE_DEV		*drvhdl = (ELCORE_DEV *)ocb->hdr.attr;
 	elcore_dev_t	*dev = drvhdl->hdl;
 	void* devctl_data;
@@ -40,8 +40,9 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		return status;
 
 	devctl_data = _DEVCTL_DATA(msg->i);
-	
-	switch (msg->i.dcmd) {
+
+	switch (msg->i.dcmd) 
+	{
 		case DCMD_ELCORE_START:
 		{
 			status = dev->funcs->start_core(drvhdl, ocb->core);
@@ -167,8 +168,8 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			msg->o.nbytes = nbytes;
 			break;
 		}
-        case DCMD_ELCORE_JOB_CREATE:
-        {
+		case DCMD_ELCORE_JOB_CREATE:
+		{
 			ELCORE_JOB		*new_pub_job = (ELCORE_JOB*)devctl_data;
 			elcore_job_t	*new_job;
 			int				it;
@@ -199,10 +200,10 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			status = EOK;
 			nbytes = sizeof(ELCORE_JOB);
 			
-            break;
-        }
-        case DCMD_ELCORE_JOB_ENQUEUE:
-        {
+			break;
+		}
+		case DCMD_ELCORE_JOB_ENQUEUE:
+		{
 			uint32_t			job_id = *((uint32_t*)devctl_data);
 			elcore_job_t*		cur_job;
 			
@@ -219,8 +220,8 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			//this func gets firs job in the queue
 			dev->funcs->start_core(drvhdl, cur_job->job_pub.core);
 			
-            break;
-        }
+			break;
+		}
 		case DCMD_ELCORE_JOB_STATUS:
 		{
 			uint32_t    job_id = *((uint32_t*)devctl_data);
@@ -234,14 +235,12 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 					return EINVAL;
 				}
 			}
-			
 
 			*((uint32_t*)devctl_data) = cur_job->job_pub.status;
 			
 			status = EOK;
 			nbytes = sizeof(uint32_t);
 					
-
 			break;
 		}
 		case DCMD_ELCORE_JOB_WAIT:
@@ -259,7 +258,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			}
 
 			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
-			{
+			{	//do not respond to client, it blocks waiting on finishing job
 				cur_job->rcvid = ctp->rcvid;
 				
 				return (_RESMGR_NOREPLY);
@@ -294,7 +293,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 				return EBUSY;
 			}
 			
-            status = dev->funcs->get_data(drvhdl, cur_job);
+			status = dev->funcs->get_data(drvhdl, cur_job);
 
 			break;
 		}
@@ -313,8 +312,6 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			{
 				dev->funcs->reset_core(drvhdl, cur_job->job_pub.core);
 			}
-			
-			//if job is ready, we act like as NONBLOCK 
 
 			job_remove_from_queue(drvhdl, cur_job);
 			//if cancel running job - try run new
@@ -377,10 +374,10 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 
 		}
 	}
-  memset(&msg->o, 0, sizeof(msg->o));
-  msg->o.ret_val = status;
-  msg->o.nbytes = nbytes;
-  return(_RESMGR_PTR(ctp, &msg->o, sizeof(msg->o) + nbytes));
+	memset(&msg->o, 0, sizeof(msg->o));
+	msg->o.ret_val = status;
+	msg->o.nbytes = nbytes;
+	return(_RESMGR_PTR(ctp, &msg->o, sizeof(msg->o) + nbytes));
 
 // 	return ENOSYS;
 }

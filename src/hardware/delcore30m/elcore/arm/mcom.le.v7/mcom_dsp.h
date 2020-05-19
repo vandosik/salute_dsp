@@ -194,11 +194,6 @@
 #define dsp_clr_bit_reg64(CORE_VAR,REG_NAME,BIT_NUM)			dsp_set_reg64(CORE_VAR,REG_NAME, \
 														dsp_get_reg64(CORE_VAR,REG_NAME) & ~(1<<BIT_NUM))
 
-typedef struct delcore30m_firmware {
-	uint32_t		cores;
-	int				size;
-	uint8_t			*data;
-} delcore30m_firmware;
 
 #define DLCR30M_FWREADY							1
 #define DLCR30M_FWEMPTY							0
@@ -223,8 +218,6 @@ typedef struct {
 	uint8_t*				pram;
 	uint32_t				pram_phys;
 // 	uint8_t*	stack;
-	uint32_t				fw_size;
-	uint8_t					fw_ready;
 	uint8_t*				regs;		//core regs
 	uint8_t					id; //DLCR30M_IDR (0x108) 
 	uint32_t				job_id; //job on DSP core

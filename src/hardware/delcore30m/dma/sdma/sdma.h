@@ -80,11 +80,11 @@
 #define SDMA_FTR(channel)			(0x40 + 0x4 * channel)
 
 //channel regs
-#define SDMA_SAR(channel)			(0x400 + 0x20 * channel)
-#define SDMA_DAR(channel)			(0x404 + 0x20 * channel)
-#define SDMA_CCR(channel)			(0x408 + 0x20 * channel)
-#define SDMA_CSR(channel)			(0x100 + 0x8 * channel)
-#define SDMA_CPC(channel)			(0x104 + 0x8 * channel)
+#define SDMA_SAR(channel)			(0x400 + 0x20 * channel) //src addr reg
+#define SDMA_DAR(channel)			(0x404 + 0x20 * channel) //dst addr reg
+#define SDMA_CCR(channel)			(0x408 + 0x20 * channel) //setup reg
+#define SDMA_CSR(channel)			(0x100 + 0x8 * channel) //channel ctatus
+#define SDMA_CPC(channel)			(0x104 + 0x8 * channel) //channel PC
 
 
 #define SDMA_CR(num)				(0xE00 + 0x4 * num)
@@ -119,7 +119,10 @@ struct sdma_program_buf {
 	uint32_t	code_paddr;
 };
 
-#define SDMA_PROG_READY		0x10101010
+#define SDMA_PROG_READY			0x10101010
+
+#define SDMA_INTR_MEM_START		0x20000000UL
+#define SDMA_INTR_MEM_END		0x40000000UL
 
 typedef enum {EXTR_TO_EXTR = 0, INTR_TO_EXTR, EXTR_TO_INTR, INTR_TO_INTR} sdma_direction;
 
@@ -134,9 +137,9 @@ typedef struct sdma_exchange{
 		struct sdma_program_buf program_buf;
 		uint32_t prog_ready;
 //         dma_direction direction;
-        uint32_t word_size;
+		uint32_t word_size;
 
-        uint8_t flags;
+		uint8_t flags;
 } sdma_exchange_t;
 
 

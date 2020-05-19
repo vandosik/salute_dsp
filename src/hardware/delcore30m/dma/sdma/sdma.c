@@ -7,7 +7,10 @@
 #include <sys/neutrino.h>
 #include <sys/mman.h>
 #include <hw/inout.h>
-
+/*
+*TODO: check the vacancy of the channel
+* may be get the map of free channels?
+*/
 
 typedef struct sdma_dev {
 	uintptr_t	vbase;
@@ -28,7 +31,8 @@ void sdma_reset(int channel) //rearm after fault
 	printf("%s: entry\n", __func__);
 	uint32_t dbg_status;
     
-	do {
+	do
+	{
 		dbg_status = sdma_read32(SDMA_DBGSTATUS);
 		printf("%s: dbg_status 0x%08x\n", __func__, dbg_status);
 	} while (dbg_status & 1);
@@ -106,10 +110,10 @@ void sdma_print_regs(int channel)
 	}
 	
 	for (iter = 0; iter <= 4; iter++)
-    {
-        printf("CR%d: 0x%08x \n", iter, sdma_read32(SDMA_CR(iter)));
-    }
-    printf("CRD: 0x%08x \n", sdma_read32(SDMA_CRD));
+	{
+		printf("CR%d: 0x%08x \n", iter, sdma_read32(SDMA_CR(iter)));
+	}
+	printf("CRD: 0x%08x \n", sdma_read32(SDMA_CRD));
 	printf("\n");
 }
 
@@ -139,6 +143,7 @@ static int sdma_irq_init(int irq)
 
 int sdma_init(void)
 {
+	printf("%s: entry\n", __func__);
 	
 	if ((sdma.vbase = mmap_device_io(SDMA_SIZE, SDMA_BASE)) == MAP_DEVICE_FAILED)
 	{
@@ -165,18 +170,19 @@ int sdma_fini(void)
 	
 	return 0;
 }
-//добавление одной команды в код программы для SDMA побайтово
+//add one SDMA command byte by byte
 static void sdma_command_add(struct sdma_program_buf *buf, uint64_t command,
 			     size_t commandlen)
 { 
 	/* TODO: Remove commandlen arg from this function */
-	while (commandlen-- && buf->pos < buf->end) {
+	while (commandlen-- && buf->pos < buf->end)
+	{
 		*buf->pos++ = command & 0xFF;
 		command >>= 8;
 	}
 }
 
-//прибавть получлово к адресу, нужна для 2D пересылок...???
+//прибавть полуслово к адресу, нужно для 2D пересылок в двух направлениях?
 static void sdma_addr_add(struct sdma_program_buf *program_buf, uint8_t cmd,
 			  uint32_t value)
 {
@@ -196,7 +202,7 @@ static void sdma_addr_add(struct sdma_program_buf *program_buf, uint8_t cmd,
 #define SDMA_NEED_SRC_BURSTSIZE		1
 #define SDMA_NEED_DST_
 
-//convert num to bits
+//convert brst_size num to bits
 static uint32_t brstsize_to_bits(uint32_t brst_size)
 {
 	uint32_t bits = 0;
@@ -286,9 +292,9 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
 		| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
 		| SDMA_CCR_SRC_INC
-		| SDMA_CCR_DST_INC, 4); //устанавливаем 16и пересылок за пакет для dst и src
+		| SDMA_CCR_DST_INC, 4); //set 16 sends by package for dst и src
 	}
-//циклы по 255 пересылок
+//cycles by 255 packages
 	for (i = 0; i < trans16_pack / 256; ++i) 
 	{
 		sdma_command_add(program_buf, SDMA_DMALP(SDMA_LC1) + (255 << 8), 2);
@@ -304,7 +310,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		}
 		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + ((dst_brst_size +  src_brst_size) << 8), 2);
 	}
-//цикл на оставшееся после n*255 пересылок
+//cycle for rest packages after n*255 ones
 	trans16_pack = trans16_pack % 256;
 	if (trans16_pack) 
 	{
@@ -322,7 +328,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + ((dst_brst_size +  src_brst_size) << 8), 2);
 	} 
 
-	//до этого места передаем по 16 пересылок за раз
+//now 1 package with rest sends (sends == rest_bytes)
 	
 	if (trans_pack) 
 	{
@@ -397,8 +403,6 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 		return -ENOMEM;
 	}
 	
-	//TODO: check the vacancy of the channel
-	
 	dma_exchange->program_buf.pos = dma_exchange->program_buf.start = code_vaddr;
 	dma_exchange->program_buf.end = dma_exchange->program_buf.start + SDMA_PROG_MAXSIZE;
 	
@@ -406,11 +410,11 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	//get direction by addrs
 	uint32_t dir = 0;
 	
-	if (dma_exchange->from >= 0x20000000UL && dma_exchange->from < 0x40000000UL)
+	if (dma_exchange->from >= SDMA_INTR_MEM_START && dma_exchange->from < SDMA_INTR_MEM_END)
 	{
 		dir |= (1 << 0);
 	}
-	if (dma_exchange->to >= 0x20000000UL && dma_exchange->to < 0x40000000UL)
+	if (dma_exchange->to >= SDMA_INTR_MEM_START && dma_exchange->to < SDMA_INTR_MEM_END)
 	{
 		dir |= (1 << 1);
 	}
@@ -490,6 +494,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	printf("%s: entry  from: 0x%08x    to: 0x%08x\n", __func__, dma_exchange->from, dma_exchange->to);
 	uint32_t	dbg_status;
     uint32_t	val32;
+	uint32_t	channel_sts;
 
 
 	if (dma_exchange->prog_ready != SDMA_PROG_READY)
@@ -498,6 +503,15 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 		return -EINVAL;
 	}
 
+	//TODO: check the vacancy of the channel
+	
+	channel_sts = sdma_read32(SDMA_CSR(dma_exchange->channel->id));
+	if (channel_sts & 0xF)
+	{
+		printf("DMA echannel busy\n");
+		return -EBUSY;
+	}
+	
 // 	regmap_read(pdata->sdma, CHANNEL_STATUS(dmachain.channel.num),
 // 		    &channel_status);
 // 	if (channel_status & 0xF)
@@ -519,7 +533,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 // 	set SDMA to set interrupts on channel
 	sdma_write32(SDMA_INTEN, sdma_read32(SDMA_INTEN) | (1 << dma_exchange->channel->id));
 	
-	//sey DSP to get interrups from SDMA
+	//set DSP to get interrups from SDMA
 // 	delcore30m_writel(pdata, core_id, DELCORE30M_IMASKR, (1 << 30));
 // 
 // 	qmaskr0_val = delcore30m_readl(pdata, core_id, DELCORE30M_QMASKR0);

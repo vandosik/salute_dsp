@@ -27,50 +27,59 @@
 
 int
 _elcore_read(resmgr_context_t *ctp, io_read_t *msg, elcore_ocb_t *ocb)
-{printf("%s()\n", __func__);
+{
+	printf("%s()\n", __func__);
 	uint8_t		*buf;
 	int			nbytes;
-    int			nleft;
+	int			nleft;
 	int			nonblock = 0;
 	int			status;
 	ELCORE_DEV		*drvhdl = (ELCORE_DEV *)ocb->hdr.attr;
 	elcore_dev_t	*dev = drvhdl->hdl;
 
-    if ((status = iofunc_read_verify(ctp, msg, &ocb->hdr, &nonblock)) != EOK)
-        return status;
+	if ((status = iofunc_read_verify(ctp, msg, &ocb->hdr, &nonblock)) != EOK)
+		return status;
 
-    if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
-        return ENOSYS;
+	if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE)
+		return ENOSYS;
 
-    //check the "end" of the file and max_buf size
-    nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
-    nbytes = min (msg->i.nbytes, nleft);
+	//check the "end" of the file and max_buf size
+	nleft = ocb->hdr.attr->nbytes - ocb->hdr.offset;
+	nbytes = min (msg->i.nbytes, nleft);
 
-    if (nbytes <= 0) {
-        _IO_SET_READ_NBYTES(ctp, 0);
-        return _RESMGR_NPARTS(0);
-    }
+	if (nbytes <= 0)
+	{
+		_IO_SET_READ_NBYTES(ctp, 0);
+		return _RESMGR_NPARTS(0);
+	}
 
     /* check if message buffer is too short */
-    if (nbytes > ctp->msg_max_size) {
-        if (dev->buflen < nbytes) {
-            dev->buflen = nbytes;
+	if (nbytes > ctp->msg_max_size)
+	{
+		if (dev->buflen < nbytes)
+		{
+			dev->buflen = nbytes;
 			if (dev->buf)
-            	free(dev->buf);
-            if (NULL == (dev->buf = malloc(dev->buflen))) {
-                dev->buflen = 0;
-                return ENOMEM;
-            }
-        }
-        buf = dev->buf;
-    }
-	else {
-        buf = (uint8_t *)msg;
-    }
+			{
+				free(dev->buf);
+			}
+			if (NULL == (dev->buf = malloc(dev->buflen)))
+			{
+				dev->buflen = 0;
+				return ENOMEM;
+			}
+		}
+		buf = dev->buf;
+	}
+	else
+	{
+		buf = (uint8_t *)msg;
+	}
 
 	dev->funcs->read(drvhdl, ocb->core, buf, (void*)((uintptr_t)(ocb->hdr.offset)), &nbytes);
 	
-	if (nbytes > 0) {
+	if (nbytes > 0)
+	{
 		ocb->hdr.offset += nbytes;
 		_IO_SET_READ_NBYTES(ctp, nbytes);
 		return _RESMGR_PTR(ctp, buf, nbytes);

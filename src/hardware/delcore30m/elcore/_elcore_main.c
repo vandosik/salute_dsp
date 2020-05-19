@@ -19,16 +19,16 @@
  * $ 
  */
  
-// #ifdef __USAGE
-// %C - SPI driver
-// 
-// Syntax:
-// %C [-u unit]
-// 
-// Options:
-// -u unit    Set spi unit number (default: 0).
-// -d         driver module name
-// #endif
+#ifdef __USAGE
+%C - Delcore-30M driver
+
+Syntax:
+%C [-u unit]
+
+Options:
+-u unit    Set spi unit number (default: 0).
+-d         driver module name
+#endif
 
 
 #include <sys/procmgr.h>
@@ -36,7 +36,7 @@
 #include "proto.h"
 
 int main(int argc, char *argv[])
-{printf("%s()\n", __func__);
+{
 	elcore_dev_t	*head = NULL, *tail = NULL, *dev;
 // 	void		*drventry, *dlhdl;
 	siginfo_t	info;
@@ -101,47 +101,48 @@ int main(int argc, char *argv[])
 // 		}
 // 	}
 
-    if ((dev = calloc(1, sizeof(elcore_dev_t))) == NULL)
-    {
-        perror("dev allocation error");
-        goto cleanup;
-    }
+	if ((dev = calloc(1, sizeof(elcore_dev_t))) == NULL)
+	{
+		perror("dev allocation error");
+		goto cleanup;
+	}
 
-    if (argv[1] == NULL || *argv[0] == '-')
-    {
-        dev->opts = NULL;
-    }
-    else
-    {
-        dev->opts = strdup(argv[optind]);
-    }
-
-//     static elcore_funcs_t elcore_funcs = { 
-//         elcore_func_init,
-//         elcore_func_fini
-//     };
+	if (argv[1] == NULL || *argv[0] == '-')
+	{
+		dev->opts = NULL;
+	}
+	else
+	{
+		dev->opts = strdup(argv[optind]);
+	}
+	//defined in elc-manager, described in low level
+	dev->funcs = &elcore_funcs;    
+	dev->devnum = devnum++;
+	dev->drvhdl = NULL;
    
-    dev->funcs = &elcore_funcs;    
-    dev->devnum = devnum++;
-    dev->drvhdl = NULL;
-   
-    stat = _elcore_create_instance(dev);
+	stat = _elcore_create_instance(dev);
     
-    if (dev->opts)
-        free(dev->opts);
+	if (dev->opts)
+	{
+		free(dev->opts);
+	}
     
-    if (stat != EOK) {
-        perror("elcore_create_instance() failed");
-        free(dev);
-        goto cleanup;
-    }
+	if (stat != EOK)
+	{
+		perror("elcore_create_instance() failed");
+		free(dev);
+		goto cleanup;
+	}
 
-    if (head) {
-        tail->next = dev;
-        tail = dev;
-    }
-    else
-        head = tail = dev;
+	if (head)
+	{
+		tail->next = dev;
+		tail = dev;
+	}
+	else
+	{
+		head = tail = dev;
+	}
     
 start_elcore:
 	if (head) {
