@@ -7,6 +7,8 @@
 #include <sys/neutrino.h>
 #include <sys/mman.h>
 #include <hw/inout.h>
+#include <pthread.h>
+
 /*
 *TODO: check the vacancy of the channel
 * may be get the map of free channels?
@@ -15,7 +17,8 @@
 typedef struct sdma_dev {
 	uintptr_t	vbase;
 	int			irq_num;
-	int			irq_hdl;         
+	int			irq_hdl;
+	uintptr_t	spinlock;
 } sdma_dev_t;
 
 sdma_dev_t sdma;
@@ -26,10 +29,69 @@ struct sigevent sdma_event;
 #define sdma_read32(offset)				in32(sdma.vbase + offset)
 #define sdma_write32(offset, value)		out32(sdma.vbase + offset, value)
 
-void sdma_reset(int channel) //rearm after fault
+// #define _SDMA_USE_SPINLOCK
+
+#ifdef _SDMA_USE_SPINLOCK
+static int sdma_try_lock(uint32_t timeout)
+{
+	uint8_t		spinlock_value;
+	uint32_t	it;
+	
+	do
+	{
+		spinlock_value = in32(sdma.spinlock + SPINLOCK_SDMA_REG_OFFSET);
+		
+		if (spinlock_value == 0)
+		{
+			return 0;
+		}
+		delay(1);
+	} while (it < timeout);
+
+		return -EBUSY;
+}
+
+static void sdma_unlock()
+{
+	out8( sdma.spinlock + SPINLOCK_SDMA_REG_OFFSET, 0);
+}
+#else
+
+static pthread_mutex_t sdma_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static struct sigevent mutex_event = {
+	.sigev_notify = SIGEV_UNBLOCK
+};
+
+static int sdma_try_lock(uint32_t timeout)
+{
+	uint64_t mutex_timeout = 1000 * timeout;
+	int rc;
+	//BUG:not sure, we can operate like this
+	TimerTimeout(CLOCK_REALTIME, _NTO_TIMEOUT_MUTEX, &mutex_event, &mutex_timeout, NULL);
+	rc = pthread_mutex_lock( &sdma_mutex );
+	
+	return -rc;
+	
+}
+								
+
+#define sdma_unlock()		pthread_mutex_unlock( &sdma_mutex )
+
+#endif
+
+
+int sdma_reset(int channel) //rearm after fault
 {
 	printf("%s: entry\n", __func__);
 	uint32_t dbg_status;
+	int rc;
+	
+	rc = sdma_try_lock(1000);
+	if (rc)
+	{
+		return rc;
+	}
     
 	do
 	{
@@ -41,6 +103,8 @@ void sdma_reset(int channel) //rearm after fault
 	         (SDMA_DMAKILL << 16) | (channel << 8) | 1);
 	sdma_write32(SDMA_DBGINST1, 0);
 	sdma_write32(SDMA_DBGCMD, 0);
+	
+	sdma_unlock();
 
 }
 
@@ -148,26 +212,47 @@ int sdma_init(void)
 	if ((sdma.vbase = mmap_device_io(SDMA_SIZE, SDMA_BASE)) == MAP_DEVICE_FAILED)
 	{
 		perror("SDMA alloc failed");
+		goto sdma_fail0;
+	}
+#ifdef _SDMA_USE_SPINLOCK
+	//mmap spinlock regs
+    if ((sdma.spinlock = mmap_device_io(SPINLOCK_REG_SIZE, SPINLOCK_REG_BASE)) == MAP_DEVICE_FAILED)
+	{
+		perror("SPINCLOCK alloc failed");
+		goto sdma_fail1;
+		
 		return -1;
 	}
-	
+#endif
 	if (sdma_irq_init(SDMA_IRQ_NUM))
 	{
 		perror("Irq init error");
-		munmap_device_io( sdma.vbase, SDMA_SIZE );
+		goto sdma_fail2;
+		
 		return -1;
 	}
 
 	sdma_print_regs(-1);
 	
 	return 0;
+	
+sdma_fail2:
+#ifdef _SDMA_USE_SPINLOCK
+	munmap_device_io( sdma.spinlock, SPINLOCK_REG_SIZE );
+#endif
+sdma_fail1:
+	munmap_device_io( sdma.vbase, SDMA_SIZE );
+sdma_fail0:
+	return -1;
 }
 
 int sdma_fini(void)
 {//BUG:  verify that sdma inited
 	InterruptDetach(sdma.irq_hdl);
 	munmap_device_io( sdma.vbase, SDMA_SIZE );
-	
+#ifdef _SDMA_USE_SPINLOCK
+	munmap_device_io( sdma.spinlock, SPINLOCK_REG_SIZE );
+#endif
 	return 0;
 }
 //add one SDMA command byte by byte
@@ -449,7 +534,6 @@ static int irq_wait(sdma_exchange_t *task)
 	printf("%s: entry\n", __func__);
 	uint32_t intstatus;
 	uint32_t inten;
-	int i;
 	int result;
 
 	struct sigevent e;
@@ -472,6 +556,7 @@ static int irq_wait(sdma_exchange_t *task)
 
 		if (intstatus & (1 << task->channel->id))
 	    {
+            /* clear irq  */
 			sdma_write32(SDMA_INTCLR, 1 << task->channel->id);
 
 			/* disable channel interrupt */
@@ -493,8 +578,9 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 {
 	printf("%s: entry  from: 0x%08x    to: 0x%08x\n", __func__, dma_exchange->from, dma_exchange->to);
 	uint32_t	dbg_status;
-    uint32_t	val32;
+	uint32_t	val32;
 	uint32_t	channel_sts;
+	int			rc;
 
 
 	if (dma_exchange->prog_ready != SDMA_PROG_READY)
@@ -539,10 +625,12 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 // 	qmaskr0_val = delcore30m_readl(pdata, core_id, DELCORE30M_QMASKR0);
 // 	qmaskr0_val |= 1 << (8 + dmachain.channel.num);
 // 	delcore30m_writel(pdata, core_id, DELCORE30M_QMASKR0, qmaskr0_val);
-
-// 	rc = delcore30m_spinlock_try(pdata, 1000);
-// 	if (rc)
-// 		return rc;
+	
+	rc = sdma_try_lock(1000);
+	if (rc)
+	{
+		return rc;
+	}
     //пока STATUS не ноль, SDMA будет все игнорировать
 	do {
 		dbg_status = sdma_read32(SDMA_DBGSTATUS);
@@ -565,9 +653,11 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	sdma_print_regs(dma_exchange->channel->id);
     //запустить выполнение нструкций
 	sdma_write32(SDMA_DBGCMD, 0);
-    		
-	printf("%s: dbg_status 0x%08x\n", __func__, sdma_read32(SDMA_DBGSTATUS));
+
+	sdma_unlock();
     
+    
+    //TODO: if DSP need to process irqs, not wait here
 	if (irq_wait(dma_exchange))
 	{
 		printf("error receiveing interrupt\n");
@@ -576,7 +666,6 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	
     sdma_print_regs(dma_exchange->channel->id);
 
-// 	delcore30m_spinlock_unlock(pdata);
 	return 0;
 }
 

@@ -232,8 +232,8 @@ typedef struct {
 	dsp_core			core[DLCR30M_MAX_CORES];
 	struct sdma_channel	sdma[SDMA_MAX_CHANNELS];
 // 	uint8_t* nbsr_sic;
-	uint32_t			core_count;
-	int					dma_count;
+	uint32_t			core_count; //need this?
+	int					dma_count; //need this?
 	uint32_t			irq;
 	int					irq_hdl;
 } delcore30m_t;

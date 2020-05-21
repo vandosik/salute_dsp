@@ -12,6 +12,11 @@
 //set in arm/mc1892vm14_irq.h, TODO: need to take this from hwi
 #define SDMA_IRQ_NUM				(32 + 8)
 
+#define SPINLOCK_REG_BASE			0x38081000
+#define SPINLOCK_REG_SIZE			0x1000
+#define SPINLOCK_REG_OFFSET(num)	(0x800 + (0x4 * num))
+#define SPINLOCK_SDMA_REG_OFFSET	SPINLOCK_REG_OFFSET(1) 
+
 /* ---------SDMA commands----------- */
 //загружает заданное значение в один из регистров
 #define SDMA_DMAMOVE_SAR			0x00BC //адрес источника
@@ -104,8 +109,9 @@
 
 
 typedef struct sdma_channel{
-        uint8_t* rram;
-        uint8_t id;
+		uint8_t*		rram; //doesn't used yet
+		uint8_t			id;
+		uint8_t			busy;
 } sdma_channel_t;
 
 /**
@@ -155,7 +161,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange);
 //release resources, assosiated with dma exchange
 int sdma_release_task(sdma_exchange_t *dma_exchange);
 
-void sdma_reset( int channel);
+int sdma_reset( int channel);
 
 int sdma_mem_dump(uint8_t* addr, uint32_t len);
 

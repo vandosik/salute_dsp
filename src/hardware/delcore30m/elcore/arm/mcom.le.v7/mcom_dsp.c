@@ -182,8 +182,9 @@ void *elcore_func_init(void *hdl, char *options)
 	//necessary manipulations
 	dev->drvhdl.hdl = hdl;
 	dev->drvhdl.cores_num = DLCR30M_MAX_CORES;
-	
+	//FIXME: need these two core count identifications???
 	dev->core_count = DLCR30M_MAX_CORES;
+	dev->dma_count = SDMA_MAX_CHANNELS;
 	dev->irq = DLCR30M_IRQ_NUM;
 	dev->pbase = DLCR30M_BASE;
 	//set defaults
@@ -193,7 +194,8 @@ void *elcore_func_init(void *hdl, char *options)
 	
 	if (elcore_parce_opts(dev, options) != EOK)
 	{
-		elcore_func_fini(dev);
+        //BUG: later this thread don't kill the main thread
+		free(dev);
         
 		return NULL;
 	}
@@ -264,6 +266,68 @@ void *elcore_func_init(void *hdl, char *options)
 
 // int		elcore_wait_irq
 
+#if 1
+
+static void elcore_setup_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
+{
+	printf("%s: entry\n", __func__);
+	int i;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+	uint32_t				qmaskr0_val;
+	
+	/* FIXME: interrupt handler address */
+    /*
+     * Irq handler distination is set in crt0 file
+     */
+
+// 	delcore30m_writel(pdata, core_id, DELCORE30M_INVAR,
+// 			  cpu_to_delcore30m(phys_to_xyram(0x0C)));
+	dsp_set_reg32(cur_core, DLCR30M_IVAR, cur_job->code_dspaddr + addr2delcore30m(0x0C));
+/*TODO: get channel num for chain or job*/
+	int sdma_channel = 1;
+	
+    //разрешаем внешние запросы на прерывания от группы QST0 в DSP
+	dsp_set_reg32(cur_core, DLCR30M_IMASKR, (1 << 30));
+    //разрешить прерывание от n-го канала SDMA в DSP
+	qmaskr0_val = dsp_get_reg32(cur_core, DLCR30M_QMASKR(0));
+	qmaskr0_val |= 1 << (8 + sdma_channel );
+	dsp_set_reg32(cur_core, DLCR30M_QMASKR(0), qmaskr0_val);
+    
+	dev->sdma[sdma_channel].busy = 1;
+}
+
+static void elcore_release_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
+{
+	printf("%s: entry\n", __func__);
+	int i;
+	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
+	uint32_t				qmaskr0_val;
+
+	/*TODO: get channel num for chain*/
+	int sdma_channel = 1;
+
+
+    //запрещаем прерывание от n-го канала SDMA в DSP
+	qmaskr0_val = dsp_get_reg32(cur_core, DLCR30M_QMASKR(0));
+	qmaskr0_val &= ~(1 << (8 + sdma_channel ));
+	dsp_set_reg32(cur_core, DLCR30M_QMASKR(0), qmaskr0_val);
+	/*
+    *запрещаем внешние запросы на прерывания от группы QST0 в DSP, если нет активных задач,
+	* использующих sdma
+	*/
+	int it = 0;
+	for (;it < dev->dma_count; it++)
+	{
+		if (dev->sdma[sdma_channel].busy)
+		{
+			return;
+		}
+	}
+	dsp_set_reg32(cur_core, DLCR30M_IMASKR, 0);
+    
+}
+
+#endif
 
 static uint32_t elcore_set_args(delcore30m_t *dev, elcore_job_t *cur_job)
 {

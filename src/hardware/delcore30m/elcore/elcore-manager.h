@@ -316,7 +316,7 @@ extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr
  */
 typedef struct _elcore_dev_entry_t {
 	iofunc_attr_t				attr;
-	uint32_t					cores_num;	//quantity of cores
+	uint32_t					cores_num;	//quantity of cores, need this?
 	void						*hdl;		/* Pointer to high-level handle */
 	void						*job_hdl;	/* Set it here to easyly use on both levels*/
 } ELCORE_DEV;
