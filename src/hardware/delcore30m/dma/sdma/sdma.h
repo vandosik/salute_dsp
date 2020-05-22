@@ -31,8 +31,12 @@
 #define SDMA_DMALP(loop_counter)		(0x20 + ((loop_counter) << 1))
 	#define SDMA_LCO				0
 	#define SDMA_LC1				1
-//
+//конец цикла
 #define SDMA_DMALPEND(loop_counter)		(0x38 + ((loop_counter) << 2))
+
+//возврат в бесконечном цикле
+#define SDMA_DMALPFE(loop_counter)		(0x2C)
+
 //ожидать событие, приостановка работы программы, пока не поступит событие с номером - аргументом
 #define SDMA_DMAWFE				0x36
 //послать событие с номером - аргументом

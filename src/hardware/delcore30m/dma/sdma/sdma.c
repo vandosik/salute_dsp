@@ -81,7 +81,7 @@ static int sdma_try_lock(uint32_t timeout)
 #endif
 
 
-int sdma_reset(int channel) //rearm after fault
+int sdma_reset(int channel) //rearm after fault, stop infinite cycle
 {
 	printf("%s: entry\n", __func__);
 	uint32_t dbg_status;
