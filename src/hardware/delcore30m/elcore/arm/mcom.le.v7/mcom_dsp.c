@@ -251,7 +251,7 @@ void *elcore_func_init(void *hdl, char *options)
 	//FIXME:enable interrups
 	dsp_set_bit_reg32(dev, DLCR30M_MASKR, 3);
 	/////////////////////////////////////////////////////////////////
-	if (sdma_init())
+	if (sdma_init(dev->dma_count))
 	{
 		perror("sdma_init failure");
 		elcore_func_fini(dev);
@@ -259,6 +259,12 @@ void *elcore_func_init(void *hdl, char *options)
 		return NULL;
 	}
 	
+	for (it = 0; it < dev->dma_count; it++)
+	{
+		dev->sdma[it].busy = 0;
+		dev->sdma[it].id = it;
+		dev->sdma[it].rram = NULL;
+	}
 	
 	return dev;
     
@@ -996,16 +1002,43 @@ int elcore_interrupt_thread(void *hdl)
 
 uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t offset, int *size)
 {
+	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
 	struct sdma_exchange	sdma_task;
 	dsp_core				*core = &dev->core[core_num];
-	int						job_status;
+	int						job_status, it;
+    
+	//search vacant channel
+	struct sdma_channel *chnl;
+
+	for (it = 0; it < dev->dma_count; it++)
+	{
+		if (!dev->sdma[it].busy)
+		{
+			chnl = &dev->sdma[it];
+			break;
+		}
+	}
 	
-	struct sdma_channel chnl_0 = {
-		.rram = NULL,
-		.id = 0
-	};
+	if (it == dev->dma_count)
+	{
+		printf("No vacant sdma channels\n");
+		errno = EBUSY;
+		goto exit0; 
+	}
 	
+    struct sdma_descriptor sdma_package = {
+	.f_off = 0, //offset from sdma_exchange->from
+	.t_off = 0,
+	.iter = 1 // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
+    };
+	
+	sdma_task.channel = chnl;
+	sdma_task.type = SDMA_CPU_; //CPU handles interrupts
+	sdma_task.sdma_chain = &sdma_package;
+	sdma_task.chain_size = 1; //only one package
+	
+	printf("%s: channel: %d\n", __func__, sdma_task.channel->id);
 	
 	if (offset < DLCR30M_BANK_SIZE)
 	{
@@ -1016,9 +1049,9 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 			   {	//writing from pram we need to leave one xyram bank?? yes - 4, no - 5
 				sdma_task.from = from;
 				sdma_task.to = core->pram_phys + offset;
-				sdma_task.channel = &chnl_0;
-				sdma_task.size = DLCR30M_BANK_SIZE - offset;
-				sdma_task.iterations = 1;
+				sdma_package.size = DLCR30M_BANK_SIZE - offset;
+
+
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
@@ -1036,9 +1069,7 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 				
 				sdma_task.from = from + (uint64_t)(DLCR30M_BANK_SIZE - offset);
 				sdma_task.to = core->xyram_phys;
-				sdma_task.channel = &chnl_0;
-				sdma_task.size = *size - (DLCR30M_BANK_SIZE - offset);
-				sdma_task.iterations = 1;
+				sdma_package.size = *size - (DLCR30M_BANK_SIZE - offset);
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
@@ -1063,9 +1094,7 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 			{ //send with one block
 				sdma_task.from = from;
 				sdma_task.to = core->pram_phys + offset;
-				sdma_task.channel = &chnl_0;
-				sdma_task.size = *size;
-				sdma_task.iterations = 1;
+				sdma_package.size = *size;
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
@@ -1087,9 +1116,7 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 		{
 			sdma_task.from = from;
 			sdma_task.to = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
-			sdma_task.channel = &chnl_0;
-			sdma_task.size = *size;
-			sdma_task.iterations = 1;
+			sdma_package.size = *size;
 			
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 			{
@@ -1128,15 +1155,42 @@ exit0:
 
 uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t offset, int *size)
 {
+	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
 	struct sdma_exchange	sdma_task;
 	dsp_core				*core = &dev->core[core_num];
-	int						job_status;
+	int						job_status, it;
 	
-	struct sdma_channel chnl_0 = {
-		.rram = NULL,
-		.id = 0
-	};
+	//search vacant channel
+	struct sdma_channel *chnl;
+
+	for (it = 0; it < dev->dma_count; it++)
+	{
+		if (!dev->sdma[it].busy)
+		{
+			chnl = &dev->sdma[it];
+			break;
+		}
+	}
+
+	if (it == dev->dma_count)
+	{
+		printf("No vacant sdma channels\n");
+		errno = EBUSY;
+		goto exit0; 
+	}
+	
+
+	struct sdma_descriptor sdma_package = {
+	.f_off = 0, //offset from sdma_exchange->from
+	.t_off = 0,
+	.iter = 1 // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
+    };
+	
+	sdma_task.channel = chnl;
+	sdma_task.type = SDMA_CPU_; //CPU handles interrupts
+	sdma_task.sdma_chain = &sdma_package;
+	sdma_task.chain_size = 1; //only one package
 	
 	
 	if (offset < DLCR30M_BANK_SIZE)
@@ -1147,9 +1201,8 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 			{
 				sdma_task.from = core->pram_phys + offset;
 				sdma_task.to = to;
-				sdma_task.channel = &chnl_0;
-				sdma_task.size = DLCR30M_BANK_SIZE - offset;
-				sdma_task.iterations = 1;
+				sdma_package.size = DLCR30M_BANK_SIZE - offset;
+
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
@@ -1167,9 +1220,8 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 			
 				sdma_task.from = core->xyram_phys;
 				sdma_task.to = to + (DLCR30M_BANK_SIZE - offset);
-				sdma_task.channel = &chnl_0;
-				sdma_task.size = *size - (DLCR30M_BANK_SIZE - offset);
-				sdma_task.iterations = 1;
+				sdma_package.size = *size - (DLCR30M_BANK_SIZE - offset);
+
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 				{
@@ -1193,9 +1245,7 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 		{
 			sdma_task.from = core->pram_phys + offset;
 			sdma_task.to = to;
-			sdma_task.channel = &chnl_0;
-			sdma_task.size = *size;
-			sdma_task.iterations = 1;
+			sdma_package.size = *size;
 
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 			{
@@ -1217,9 +1267,7 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 		{
 			sdma_task.from = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
 			sdma_task.to = to;
-			sdma_task.channel = &chnl_0;
-			sdma_task.size = *size;
-			sdma_task.iterations = 1;
+			sdma_package.size = *size;
 			
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
 			{

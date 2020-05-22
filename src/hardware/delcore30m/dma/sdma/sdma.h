@@ -35,7 +35,7 @@
 #define SDMA_DMALPEND(loop_counter)		(0x38 + ((loop_counter) << 2))
 
 //возврат в бесконечном цикле
-#define SDMA_DMALPFE(loop_counter)		(0x2C)
+#define SDMA_DMALPFE					(0x2C)
 
 //ожидать событие, приостановка работы программы, пока не поступит событие с номером - аргументом
 #define SDMA_DMAWFE				0x36
@@ -136,26 +136,36 @@ struct sdma_program_buf {
 
 typedef enum {EXTR_TO_EXTR = 0, INTR_TO_EXTR, EXTR_TO_INTR, INTR_TO_INTR} sdma_direction;
 
+typedef struct sdma_descriptor {
+	uint32_t f_off; //offset from sdma_exchange->from
+	uint32_t t_off;
+	uint32_t size; //size of data to be sent
+	uint8_t iter; // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
+} sdma_descriptor_t;
+
+typedef enum {SDMA_DSP_, SDMA_CPU_} sdma_extype; //TODO;расширить на отправку/ожидание событий
+
 //TODO: some fields, such as code_addr, are not for customer. Need to hide them.
 typedef struct sdma_exchange{
-        uint32_t from;
-        uint32_t to;
-		uint32_t size;
-        sdma_channel_t* channel;
-		uint32_t	iterations;
-        sdma_direction  direction;
-		struct sdma_program_buf program_buf;
-		uint32_t prog_ready;
-//         dma_direction direction;
-		uint32_t word_size;
+		uint32_t					job_id;
+		sdma_extype					type;
+		uint32_t					from;
+		uint32_t					to;
+		sdma_channel_t*				channel;
+		sdma_direction				direction;
+		struct sdma_program_buf		program_buf;
+		uint32_t					prog_ready;
+		sdma_descriptor_t			*sdma_chain; //цепочка пакетов обмена
+		uint32_t					chain_size; //in sdma_desc
 
 		uint8_t flags;
 } sdma_exchange_t;
 
 
+
 //sdma funcs
 
-int sdma_init(void);
+int sdma_init(uint32_t chnl_num);
 
 int sdma_fini(void);
 //prepare sdma exchange to work

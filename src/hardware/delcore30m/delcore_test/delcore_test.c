@@ -45,15 +45,15 @@ int mem_dump(uint8_t* addr, uint32_t len)
 
 	}
 	
-	printf("Symbolic\n");
-	for (iter = 0; iter < len; iter++)
-	{
-		if (iter % 16 == 0)
-		{
-			printf("\n");
-		}
-		printf(" %c ", *(addr+iter));
-	}
+// 	printf("Symbolic\n");
+// 	for (iter = 0; iter < len; iter++)
+// 	{
+// 		if (iter % 16 == 0)
+// 		{
+// 			printf("\n");
+// 		}
+// 		printf(" %c ", *(addr+iter));
+// 	}
 	
 	printf("\n");
     

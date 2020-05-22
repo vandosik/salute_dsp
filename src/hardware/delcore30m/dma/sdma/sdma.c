@@ -16,8 +16,9 @@
 
 typedef struct sdma_dev {
 	uintptr_t	vbase;
-	int			irq_num;
-	int			irq_hdl;
+	int			irq_num[SDMA_MAX_CHANNELS];
+	int			irq_hdl[SDMA_MAX_CHANNELS];
+	uint32_t	chnl_num;
 	uintptr_t	spinlock;
 } sdma_dev_t;
 
@@ -105,6 +106,8 @@ int sdma_reset(int channel) //rearm after fault, stop infinite cycle
 	sdma_write32(SDMA_DBGCMD, 0);
 	
 	sdma_unlock();
+	
+	return 0;
 
 }
 
@@ -180,9 +183,10 @@ void sdma_print_regs(int channel)
 	printf("CRD: 0x%08x \n", sdma_read32(SDMA_CRD));
 	printf("\n");
 }
-
-static int sdma_irq_init(int irq)
+//attach vector of interrupts
+static int sdma_irq_init(int irq )
 {
+	int it;
 	/* fill in "event" structure */
 	memset(&sdma_event, 0, sizeof(sdma_event));
 	sdma_event.sigev_notify = SIGEV_INTR;
@@ -194,18 +198,24 @@ static int sdma_irq_init(int irq)
 		return -1;
 	}
 	
-	sdma.irq_num = irq;
 	
-	if ((sdma.irq_hdl = InterruptAttachEvent( sdma.irq_num, &sdma_event,0 )) < 0)
+	
+	for (it = 0; it < sdma.chnl_num; it++)
 	{
-		perror("InterruptAttachEvent");
-		return -1;
+		sdma.irq_num[it] = irq + it;
+		
+		if ((sdma.irq_hdl[it] = InterruptAttachEvent( sdma.irq_num[it], &sdma_event, 0 )) < 0)
+		{
+			perror("InterruptAttachEvent");
+			return -1;
+		}
+		InterruptMask(sdma.irq_num[it], sdma.irq_hdl[it]); //hide irq
 	}
 	
 	return 0;
 }
 
-int sdma_init(void)
+int sdma_init(uint32_t chnl_num)
 {
 	printf("%s: entry\n", __func__);
 	
@@ -224,6 +234,8 @@ int sdma_init(void)
 		return -1;
 	}
 #endif
+	sdma.chnl_num = chnl_num;
+
 	if (sdma_irq_init(SDMA_IRQ_NUM))
 	{
 		perror("Irq init error");
@@ -309,158 +321,184 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	uint32_t src_brst_size;
 	uint32_t dst_brst_size;
 	uint32_t brst_len = 16;
+	struct sdma_descriptor *sd = task->sdma_chain;
 	
-	uint32_t trans_count = task->size;
-	uint32_t trans_rest; //residue, that less than
-	
-	//because internal and external 
-	switch(task->direction)
-	{
-		case EXTR_TO_EXTR:
-			src_brst_size = dst_brst_size = 1;
-			break;
-		case INTR_TO_INTR:
-			src_brst_size = dst_brst_size = 4;
-			trans_count /= 4; 
-			break;
-		case INTR_TO_EXTR:
-			src_brst_size = 4;
-			dst_brst_size = 1;
-			trans_count /= 4;
-			break;
-		case EXTR_TO_INTR:
-			src_brst_size = 1;
-			dst_brst_size = 4;
-			trans_count /= 4;
-			break;
-		default:
-			errno = EINVAL;
-			return -1;
-			
-	}
-	
+	uint32_t trans_count;
     //get byte number per transaction
-	uint32_t i, j, trans16_pack = (trans_count / brst_len);
-	const uint32_t trans_pack = (trans_count % brst_len);
+	uint32_t i, j, trans16_pack;
+	uint32_t trans_pack;
 	
-	printf("%s: trans_count:\t %u\n", __func__, trans_count);
-	printf("%s: trans16_pack:\t %u\n", __func__, trans16_pack);
-	printf("%s: trans_pack:\t %u\n", __func__, trans_pack);
-	
-    
-	sdma_command_add(program_buf, SDMA_DMAMOVE_SAR, 2);
-	sdma_command_add(program_buf, task->from, 4);
-    
-    
-	sdma_command_add(program_buf, SDMA_DMAMOVE_DAR, 2);
-	sdma_command_add(program_buf, task->to, 4);
-
-	//waiting for events, no need now
-// 	if (sd.type == SDMA_DESCRIPTOR_E1I1 ||
-// 	    sd.type == SDMA_DESCRIPTOR_E1I0) {
-// 		sdma_command_add(program_buf,
-// 				 SDMA_DMAWFE +
-// 					((MAX_SDMA_CHANNELS + channel) << 11),
-// 				 2);
-// 	}
-	//set number of loop iterations, for several pieces of data
-
-	sdma_command_add(program_buf, SDMA_DMALP(SDMA_LCO) + ((task->iterations-1) << 8), 2);
-    loop_start = program_buf->pos;
-
-	if (trans16_pack) 
+	uint32_t desc_it;
+	//iterate over sdma_chain
+	for (desc_it = 0; desc_it < task->chain_size; sd = &task->sdma_chain[++desc_it])
 	{
-		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
-		sdma_command_add(program_buf, SDMA_CCR_DEFAULT 
-		| ((brst_len-1) << SDMA_CCR_DST_BURST_LEN) 
-		| ((brst_len-1) << SDMA_CCR_SRC_BURST_LEN)
-		| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
-		| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
-		| SDMA_CCR_SRC_INC
-		| SDMA_CCR_DST_INC, 4); //set 16 sends by package for dst и src
-	}
-//cycles by 255 packages
-	for (i = 0; i < trans16_pack / 256; ++i) 
-	{
-		sdma_command_add(program_buf, SDMA_DMALP(SDMA_LC1) + (255 << 8), 2);
+		trans_count = sd->size;
+		
+		//because internal and external , TODO: not need to check for every sdma desc
+		switch(task->direction)
+		{
+			case EXTR_TO_EXTR:
+				src_brst_size = dst_brst_size = 1;
+				break;
+			case INTR_TO_INTR:
+				src_brst_size = dst_brst_size = 4;
+				trans_count /= 4; 
+				break;
+			case INTR_TO_EXTR:
+				src_brst_size = 4;
+				dst_brst_size = 1;
+				trans_count /= 4;
+				break;
+			case EXTR_TO_INTR:
+				src_brst_size = 1;
+				dst_brst_size = 4;
+				trans_count /= 4;
+				break;
+			default:
+				errno = EINVAL;
+				return -1;
+				
+		}
+		
+		trans16_pack = (trans_count / brst_len);
+		trans_pack = (trans_count % brst_len);
+		
+		printf("%s: trans_count:\t %u\n", __func__, trans_count);
+		printf("%s: trans16_pack:\t %u\n", __func__, trans16_pack);
+		printf("%s: trans_pack:\t %u\n", __func__, trans_pack);
+		
+	    
+		sdma_command_add(program_buf, SDMA_DMAMOVE_SAR, 2);
+		sdma_command_add(program_buf, task->from + sd->f_off, 4);
+	    
+	    
+		sdma_command_add(program_buf, SDMA_DMAMOVE_DAR, 2);
+		sdma_command_add(program_buf, task->to + sd->t_off, 4);
 
-		//BUG: this code works only for 1 and 4 burst sizes. Otherwise need to count NOK for src and dst bursts
-		for (j = 0; j < dst_brst_size; j++)
+		//waiting for events, no need now
+	// 	if (sd.type == SDMA_DESCRIPTOR_E1I1 ||
+	// 	    sd.type == SDMA_DESCRIPTOR_E1I0) {
+	// 		sdma_command_add(program_buf,
+	// 				 SDMA_DMAWFE +
+	// 					((MAX_SDMA_CHANNELS + channel) << 11),
+	// 				 2);
+	// 	}
+		//set number of loop iterations, for several pieces of data
+		if (sd->iter > 0)
 		{
-			sdma_command_add(program_buf, SDMA_DMALD, 1);
+			sdma_command_add(program_buf, SDMA_DMALP(SDMA_LCO) + ((sd->iter-1) << 8), 2);
 		}
-		for (j = 0; j < src_brst_size; j++)
+		else //infinite cycle
 		{
-			sdma_command_add(program_buf, SDMA_DMAST, 1);
+			//do nothing
 		}
-		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + ((dst_brst_size +  src_brst_size) << 8), 2);
-	}
-//cycle for rest packages after n*255 ones
-	trans16_pack = trans16_pack % 256;
-	if (trans16_pack) 
-	{
-		sdma_command_add(program_buf,
-				 SDMA_DMALP(SDMA_LC1) + ((trans16_pack - 1) << 8), 2);
-		//BUG: this code works only for 1 and 4 burst sizes. Otherwise need to count NOK for src and dst bursts
-		for (j = 0; j < dst_brst_size; j++)
-		{
-			sdma_command_add(program_buf, SDMA_DMALD, 1);
-		}
-		for (j = 0; j < src_brst_size; j++)
-		{
-			sdma_command_add(program_buf, SDMA_DMAST, 1);
-		}
-		sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + ((dst_brst_size +  src_brst_size) << 8), 2);
-	} 
-
-//now 1 package with rest sends (sends == rest_bytes)
-	
-	if (trans_pack) 
-	{
-		sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
-		//TODO: maybe assosiate unique ccr with task?
-		sdma_command_add(program_buf,/*task->ccr*/SDMA_CCR_DEFAULT
-				| ((trans_pack-1) << SDMA_CCR_DST_BURST_LEN) 
-				| ((trans_pack-1) << SDMA_CCR_SRC_BURST_LEN)
+		
+		loop_start = program_buf->pos;
+		
+			if (trans16_pack) 
+			{
+				sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
+				sdma_command_add(program_buf, SDMA_CCR_DEFAULT 
+				| ((brst_len-1) << SDMA_CCR_DST_BURST_LEN) 
+				| ((brst_len-1) << SDMA_CCR_SRC_BURST_LEN)
 				| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
 				| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
 				| SDMA_CCR_SRC_INC
-				| SDMA_CCR_DST_INC, 4);  
+				| SDMA_CCR_DST_INC, 4); //set 16 sends by package for dst и src
+			}
+		//cycles by 255 packages
+			for (i = 0; i < trans16_pack / 256; ++i) 
+			{
+				sdma_command_add(program_buf, SDMA_DMALP(SDMA_LC1) + (255 << 8), 2);
 
-		//BUG: this code works only for 1 and 4 burst sizes. Otherwise need to count NOK for src and dst bursts
-		for (j = 0; j < dst_brst_size; j++)
+				//BUG: this code works only forsdma_descriptor 1 and 4 burst sizes. Otherwise need to count NOK for src 
+				//and dst bursts
+				for (j = 0; j < dst_brst_size; j++)
+				{
+					sdma_command_add(program_buf, SDMA_DMALD, 1);
+				}
+				for (j = 0; j < src_brst_size; j++)
+				{
+					sdma_command_add(program_buf, SDMA_DMAST, 1);
+				}
+				sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + ((dst_brst_size +  src_brst_size) << 8), 2);
+			}
+		//cycle for rest packages after n*255 ones
+			trans16_pack = trans16_pack % 256;
+			if (trans16_pack) 
+			{
+				sdma_command_add(program_buf,
+						 SDMA_DMALP(SDMA_LC1) + ((trans16_pack - 1) << 8), 2);
+				//BUG: this code works only for 1 and 4 burst sizes. Otherwise need to count NOK for src and dst bursts
+				for (j = 0; j < dst_brst_size; j++)
+				{
+					sdma_command_add(program_buf, SDMA_DMALD, 1);
+				}
+				for (j = 0; j < src_brst_size; j++)
+				{
+					sdma_command_add(program_buf, SDMA_DMAST, 1);
+				}
+				sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LC1) + ((dst_brst_size +  src_brst_size) << 8), 2);
+			}
+		//now 1 package with rest sends (sends == rest_bytes)
+			
+			if (trans_pack) 
+			{
+				sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
+				//TODO: maybe assosiate unique ccr with task?
+				sdma_command_add(program_buf,/*task->ccr*/SDMA_CCR_DEFAULT
+						| ((trans_pack-1) << SDMA_CCR_DST_BURST_LEN) 
+						| ((trans_pack-1) << SDMA_CCR_SRC_BURST_LEN)
+						| (brstsize_to_bits(src_brst_size) << SDMA_CCR_SRC_BURST_SIZE)
+						| (brstsize_to_bits(dst_brst_size) << SDMA_CCR_DST_BURST_SIZE)
+						| SDMA_CCR_SRC_INC
+						| SDMA_CCR_DST_INC, 4);  
+
+				//BUG: this code works only for 1 and 4 burst sizes. Otherwise need to count NOK for src and dst bursts
+				for (j = 0; j < dst_brst_size; j++)
+				{
+					sdma_command_add(program_buf, SDMA_DMALD, 1);
+				}
+				for (j = 0; j < src_brst_size; j++)
+				{
+					sdma_command_add(program_buf, SDMA_DMAST, 1);
+				}
+			}
+
+			//разобраться
+		    //TODO: move of DAR and SAR, not need now, cause we have only one task to do, not chain
+		    //это для нескольких кусков, у нас типа куски непрерывные
+		// 	if (type == SDMA_CHANNEL_INPUT)
+		// 		sdma_addr_add(program_buf, SDMA_DMAADDH_SAR,
+		// 			      sd.astride - sd.asize);
+		// 	else
+		// 		sdma_addr_add(program_buf, SDMA_DMAADDH_DAR,
+		// 			      sd.astride - sd.asize);
+		        
+			/* FIXME: Using barrier SDMA_DMARMB or/and SDMA_DMAWMB? */
+
+		loop_length = program_buf->pos - loop_start;
+		
+		if (sd->iter > 0)
 		{
-			sdma_command_add(program_buf, SDMA_DMALD, 1);
+			sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LCO) + (loop_length << 8), 2);
 		}
-		for (j = 0; j < src_brst_size; j++)
+		else //infinite cycle
 		{
-			sdma_command_add(program_buf, SDMA_DMAST, 1);
+			sdma_command_add(program_buf, SDMA_DMALPFE + (loop_length << 8), 2);
 		}
+		
+		
+
+		//sending events , interrupts
+	// 	if ((sd.type == SDMA_DESCRIPTOR_E0I1) ||
+	// 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
+	// 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
+		
+		//send irq to OS
+		sdma_command_add(program_buf, SDMA_DMASEV + (task->channel->id << 11), 2);
+
 	}
-
-        
-    //move of DAR and SAR, not need now, cause we have only one task to do, not chain
-// 	if (type == SDMA_CHANNEL_INPUT)
-// 		sdma_addr_add(program_buf, SDMA_DMAADDH_SAR,
-// 			      sd.astride - sd.asize);
-// 	else
-// 		sdma_addr_add(program_buf, SDMA_DMAADDH_DAR,
-// 			      sd.astride - sd.asize);
-        
-	/* FIXME: Using barrier SDMA_DMARMB or/and SDMA_DMAWMB? */
-
-	loop_length = program_buf->pos - loop_start;
-	sdma_command_add(program_buf, SDMA_DMALPEND(SDMA_LCO) + (loop_length << 8), 2);
-
-	//sending events , interrupts
-// 	if ((sd.type == SDMA_DESCRIPTOR_E0I1) ||
-// 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
-// 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
-	
-	//send irq to OS
-	sdma_command_add(program_buf, SDMA_DMASEV + (task->channel->id << 11), 2);
-	
-	
 	
 	sdma_command_add(program_buf, SDMA_DMAWMB, 1);
 
@@ -478,8 +516,19 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	uint8_t *code_vaddr;
 	uint64_t	code_paddr;
 	
+	printf("%s: channel: %d\n", __func__, dma_exchange->channel->id);
+	
 	if (dma_exchange->channel->id >= SDMA_MAX_CHANNELS)
+	{
+		printf("%s: illegal channel num\n");
 		return -EINVAL;
+	}
+	
+	if (!(dma_exchange->sdma_chain))
+	{
+		printf("No sdma_chain\n");
+		return -EFAULT;
+	}
 
 	if ((code_vaddr = mmap(NULL, SDMA_PROG_MAXSIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
@@ -490,7 +539,6 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	
 	dma_exchange->program_buf.pos = dma_exchange->program_buf.start = code_vaddr;
 	dma_exchange->program_buf.end = dma_exchange->program_buf.start + SDMA_PROG_MAXSIZE;
-	
 	
 	//get direction by addrs
 	uint32_t dir = 0;
@@ -504,6 +552,9 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 		dir |= (1 << 1);
 	}
 	dma_exchange->direction = dir;
+	/*
+	*TODO: check the size of transfer, in resmgr block??
+	*/
 	
 	rc = sdma_program(&dma_exchange->program_buf, dma_exchange);
 	
@@ -532,10 +583,13 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 static int irq_wait(sdma_exchange_t *task)
 {
 	printf("%s: entry\n", __func__);
-	uint32_t intstatus;
-	uint32_t inten;
-	int result;
+	uint32_t		intstatus;
+	uint32_t		inten;
+	int				result;
+	uint32_t		chnl_id = task->channel->id;
 
+	InterruptUnmask(sdma.irq_num[chnl_id], sdma.irq_hdl[chnl_id]);
+	
 	struct sigevent e;
 	e.sigev_notify = SIGEV_UNBLOCK;
 	uint64_t timeout = 100 * 1000000;	//TODO: assisiate time with code len or transfer len
@@ -554,21 +608,21 @@ static int irq_wait(sdma_exchange_t *task)
 		intstatus = sdma_read32(SDMA_INTSTATUS);
 		inten = sdma_read32(SDMA_INTEN);
 
-		if (intstatus & (1 << task->channel->id))
+		if (intstatus & (1 << chnl_id))
 	    {
             /* clear irq  */
-			sdma_write32(SDMA_INTCLR, 1 << task->channel->id);
+			sdma_write32(SDMA_INTCLR, 1 << chnl_id);
 
 			/* disable channel interrupt */
-			inten &= ~(1 << task->channel->id);
+			inten &= ~(1 << chnl_id);
 			sdma_write32(SDMA_INTEN, inten);
 			
-			InterruptUnmask(sdma.irq_num, sdma.irq_hdl);
+			InterruptUnmask(sdma.irq_num[chnl_id], sdma.irq_hdl[chnl_id]);
 			
 			return 0;
 		}
 
-		InterruptUnmask(sdma.irq_num, sdma.irq_hdl);
+		InterruptUnmask(sdma.irq_num[chnl_id], sdma.irq_hdl[chnl_id]);
 	}
 
 	return 1;
@@ -638,10 +692,10 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	} while (dbg_status & 1);
 	//set command with chnl num as arg,
 	val32 = (SDMA_DMAGO << 16) | (dma_exchange->channel->id << 24);
+	val32 |= (dma_exchange->channel->id << 8); //set chnl num at reg field
 	//if not as manager
 	if (0)
 	{
-		val32 |= (dma_exchange->channel->id << 8); //set chnl num at reg field
 		val32 |= (1 << 0); //work with thread channel, otherwise with manager chnl
 	}
 	
@@ -656,11 +710,13 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 
 	sdma_unlock();
     
+	
     
-    //TODO: if DSP need to process irqs, not wait here
-	if (irq_wait(dma_exchange))
+    // if DSP need to process irqs, not wait here
+	if ( (dma_exchange->type == SDMA_CPU_) && irq_wait(dma_exchange))
 	{
 		printf("error receiveing interrupt\n");
+		sdma_print_regs(dma_exchange->channel->id);
 		return -1;
 	}
 	

@@ -230,7 +230,7 @@ typedef struct {
 	uint8_t*			regs;		//cmn regs
 	uint8_t				pm_conf;
 	dsp_core			core[DLCR30M_MAX_CORES];
-	struct sdma_channel	sdma[SDMA_MAX_CHANNELS];
+	struct sdma_channel	sdma[SDMA_MAX_CHANNELS]; //FIXME:mb have this in sdma module??
 // 	uint8_t* nbsr_sic;
 	uint32_t			core_count; //need this?
 	int					dma_count; //need this?
