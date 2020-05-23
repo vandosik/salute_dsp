@@ -321,7 +321,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	uint32_t src_brst_size;
 	uint32_t dst_brst_size;
 	uint32_t brst_len = 16;
-	struct sdma_descriptor *sd = task->sdma_chain;
+	struct sdma_descriptor *sd = task->chain_pub.sdma_chain;
 	
 	uint32_t trans_count;
     //get byte number per transaction
@@ -330,7 +330,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	
 	uint32_t desc_it;
 	//iterate over sdma_chain
-	for (desc_it = 0; desc_it < task->chain_size; sd = &task->sdma_chain[++desc_it])
+	for (desc_it = 0; desc_it < task->chain_pub.chain_size; sd = &task->chain_pub.sdma_chain[++desc_it])
 	{
 		trans_count = sd->size;
 		
@@ -369,11 +369,11 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		
 	    
 		sdma_command_add(program_buf, SDMA_DMAMOVE_SAR, 2);
-		sdma_command_add(program_buf, task->from + sd->f_off, 4);
+		sdma_command_add(program_buf, task->chain_pub.from + sd->f_off, 4);
 	    
 	    
 		sdma_command_add(program_buf, SDMA_DMAMOVE_DAR, 2);
-		sdma_command_add(program_buf, task->to + sd->t_off, 4);
+		sdma_command_add(program_buf, task->chain_pub.to + sd->t_off, 4);
 
 		//waiting for events, no need now
 	// 	if (sd.type == SDMA_DESCRIPTOR_E1I1 ||
@@ -496,7 +496,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	// 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
 		
 		//send irq to OS
-		sdma_command_add(program_buf, SDMA_DMASEV + (task->channel->id << 11), 2);
+		sdma_command_add(program_buf, SDMA_DMASEV + (task->chain_pub.channel << 11), 2);
 
 	}
 	
@@ -516,15 +516,15 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	uint8_t *code_vaddr;
 	uint64_t	code_paddr;
 	
-	printf("%s: channel: %d\n", __func__, dma_exchange->channel->id);
+	printf("%s: channel: %d\n", __func__, dma_exchange->chain_pub.channel);
 	
-	if (dma_exchange->channel->id >= SDMA_MAX_CHANNELS)
+	if (dma_exchange->chain_pub.channel >= SDMA_MAX_CHANNELS)
 	{
 		printf("%s: illegal channel num\n");
 		return -EINVAL;
 	}
 	
-	if (!(dma_exchange->sdma_chain))
+	if (!(dma_exchange->chain_pub.sdma_chain))
 	{
 		printf("No sdma_chain\n");
 		return -EFAULT;
@@ -543,11 +543,11 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	//get direction by addrs
 	uint32_t dir = 0;
 	
-	if (dma_exchange->from >= SDMA_INTR_MEM_START && dma_exchange->from < SDMA_INTR_MEM_END)
+	if (dma_exchange->chain_pub.from >= SDMA_INTR_MEM_START && dma_exchange->chain_pub.from < SDMA_INTR_MEM_END)
 	{
 		dir |= (1 << 0);
 	}
-	if (dma_exchange->to >= SDMA_INTR_MEM_START && dma_exchange->to < SDMA_INTR_MEM_END)
+	if (dma_exchange->chain_pub.to >= SDMA_INTR_MEM_START && dma_exchange->chain_pub.to < SDMA_INTR_MEM_END)
 	{
 		dir |= (1 << 1);
 	}
@@ -586,7 +586,7 @@ static int irq_wait(sdma_exchange_t *task)
 	uint32_t		intstatus;
 	uint32_t		inten;
 	int				result;
-	uint32_t		chnl_id = task->channel->id;
+	uint32_t		chnl_id = task->chain_pub.channel;
 
 	InterruptUnmask(sdma.irq_num[chnl_id], sdma.irq_hdl[chnl_id]);
 	
@@ -630,7 +630,8 @@ static int irq_wait(sdma_exchange_t *task)
 
 int sdma_transfer(sdma_exchange_t *dma_exchange)
 {
-	printf("%s: entry  from: 0x%08x    to: 0x%08x\n", __func__, dma_exchange->from, dma_exchange->to);
+	printf("%s: entry  from: 0x%08x    to: 0x%08x\n", __func__, dma_exchange->chain_pub.from, 
+dma_exchange->chain_pub.to);
 	uint32_t	dbg_status;
 	uint32_t	val32;
 	uint32_t	channel_sts;
@@ -645,7 +646,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 
 	//TODO: check the vacancy of the channel
 	
-	channel_sts = sdma_read32(SDMA_CSR(dma_exchange->channel->id));
+	channel_sts = sdma_read32(SDMA_CSR(dma_exchange->chain_pub.channel));
 	if (channel_sts & 0xF)
 	{
 		printf("DMA echannel busy\n");
@@ -671,7 +672,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 // 			  cpu_to_delcore30m(phys_to_xyram(0x0C)));
 
 // 	set SDMA to set interrupts on channel
-	sdma_write32(SDMA_INTEN, sdma_read32(SDMA_INTEN) | (1 << dma_exchange->channel->id));
+	sdma_write32(SDMA_INTEN, sdma_read32(SDMA_INTEN) | (1 << dma_exchange->chain_pub.channel));
 	
 	//set DSP to get interrups from SDMA
 // 	delcore30m_writel(pdata, core_id, DELCORE30M_IMASKR, (1 << 30));
@@ -691,8 +692,8 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 		printf("%s: dbg_status 0x%08x\n", __func__, dbg_status);
 	} while (dbg_status & 1);
 	//set command with chnl num as arg,
-	val32 = (SDMA_DMAGO << 16) | (dma_exchange->channel->id << 24);
-	val32 |= (dma_exchange->channel->id << 8); //set chnl num at reg field
+	val32 = (SDMA_DMAGO << 16) | (dma_exchange->chain_pub.channel << 24);
+	val32 |= (dma_exchange->chain_pub.channel << 8); //set chnl num at reg field
 	//if not as manager
 	if (0)
 	{
@@ -704,7 +705,7 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
     //со 2го по 5й байт инструкции DMAGO в регистр 1
 	sdma_write32(SDMA_DBGINST1, dma_exchange->program_buf.code_paddr);
 	
-	sdma_print_regs(dma_exchange->channel->id);
+	sdma_print_regs(dma_exchange->chain_pub.channel);
     //запустить выполнение нструкций
 	sdma_write32(SDMA_DBGCMD, 0);
 
@@ -716,11 +717,11 @@ int sdma_transfer(sdma_exchange_t *dma_exchange)
 	if ( (dma_exchange->type == SDMA_CPU_) && irq_wait(dma_exchange))
 	{
 		printf("error receiveing interrupt\n");
-		sdma_print_regs(dma_exchange->channel->id);
+		sdma_print_regs(dma_exchange->chain_pub.channel);
 		return -1;
 	}
 	
-    sdma_print_regs(dma_exchange->channel->id);
+    sdma_print_regs(dma_exchange->chain_pub.channel);
 
 	return 0;
 }

@@ -223,6 +223,11 @@ typedef struct {
 	uint32_t				job_id; //job on DSP core
 } dsp_core;
 
+typedef struct sdma_channel{
+		uint8_t			id;
+		uint8_t			busy;
+} sdma_channel_t;
+
 typedef struct {
 	ELCORE_DEV	  		drvhdl;
 	uint8_t*			base;

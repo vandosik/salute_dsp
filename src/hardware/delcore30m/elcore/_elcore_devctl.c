@@ -202,6 +202,32 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			
 			break;
 		}
+		case DCMD_ELCORE_SET_SDMACHAIN:
+		{
+			SDMA_CHAIN					*dma_pub_chain;
+			struct sdma_descriptor		*desc_chain;
+
+			dma_pub_chain = (SDMA_CHAIN*)devctl_data;
+			desc_chain = (struct sdma_descriptor*)((uint8_t*)devctl_data + sizeof(SDMA_CHAIN));
+			
+			ocb->core = dma_send->core;
+			int send_len = dma_send->len;
+			
+            printf("%s: dma_send src: 0x%08x\n", __func__, dma_send->dma_src);
+			dev->funcs->dma_send(drvhdl, ocb->core, dma_send->dma_src, dma_send->offset, &send_len);
+            
+			if (send_len >= 0)
+			{
+				status = EOK;
+			}
+			else
+			{
+				return EINVAL;
+			}
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
+			break;
+		}
 		case DCMD_ELCORE_JOB_ENQUEUE:
 		{
 			uint32_t			job_id = *((uint32_t*)devctl_data);

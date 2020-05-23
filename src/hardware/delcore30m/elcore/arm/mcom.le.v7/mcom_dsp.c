@@ -263,7 +263,6 @@ void *elcore_func_init(void *hdl, char *options)
 	{
 		dev->sdma[it].busy = 0;
 		dev->sdma[it].id = it;
-		dev->sdma[it].rram = NULL;
 	}
 	
 	return dev;
@@ -1033,12 +1032,12 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 	.iter = 1 // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
     };
 	
-	sdma_task.channel = chnl;
+	sdma_task.chain_pub.channel = chnl->id;
 	sdma_task.type = SDMA_CPU_; //CPU handles interrupts
-	sdma_task.sdma_chain = &sdma_package;
-	sdma_task.chain_size = 1; //only one package
+	sdma_task.chain_pub.sdma_chain = &sdma_package;
+	sdma_task.chain_pub.chain_size = 1; //only one package
 	
-	printf("%s: channel: %d\n", __func__, sdma_task.channel->id);
+	printf("%s: channel: %d\n", __func__, sdma_task.chain_pub.channel);
 	
 	if (offset < DLCR30M_BANK_SIZE)
 	{
@@ -1047,8 +1046,8 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 			{
 			   if (offset + *size < (DLCR30M_BANK_SIZE * 5)) 
 			   {	//writing from pram we need to leave one xyram bank?? yes - 4, no - 5
-				sdma_task.from = from;
-				sdma_task.to = core->pram_phys + offset;
+				sdma_task.chain_pub.from = from;
+				sdma_task.chain_pub.to = core->pram_phys + offset;
 				sdma_package.size = DLCR30M_BANK_SIZE - offset;
 
 
@@ -1067,8 +1066,8 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 				
 				sdma_release_task(&sdma_task);
 				
-				sdma_task.from = from + (uint64_t)(DLCR30M_BANK_SIZE - offset);
-				sdma_task.to = core->xyram_phys;
+				sdma_task.chain_pub.from = from + (uint64_t)(DLCR30M_BANK_SIZE - offset);
+				sdma_task.chain_pub.to = core->xyram_phys;
 				sdma_package.size = *size - (DLCR30M_BANK_SIZE - offset);
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
@@ -1092,8 +1091,8 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 			}
 			else
 			{ //send with one block
-				sdma_task.from = from;
-				sdma_task.to = core->pram_phys + offset;
+				sdma_task.chain_pub.from = from;
+				sdma_task.chain_pub.to = core->pram_phys + offset;
 				sdma_package.size = *size;
 				
 				if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
@@ -1114,8 +1113,8 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 	{ //put to XYRAM
 		if ((offset - DLCR30M_BANK_SIZE + *size) < (DLCR30M_BANK_SIZE * 5))
 		{
-			sdma_task.from = from;
-			sdma_task.to = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
+			sdma_task.chain_pub.from = from;
+			sdma_task.chain_pub.to = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
 			sdma_package.size = *size;
 			
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
@@ -1187,10 +1186,10 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 	.iter = 1 // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
     };
 	
-	sdma_task.channel = chnl;
+	sdma_task.chain_pub.channel = chnl->id;
 	sdma_task.type = SDMA_CPU_; //CPU handles interrupts
-	sdma_task.sdma_chain = &sdma_package;
-	sdma_task.chain_size = 1; //only one package
+	sdma_task.chain_pub.sdma_chain = &sdma_package;
+	sdma_task.chain_pub.chain_size = 1; //only one package
 	
 	
 	if (offset < DLCR30M_BANK_SIZE)
@@ -1199,8 +1198,8 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 		{
 			if ((offset + *size) < (DLCR30M_BANK_SIZE * 5))
 			{
-				sdma_task.from = core->pram_phys + offset;
-				sdma_task.to = to;
+				sdma_task.chain_pub.from = core->pram_phys + offset;
+				sdma_task.chain_pub.to = to;
 				sdma_package.size = DLCR30M_BANK_SIZE - offset;
 
 				
@@ -1218,8 +1217,8 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 				
 				sdma_release_task(&sdma_task);
 			
-				sdma_task.from = core->xyram_phys;
-				sdma_task.to = to + (DLCR30M_BANK_SIZE - offset);
+				sdma_task.chain_pub.from = core->xyram_phys;
+				sdma_task.chain_pub.to = to + (DLCR30M_BANK_SIZE - offset);
 				sdma_package.size = *size - (DLCR30M_BANK_SIZE - offset);
 
 				
@@ -1243,8 +1242,8 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 		}
 		else
 		{
-			sdma_task.from = core->pram_phys + offset;
-			sdma_task.to = to;
+			sdma_task.chain_pub.from = core->pram_phys + offset;
+			sdma_task.chain_pub.to = to;
 			sdma_package.size = *size;
 
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )
@@ -1265,8 +1264,8 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 	{
 		if ((offset - DLCR30M_BANK_SIZE + *size) < (DLCR30M_BANK_SIZE * 5)) 
 		{
-			sdma_task.from = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
-			sdma_task.to = to;
+			sdma_task.chain_pub.from = core->xyram_phys + (uint64_t)(offset - DLCR30M_BANK_SIZE);
+			sdma_task.chain_pub.to = to;
 			sdma_package.size = *size;
 			
 			if ((job_status = sdma_prepare_task(&sdma_task)) != 0 )

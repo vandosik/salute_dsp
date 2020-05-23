@@ -112,12 +112,6 @@
 
 
 
-typedef struct sdma_channel{
-		uint8_t*		rram; //doesn't used yet
-		uint8_t			id;
-		uint8_t			busy;
-} sdma_channel_t;
-
 /**
  * struct sdma_program_buf - Internal data about SDMA program
  * @start: Pointer to start of SDMA program buffer.
@@ -136,28 +130,32 @@ struct sdma_program_buf {
 
 typedef enum {EXTR_TO_EXTR = 0, INTR_TO_EXTR, EXTR_TO_INTR, INTR_TO_INTR} sdma_direction;
 
-typedef struct sdma_descriptor {
+struct sdma_descriptor {
 	uint32_t f_off; //offset from sdma_exchange->from
 	uint32_t t_off;
 	uint32_t size; //size of data to be sent
 	uint8_t iter; // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
-} sdma_descriptor_t;
+};
 
 typedef enum {SDMA_DSP_, SDMA_CPU_} sdma_extype; //TODO;расширить на отправку/ожидание событий
 
-//TODO: some fields, such as code_addr, are not for customer. Need to hide them.
-typedef struct sdma_exchange{
+//public part of job
+typedef struct _elcore_sdma_chain {
 		uint32_t					job_id;
-		sdma_extype					type;
 		uint32_t					from;
 		uint32_t					to;
-		sdma_channel_t*				channel;
+		uint32_t					channel; //channel number
+		uint32_t					chain_size; //in sdma_desc
+		struct sdma_descriptor		*sdma_chain; //цепочка пакетов обмена
+} SDMA_CHAIN;
+
+//TODO: some fields, such as code_addr, are not for customer. Need to hide them.
+typedef struct sdma_exchange{
+		SDMA_CHAIN					chain_pub;
+		sdma_extype					type;
 		sdma_direction				direction;
 		struct sdma_program_buf		program_buf;
 		uint32_t					prog_ready;
-		sdma_descriptor_t			*sdma_chain; //цепочка пакетов обмена
-		uint32_t					chain_size; //in sdma_desc
-
 		uint8_t flags;
 } sdma_exchange_t;
 
