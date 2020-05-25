@@ -179,7 +179,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			{
 				return EINVAL;
 			}
-			
+			//TODO: free memory??
 			if ((new_job = alloc_job(drvhdl, new_pub_job)) == NULL)
 			{
 				return ENOMEM;
@@ -204,26 +204,94 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		}
 		case DCMD_ELCORE_SET_SDMACHAIN:
 		{
+			printf("%s: DCMD_ELCORE_SET_SDMACHAIN entry\n", __func__);
+			
 			SDMA_CHAIN					*dma_pub_chain;
-			struct sdma_descriptor		*desc_chain;
-
+			struct sdma_descriptor		*tmp_chain, *desc_chain;
+			elcore_job_t				*cur_job;
+           
+			
 			dma_pub_chain = (SDMA_CHAIN*)devctl_data;
-			desc_chain = (struct sdma_descriptor*)((uint8_t*)devctl_data + sizeof(SDMA_CHAIN));
+			tmp_chain = (struct sdma_descriptor*)((uint8_t*)devctl_data + sizeof(SDMA_CHAIN));
 			
-			ocb->core = dma_send->core;
-			int send_len = dma_send->len;
-			
-            printf("%s: dma_send src: 0x%08x\n", __func__, dma_send->dma_src);
-			dev->funcs->dma_send(drvhdl, ocb->core, dma_send->dma_src, dma_send->offset, &send_len);
-            
-			if (send_len >= 0)
-			{
-				status = EOK;
-			}
-			else
+			if ((cur_job = get_stored_by_id(drvhdl, dma_pub_chain->job_id)) == NULL)
 			{
 				return EINVAL;
 			}
+			
+			int				io_check = 0, i;
+			uint32_t		input_num;
+			uint32_t		output_num;
+			
+			//mb part of this this code in low level?
+			
+			if ((dma_pub_chain->to >> 16) == (DSP_SDMA_INPUT(0) >> 16))
+			{
+				io_check |= (1 << 0);
+				input_num = (dma_pub_chain->to) & DSP_SDMA_IN_MASK;
+				
+				if (input_num >= cur_job->job_pub.inum)
+				{
+					return EINVAL;
+				}
+				
+				dma_pub_chain->to = cur_job->input_cpupaddr[input_num];
+				
+			}
+			
+			if ((dma_pub_chain->from >> 16) == (DSP_SDMA_OUTPUT(0) >> 16))
+			{
+				io_check |= (1 << 1);
+				output_num = (dma_pub_chain->from) & DSP_SDMA_OUT_MASK;
+				
+				if (output_num >= cur_job->job_pub.onum)
+				{
+					return EINVAL;
+				}
+				
+				dma_pub_chain->from = cur_job->output_cpupaddr[output_num];
+			}
+			//must be only one input or output
+			//TODO: can we transfer from output to input??
+			if (io_check < 1 || io_check > 2)
+			{
+				return EINVAL;
+			}
+			
+			if (cur_job->sdma_chaincount == DSP_MAX_CHAINS)
+			{
+				return ENOMEM;
+			}
+			
+			for (i = 0; i < cur_job->sdma_chaincount; i++)
+			{
+				if (cur_job->sdma_chains[i].chain_pub.channel == dma_pub_chain->channel)
+				{
+					//channel is already used by this job
+					return EBUSY;
+				}
+			}
+			
+			if ( (desc_chain = calloc(cur_job->sdma_chaincount, sizeof(struct sdma_descriptor))) == NULL)
+			{
+				return ENOMEM;
+			}
+			
+			memcpy(desc_chain, tmp_chain, cur_job->sdma_chaincount * sizeof(struct sdma_descriptor));
+			
+			cur_job->sdma_chains[cur_job->sdma_chaincount].sdma_chain = desc_chain;
+			cur_job->sdma_chains[cur_job->sdma_chaincount].chain_pub = *dma_pub_chain;
+
+			status = dev->funcs->setup_dmachain(drvhdl, &cur_job->sdma_chains[cur_job->sdma_chaincount]);
+            
+			if (status)
+			{
+				free(desc_chain);
+				return EINVAL;
+			}
+			
+			cur_job->sdma_chaincount++;
+			
 // 			msg->o.ret_val = status;
 // 			msg->o.nbytes = nbytes;
 			break;
@@ -368,7 +436,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			{
 				return EINVAL;
 			}
-			//free mem resources on dsp
+			//free mem resources on dsp, sdma chains free here
 			dev->funcs->release_mem(drvhdl, cur_job);
 			
 			//TODO: if cancel running job - try run new

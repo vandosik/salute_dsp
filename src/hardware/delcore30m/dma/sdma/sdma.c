@@ -321,7 +321,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	uint32_t src_brst_size;
 	uint32_t dst_brst_size;
 	uint32_t brst_len = 16;
-	struct sdma_descriptor *sd = task->chain_pub.sdma_chain;
+	struct sdma_descriptor *sd = task->sdma_chain;
 	
 	uint32_t trans_count;
     //get byte number per transaction
@@ -330,7 +330,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	
 	uint32_t desc_it;
 	//iterate over sdma_chain
-	for (desc_it = 0; desc_it < task->chain_pub.chain_size; sd = &task->chain_pub.sdma_chain[++desc_it])
+	for (desc_it = 0; desc_it < task->chain_pub.chain_size; sd = &task->sdma_chain[++desc_it])
 	{
 		trans_count = sd->size;
 		
@@ -520,11 +520,11 @@ int sdma_prepare_task(sdma_exchange_t *dma_exchange)
 	
 	if (dma_exchange->chain_pub.channel >= SDMA_MAX_CHANNELS)
 	{
-		printf("%s: illegal channel num\n");
+		printf("illegal channel num\n");
 		return -EINVAL;
 	}
 	
-	if (!(dma_exchange->chain_pub.sdma_chain))
+	if (!(dma_exchange->sdma_chain))
 	{
 		printf("No sdma_chain\n");
 		return -EFAULT;
@@ -659,27 +659,8 @@ dma_exchange->chain_pub.to);
 // 		return -EBUSY;
 
 
-	
-// 	sdma_mem_dump((uint8_t*)code_vaddr, SDMA_PROG_MAXSIZE);
-	
-// 	
-// 	core_id = dmachain.core;
-
-	/* TODO: Move DSP registers setup to try_run() */
-
-// 	/* FIXME: interrupt handler address */
-// 	delcore30m_writel(pdata, core_id, DELCORE30M_INVAR,
-// 			  cpu_to_delcore30m(phys_to_xyram(0x0C)));
-
 // 	set SDMA to set interrupts on channel
 	sdma_write32(SDMA_INTEN, sdma_read32(SDMA_INTEN) | (1 << dma_exchange->chain_pub.channel));
-	
-	//set DSP to get interrups from SDMA
-// 	delcore30m_writel(pdata, core_id, DELCORE30M_IMASKR, (1 << 30));
-// 
-// 	qmaskr0_val = delcore30m_readl(pdata, core_id, DELCORE30M_QMASKR0);
-// 	qmaskr0_val |= 1 << (8 + dmachain.channel.num);
-// 	delcore30m_writel(pdata, core_id, DELCORE30M_QMASKR0, qmaskr0_val);
 	
 	rc = sdma_try_lock(1000);
 	if (rc)
@@ -710,8 +691,6 @@ dma_exchange->chain_pub.to);
 	sdma_write32(SDMA_DBGCMD, 0);
 
 	sdma_unlock();
-    
-	
     
     // if DSP need to process irqs, not wait here
 	if ( (dma_exchange->type == SDMA_CPU_) && irq_wait(dma_exchange))

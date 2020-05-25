@@ -146,12 +146,12 @@ typedef struct _elcore_sdma_chain {
 		uint32_t					to;
 		uint32_t					channel; //channel number
 		uint32_t					chain_size; //in sdma_desc
-		struct sdma_descriptor		*sdma_chain; //цепочка пакетов обмена
 } SDMA_CHAIN;
 
 //TODO: some fields, such as code_addr, are not for customer. Need to hide them.
 typedef struct sdma_exchange{
 		SDMA_CHAIN					chain_pub;
+		struct sdma_descriptor		*sdma_chain; //цепочка пакетов обмена
 		sdma_extype					type;
 		sdma_direction				direction;
 		struct sdma_program_buf		program_buf;

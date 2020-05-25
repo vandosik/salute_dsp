@@ -273,48 +273,68 @@ void *elcore_func_init(void *hdl, char *options)
 
 #if 1
 
-static void elcore_setup_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
+static int elcore_setup_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
 {
 	printf("%s: entry\n", __func__);
-	int i;
 	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
 	uint32_t				qmaskr0_val;
+	int						sdma_channel, i;
+
+	for (i = 0; i < cur_job->sdma_chaincount; i++)
+	{
+		if (dev->sdma[cur_job->sdma_chains[i].chain_pub.channel].busy)
+		{
+			printf("%s: channel %d is busy\n", __func__, i);
+			
+			return EBUSY;
+		}
+	}
+	
+	//разрешаем внешние запросы на прерывания от группы QST0 в DSP
+	dsp_set_reg32(cur_core, DLCR30M_IMASKR, (1 << 30));
+	
+	//разрешить прерывание от n-го канала SDMA в DSP
+	qmaskr0_val = dsp_get_reg32(cur_core, DLCR30M_QMASKR(0));
+	
+	for (i = 0; i < cur_job->sdma_chaincount; i++)
+	{
+		sdma_channel = cur_job->sdma_chains[i].chain_pub.channel;
+		qmaskr0_val |= 1 << (8 + sdma_channel );
+		
+		dev->sdma[sdma_channel].busy = 1;
+	}
+	
+	dsp_set_reg32(cur_core, DLCR30M_QMASKR(0), qmaskr0_val);
 	
 	/* FIXME: interrupt handler address */
-    /*
-     * Irq handler distination is set in crt0 file
-     */
-
-// 	delcore30m_writel(pdata, core_id, DELCORE30M_INVAR,
-// 			  cpu_to_delcore30m(phys_to_xyram(0x0C)));
-	dsp_set_reg32(cur_core, DLCR30M_IVAR, cur_job->code_dspaddr + addr2delcore30m(0x0C));
-/*TODO: get channel num for chain or job*/
-	int sdma_channel = 1;
+	/*
+	* Irq handler distination is set in crt0 file
+	*/
 	
-    //разрешаем внешние запросы на прерывания от группы QST0 в DSP
-	dsp_set_reg32(cur_core, DLCR30M_IMASKR, (1 << 30));
-    //разрешить прерывание от n-го канала SDMA в DSP
-	qmaskr0_val = dsp_get_reg32(cur_core, DLCR30M_QMASKR(0));
-	qmaskr0_val |= 1 << (8 + sdma_channel );
-	dsp_set_reg32(cur_core, DLCR30M_QMASKR(0), qmaskr0_val);
-    
-	dev->sdma[sdma_channel].busy = 1;
+	dsp_set_reg32(cur_core, DLCR30M_IVAR, cur_job->code_dspaddr + addr2delcore30m(0x0C));
+	
+	return EOK;
 }
 
 static void elcore_release_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
 {
 	printf("%s: entry\n", __func__);
-	int i;
 	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
 	uint32_t				qmaskr0_val;
-
-	/*TODO: get channel num for chain*/
-	int sdma_channel = 1;
+	int						sdma_channel, i;
 
 
     //запрещаем прерывание от n-го канала SDMA в DSP
 	qmaskr0_val = dsp_get_reg32(cur_core, DLCR30M_QMASKR(0));
-	qmaskr0_val &= ~(1 << (8 + sdma_channel ));
+	
+	for (i = 0; i < cur_job->sdma_chaincount; i++)
+	{
+		sdma_channel = cur_job->sdma_chains[i].chain_pub.channel;
+		qmaskr0_val &= ~(1 << (8 + sdma_channel ));
+		
+		dev->sdma[sdma_channel].busy = 0;
+	}
+	
 	dsp_set_reg32(cur_core, DLCR30M_QMASKR(0), qmaskr0_val);
 	/*
     *запрещаем внешние запросы на прерывания от группы QST0 в DSP, если нет активных задач,
@@ -323,7 +343,7 @@ static void elcore_release_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
 	int it = 0;
 	for (;it < dev->dma_count; it++)
 	{
-		if (dev->sdma[sdma_channel].busy)
+		if (dev->sdma[it].busy)
 		{
 			return;
 		}
@@ -375,6 +395,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	delcore30m_t			*dev = hdl;
 	dsp_core				*core = &dev->core[core_num];
 	uint32_t				val32;
+	int						rc, i;
 
 	elcore_job_t			*cur_job = get_job_first_enqueued( &dev->drvhdl, core_num);
 	
@@ -389,8 +410,15 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 		return EBUSY;
 	}
 	
-	elcore_set_args(dev, cur_job);
+	if (cur_job->sdma_chaincount > 0 )
+	{
+		if ((rc = elcore_setup_sdma(dev, cur_job)) != EOK)
+		{
+			return rc;
+		}
+	}
 	
+	elcore_set_args(dev, cur_job);
 	
 	dsp_set_reg16(core, DLCR30M_PC,cur_job->code_dspaddr);
 
@@ -405,6 +433,11 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	
 	dsp_set_reg16(core,DLCR30M_DSCR,dsp_get_reg16(core,DLCR30M_DSCR) | DLCR30M_DSCR_RUN);
 	
+	//start sdma transfers
+	for (i = 0; i < cur_job->sdma_chaincount; i++)
+	{
+		sdma_transfer(&cur_job->sdma_chains[i]);
+	}
 	
 	return EOK;
 	
@@ -779,6 +812,15 @@ int			release_mem(void *hdl, void *job)
 	DLCR30M_SET_PART_FREE(cur_core, cur_job->mem_part);
 	cur_job->mem_part = DLCR30M_NO_MEM_PARTS;
 	
+	int it;
+	
+	for (it = 0; it < cur_job->sdma_chaincount; it++)
+	{
+		free(cur_job->sdma_chains[it].sdma_chain);
+	}
+	
+	cur_job->sdma_chaincount = 0;
+	
 	return EOK;
 }
 
@@ -973,6 +1015,9 @@ int elcore_interrupt_thread(void *hdl)
 				
 				
 				job_remove_from_queue(&dev->drvhdl, cur_job); //sets DELCORE30M_JOB_IDLE
+				//release sdma chains
+				elcore_release_sdma(dev, cur_job);
+				
 				//TODO: where to release job? now by client
 				elcore_reset_core(dev, it);
 				
@@ -1034,7 +1079,7 @@ uint32_t elcore_dmasend( void *hdl, uint32_t core_num, uint32_t from, uint32_t o
 	
 	sdma_task.chain_pub.channel = chnl->id;
 	sdma_task.type = SDMA_CPU_; //CPU handles interrupts
-	sdma_task.chain_pub.sdma_chain = &sdma_package;
+	sdma_task.sdma_chain = &sdma_package;
 	sdma_task.chain_pub.chain_size = 1; //only one package
 	
 	printf("%s: channel: %d\n", __func__, sdma_task.chain_pub.channel);
@@ -1188,7 +1233,7 @@ uint32_t elcore_dmarecv(void *hdl, uint32_t core_num, uint32_t to,  uint32_t off
 	
 	sdma_task.chain_pub.channel = chnl->id;
 	sdma_task.type = SDMA_CPU_; //CPU handles interrupts
-	sdma_task.chain_pub.sdma_chain = &sdma_package;
+	sdma_task.sdma_chain = &sdma_package;
 	sdma_task.chain_pub.chain_size = 1; //only one package
 	
 	
@@ -1302,7 +1347,24 @@ exit0:
 	return 0;
 }
 
-
+int			elcore_setup_dmachain(void *hdl, void *chain)
+{
+	printf("%s: entry\n", __func__);
+	delcore30m_t			*dev = hdl;
+	int						job_status;
+	
+	sdma_exchange_t			*cur_chain = (sdma_exchange_t*)chain;
+	
+	cur_chain->type = SDMA_DSP_;
+	
+	if ((job_status = sdma_prepare_task(cur_chain)) != 0 )
+	{
+		printf("Job prepare error: %s\n", strerror(-job_status));
+		return -1;
+	}
+	
+	return 0;
+}
 
 void elcore_func_fini(void *hdl)
 {

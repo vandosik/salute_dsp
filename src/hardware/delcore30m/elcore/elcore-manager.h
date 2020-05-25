@@ -175,6 +175,24 @@ typedef struct _elcore_job_entry {
 
 } ELCORE_JOB;
 
+
+//TODO: move this somewhere else
+#include <sdma.h>
+
+//TODO: make cmth dynamic
+#define DSP_MAX_CHAINS				MAX_INPUTS + MAX_OUTPUTS
+/*
+*Set this macro with number of input arg (begining with 0)to field @to of SDMA_CHAIN struct 
+* to write data to input part of DSP memory
+*/
+#define DSP_SDMA_INPUT(input_num)		(0x38A00000 + input_num)
+/*
+*Set this macro with number of output arg (begining with 0) to field @from of SDMA_CHAIN struct 
+* to write data to input part of DSP memory
+*/
+#define DSP_SDMA_OUTPUT(output_num)		(0x3A880000 + output_num)
+//call before enqueue
+
 //TODO: move this somewhere else
 #include <elcore_job_list.h>
 
@@ -236,11 +254,22 @@ typedef struct {
 #define DCMD_ELCORE_JOB_RELEASE		__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 14, uint32_t)
 
 
-
-//TODO: move this somewhere else
-#include <sdma.h>
+/*
+*use this struct
+*typedef struct _elcore_sdma_chain {
+*		uint32_t					job_id;
+*		uint32_t					from;
+*		uint32_t					to;
+*		uint32_t					channel; //channel number
+*		uint32_t					chain_size; //in sdma_desc
+*		struct sdma_descriptor		*sdma_chain; //цепочка пакетов обмена
+*} SDMA_CHAIN;
+*/
 
 #define DCMD_ELCORE_SET_SDMACHAIN	__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 15, SDMA_CHAIN)
+
+#define DSP_SDMA_IN_MASK				(~DSP_SDMA_INPUT(0))
+#define DSP_SDMA_OUT_MASK				(~DSP_SDMA_OUTPUT(0))
 // 
 // 
 //     /*
@@ -312,7 +341,7 @@ int *size);
 	
 	int			(*release_mem)(void *hdl, void *job);
 
-
+	int			(*setup_dmachain)(void *hdl, void *chain);
 } elcore_funcs_t;
 
 extern elcore_funcs_t elcore_funcs; //need to pass low lewel funcs to the resmgr

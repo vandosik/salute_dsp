@@ -294,35 +294,6 @@ int job_remove_from_queue( void *hdl, elcore_job_t* job )
 	unlock_return(-1);
 }
 
-// elcore_job_t* get_job_first( void *hdl )
-// {
-// 	ELCORE_DEV			*drvhdl = hdl;
-//     elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl
-// 	
-// 	return job_hdl->first_job;
-// }
-
-// elcore_job_t* get_job_first_enqueued( void *hdl )
-// {
-// 	ELCORE_DEV			*drvhdl = hdl;
-//     elcore_job_hdl_t	*job_hdl = (elcore_job_hdl_t*)drvhdl->job_hdl
-// 	elcore_job_t		*tmp_job = job_hdl->queue;
-// 	
-// 	if (!tmp_job)
-// 	{
-// 		return NULL;
-// 	}
-// 	do
-// 	{
-// 		if (tmp_job->job_pub.status == ELCORE_JOB_ENQUEUED)
-// 		{
-// 			return tmp_job;
-// 		}
-// 		tmp_job = tmp_job->next;
-// 	} while (tmp_job);
-// 
-// 	return NULL;
-// }
 
 //TODO: may more than one core do job?
 elcore_job_t* get_job_first_enqueued( void *hdl, uint8_t core )
@@ -352,21 +323,6 @@ elcore_job_t* get_job_first_enqueued( void *hdl, uint8_t core )
 	unlock_return(NULL);
 }
 
-// elcore_job_t* get_job_last( void *hdl )
-// {
-// 	ELCORE_DEV		*drvhdl = hdl;
-// 	elcore_job_t	*tmp_job = drvhdl->first_job;
-// 	
-// 	if (!tmp_job)
-// 	{
-// 		return NULL;
-// 	}
-// 	while (tmp_job->next)
-// 	{
-// 		tmp_job = tmp_job->njob_put_to_storageext;
-// 	}
-// 	return tmp_job;
-// }
 
 elcore_job_t* get_enqueued_by_id( void *hdl , uint32_t id)
 {

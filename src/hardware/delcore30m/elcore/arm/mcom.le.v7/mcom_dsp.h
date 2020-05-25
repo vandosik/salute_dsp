@@ -265,6 +265,8 @@ extern int			elcore_get_data( void *hdl, void *job);
 
 extern int			release_mem(void *hdl, void *job);
 
+extern int			elcore_setup_dmachain(void *hdl, void *chain);
+
 elcore_funcs_t elcore_funcs = {
 	sizeof(elcore_funcs_t),
 	elcore_func_init,          /* init() */
@@ -283,6 +285,7 @@ elcore_funcs_t elcore_funcs = {
 	elcore_set_data,
     elcore_get_data,
 	release_mem,
+	elcore_setup_dmachain
 	
 };
 #endif

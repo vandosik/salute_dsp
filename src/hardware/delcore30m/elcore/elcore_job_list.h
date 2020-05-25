@@ -18,6 +18,8 @@ typedef struct _elcore_job {
 	uint32_t				output_dspaddr[MAX_OUTPUTS]; //in dsp adressing
 	uint32_t				input_cpupaddr[MAX_INPUTS]; //in cpu adressing
 	uint32_t				output_cpupaddr[MAX_INPUTS]; //in cpu adressing
+	uint32_t				sdma_chaincount;
+	struct sdma_exchange	sdma_chains[DSP_MAX_CHAINS];
     
 	struct _elcore_job		*next;
 } elcore_job_t;
