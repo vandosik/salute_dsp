@@ -26,8 +26,7 @@ Options:
 
 #define DCMD_CUSTOM	__DIOT (_DCMD_ELCORE, 228 + 5, int)
 
-char* fw_path_1 = "/tmp/set_buf";
-char* fw_path_2 = "/tmp/sum";
+char* fw_path_1 = "/tmp/detector";
 
 int mem_dump(uint8_t* addr, uint32_t len)
 {

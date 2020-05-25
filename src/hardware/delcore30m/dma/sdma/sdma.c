@@ -260,7 +260,14 @@ sdma_fail0:
 
 int sdma_fini(void)
 {//BUG:  verify that sdma inited
-	InterruptDetach(sdma.irq_hdl);
+	int it;
+	
+	for (it = 0; it < sdma.chnl_num; it++)
+	{
+		InterruptDetach(sdma.irq_hdl[it]);
+	}
+	
+	
 	munmap_device_io( sdma.vbase, SDMA_SIZE );
 #ifdef _SDMA_USE_SPINLOCK
 	munmap_device_io( sdma.spinlock, SPINLOCK_REG_SIZE );
@@ -375,7 +382,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		sdma_command_add(program_buf, SDMA_DMAMOVE_DAR, 2);
 		sdma_command_add(program_buf, task->chain_pub.to + sd->t_off, 4);
 
-		//waiting for events, no need now
+		//waiting for events
 	// 	if (sd.type == SDMA_DESCRIPTOR_E1I1 ||
 	// 	    sd.type == SDMA_DESCRIPTOR_E1I0) {
 	// 		sdma_command_add(program_buf,
@@ -383,6 +390,12 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	// 					((MAX_SDMA_CHANNELS + channel) << 11),
 	// 				 2);
 	// 	}
+        
+		if (task->type == SDMA_DSP_)
+		{
+			sdma_command_add(program_buf,SDMA_DMAWFE +((SDMA_MAX_CHANNELS + task->chain_pub.channel) << 11),2);
+		}
+        
 		//set number of loop iterations, for several pieces of data
 		if (sd->iter > 0)
 		{
@@ -495,8 +508,11 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	// 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
 	// 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
 		
-		//send irq to OS
-		sdma_command_add(program_buf, SDMA_DMASEV + (task->chain_pub.channel << 11), 2);
+		//send irq to OS or DSP
+		if (task->type == SDMA_CPU_ || task->type == SDMA_DSP_)
+		{
+			sdma_command_add(program_buf, SDMA_DMASEV + (task->chain_pub.channel << 11), 2);
+		}
 
 	}
 	
