@@ -382,7 +382,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		sdma_command_add(program_buf, SDMA_DMAMOVE_DAR, 2);
 		sdma_command_add(program_buf, task->chain_pub.to + sd->t_off, 4);
 
-		//waiting for events
+		//waiting for events, DSP send events and DMA thread starts
 	// 	if (sd.type == SDMA_DESCRIPTOR_E1I1 ||
 	// 	    sd.type == SDMA_DESCRIPTOR_E1I0) {
 	// 		sdma_command_add(program_buf,

@@ -366,16 +366,17 @@ static uint32_t elcore_set_args(delcore30m_t *dev, elcore_job_t *cur_job)
 // 	u64 *stack = (u64 *)desc->pdata->stack[core].vaddr - instack +
 // 		     STACK_SIZE / sizeof(u64);
 
-	/* Set registers R2 and R4 */
+	/* Set registers R0, R2 and R4 */
 	for (i = 0; i < cur_job->job_pub.inum; ++i)
 	{
-		printf("%s: set R%u to 0x%08x  \n", __func__, i * 2 + 2, cur_job->input_dspaddr[i] );
-		dsp_set_reg32(cur_core, DLCR30M_R2L(i * 2 + 2), cur_job->input_dspaddr[i]);
+		printf("%s: set R%u to 0x%08x  \n", __func__, i * 2 /*+ 2*/, cur_job->input_dspaddr[i] );
+		dsp_set_reg32(cur_core, DLCR30M_R2L(i * 2/* + 2*/), cur_job->input_dspaddr[i]);
 	}
 	for (i = 0; i < cur_job->job_pub.onum; ++i)
 	{
-		printf("%s: set R%u to 0x%08x \n", __func__, (cur_job->job_pub.inum + i) * 2 + 2, cur_job->output_dspaddr[i]);
-		dsp_set_reg32(cur_core, DLCR30M_R2L((cur_job->job_pub.inum + i) * 2 + 2), cur_job->output_dspaddr[i]);
+		printf("%s: set R%u to 0x%08x \n", __func__, (cur_job->job_pub.inum + i) * 2 /*+ 2*/, 
+cur_job->output_dspaddr[i]);
+		dsp_set_reg32(cur_core, DLCR30M_R2L((cur_job->job_pub.inum + i) * 2 /*+ 2*/), cur_job->output_dspaddr[i]);
 	}
 	
 	//TODO: work with stack?
