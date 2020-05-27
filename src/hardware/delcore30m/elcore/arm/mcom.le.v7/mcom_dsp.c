@@ -404,8 +404,16 @@ static uint32_t elcore_set_args(delcore30m_t *dev, elcore_job_t *cur_job)
 	}
 
 	printf("%s: got stack offset: 0x%08x  \n", __func__ , (uint32_t)((uint8_t *)stack - (uint8_t *)cur_core->stack) );
-	
-	return (uint32_t)((uint8_t *)stack - (uint8_t *)cur_core->stack);
+	//BUG: this seems not very beautiful
+	if (instack > 0)
+	{
+		return (uint32_t)((uint8_t *)stack - (uint8_t *)cur_core->stack);
+	}
+	else
+	{	//-1 need not to get 0x10000 stack_dspaddr?
+		return DLCR30M_STACK_SIZE - 1;
+		
+	}
 }
 
 int		elcore_start_core(void *hdl, uint32_t core_num)
@@ -436,7 +444,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 			return rc;
 		}
 	}
-	//-1 need not to get 0x10000 stack_dspaddr?
+
 	stack_offset = core->stack_offset + elcore_set_args(dev, cur_job);
 	
 	stack_dspaddr = get_dsp_addr(dev, stack_offset, core_num);
