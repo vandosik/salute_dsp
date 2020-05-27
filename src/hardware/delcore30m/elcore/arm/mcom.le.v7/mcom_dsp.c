@@ -15,7 +15,7 @@ static uint32_t addr2delcore30m(uint32_t addr)
 {
 	return (((addr) & 0xFFFFF) >> 2);
 }
-
+//offset - number of bytes from the begining of PRAM of core
 static uint32_t get_dsp_addr(delcore30m_t *dev, uint32_t offset, uint8_t core)
 {
 	printf("%s: entry\n", __func__);
@@ -84,7 +84,7 @@ int dsp_core_print_regs(dsp_core* core)
 	                                                (!(iter % 2)? DLCR30M_R2L(iter):DLCR30M_R1L(iter))));
 	}
     
-	sdma_mem_dump(core->xyram, 16);
+	sdma_mem_dump(core->xyram, 40);
 
 	return 0;
 }
@@ -240,7 +240,12 @@ void *elcore_func_init(void *hdl, char *options)
 	dev->core[0].pram_phys = dev->pbase + DLCR30M_DSP0_PRAM;
 	dev->core[1].pram = dev->base + DLCR30M_DSP1_PRAM;
 	dev->core[1].pram_phys = dev->pbase + DLCR30M_DSP1_PRAM;
-	
+	//put stacks to the end of XYRAM
+	dev->core[0].stack = dev->base + DLCR30M_DSP0_XYRAM + 4 * DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
+	dev->core[0].stack_offset = 5 * DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
+	dev->core[1].stack = dev->base + DLCR30M_DSP1_XYRAM + 4 * DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
+	dev->core[1].stack_offset = 5 * DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
+    
 	dev->core[0].regs = dev->base + DLCR30M_DSP0_REGS;
 	dev->core[1].regs = dev->base + DLCR30M_DSP1_REGS;
 
@@ -248,9 +253,6 @@ void *elcore_func_init(void *hdl, char *options)
 	
 	dev->pm_conf = (dsp_get_reg32(dev, DLCR30M_CSR) & DLCR30M_CSR_PM_CONFIG_MASK) >> 2;
 	
-	//FIXME:enable interrups
-	dsp_set_bit_reg32(dev, DLCR30M_MASKR, 3);
-	/////////////////////////////////////////////////////////////////
 	if (sdma_init(dev->dma_count))
 	{
 		perror("sdma_init failure");
@@ -354,40 +356,56 @@ static void elcore_release_sdma(delcore30m_t *dev, elcore_job_t *cur_job)
 
 #endif
 
+#define DELCORE30M_ARGS_INREG		3
+
 static uint32_t elcore_set_args(delcore30m_t *dev, elcore_job_t *cur_job)
 {
 	printf("%s: entry\n", __func__);
-	int i;
 	dsp_core				*cur_core = &dev->core[cur_job->job_pub.core];
 
-// 	int inregs = min(desc->num_bufs, 2);
 
-// 	int instack = desc->num_bufs - inregs;
-// 	u64 *stack = (u64 *)desc->pdata->stack[core].vaddr - instack +
-// 		     STACK_SIZE / sizeof(u64);
-
-	/* Set registers R0, R2 and R4 */
-	for (i = 0; i < cur_job->job_pub.inum; ++i)
+	int instack = 0, i, i_num, o_num;
+	uint32_t	dsp_addr;
+	
+	i_num = cur_job->job_pub.inum;
+	o_num = cur_job->job_pub.onum;
+	
+	int inregs = i_num + o_num;
+	
+	if (inregs > DELCORE30M_ARGS_INREG)
 	{
-		printf("%s: set R%u to 0x%08x  \n", __func__, i * 2 /*+ 2*/, cur_job->input_dspaddr[i] );
-		dsp_set_reg32(cur_core, DLCR30M_R2L(i * 2/* + 2*/), cur_job->input_dspaddr[i]);
+	    instack = inregs - DELCORE30M_ARGS_INREG;
+		inregs = DELCORE30M_ARGS_INREG;
 	}
-	for (i = 0; i < cur_job->job_pub.onum; ++i)
+	//get stack pointer from the end, stack rises to lower adresses
+	uint64_t *stack = (uint64_t *)cur_core->stack - instack + DLCR30M_STACK_SIZE / sizeof(uint64_t);
+
+
+	
+	for (i = 0; i < inregs; ++i)
 	{
-		printf("%s: set R%u to 0x%08x \n", __func__, (cur_job->job_pub.inum + i) * 2 /*+ 2*/, 
-cur_job->output_dspaddr[i]);
-		dsp_set_reg32(cur_core, DLCR30M_R2L((cur_job->job_pub.inum + i) * 2 /*+ 2*/), cur_job->output_dspaddr[i]);
+		dsp_addr = i < i_num ? cur_job->input_dspaddr[i] : cur_job->output_dspaddr[i - i_num];
+		//BUG: compiler does bit move itself, we need to move back after get_dsp_addr
+		dsp_addr <<= 2;
+		
+		printf("%s: set R%u to 0x%08x  \n", __func__, i * 2 , dsp_addr );
+		dsp_set_reg32(cur_core, DLCR30M_R2L(i * 2), dsp_addr);
 	}
 	
-	//TODO: work with stack?
+	for (i = DELCORE30M_ARGS_INREG; i < i_num + o_num; ++i)
+	{
+		dsp_addr = i < i_num ? cur_job->input_dspaddr[i] : cur_job->output_dspaddr[i - i_num];
+		
+		//BUG: compiler does bit move itself, we need to move back after get_dsp_addr
+		dsp_addr <<= 2;
+		
+		printf("%s: set stack[%u] to 0x%08x  \n", __func__, i - DELCORE30M_ARGS_INREG  , dsp_addr );
+		stack[i - DELCORE30M_ARGS_INREG] = dsp_addr;
+	}
+
+	printf("%s: got stack offset: 0x%08x  \n", __func__ , (uint32_t)((uint8_t *)stack - (uint8_t *)cur_core->stack) );
 	
-	/* Args 0 and 1 in R2 and R4. Each arg - 8 bytes */
-// 	for (i = 2; i < desc->num_bufs; ++i) {
-// 		dma_address = sg_dma_address(desc->bufs[i].sgt->sgl);
-// 		stack[i - 2] = dma_address;
-// 	}
-// 	return (u8 *)stack - (u8 *)desc->pdata->stack[core].vaddr;
-	return 0;
+	return (uint32_t)((uint8_t *)stack - (uint8_t *)cur_core->stack);
 }
 
 int		elcore_start_core(void *hdl, uint32_t core_num)
@@ -395,7 +413,7 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 	printf("%s: entry\n", __func__);
 	delcore30m_t			*dev = hdl;
 	dsp_core				*core = &dev->core[core_num];
-	uint32_t				val32;
+	uint32_t				val32, stack_offset, stack_dspaddr;
 	int						rc, i;
 
 	elcore_job_t			*cur_job = get_job_first_enqueued( &dev->drvhdl, core_num);
@@ -418,10 +436,17 @@ int		elcore_start_core(void *hdl, uint32_t core_num)
 			return rc;
 		}
 	}
+	//-1 need not to get 0x10000 stack_dspaddr?
+	stack_offset = core->stack_offset + elcore_set_args(dev, cur_job);
 	
-	elcore_set_args(dev, cur_job);
+	stack_dspaddr = get_dsp_addr(dev, stack_offset, core_num);
 	
-	dsp_set_reg16(core, DLCR30M_PC,cur_job->code_dspaddr);
+	printf("%s: Got stack offset: 0x%08x stack_dspaddr: 0x%08x\n", __func__, stack_offset, stack_dspaddr);
+	
+	dsp_set_reg32(core, DLCR30M_A(6), stack_dspaddr); //frame pointer
+	dsp_set_reg32(core, DLCR30M_A(7), stack_dspaddr); //core stack pointer
+	
+	dsp_set_reg16(core, DLCR30M_PC,cur_job->code_dspaddr); //start of prog
 
 	//enable interrupts
 	val32 = dsp_get_reg32(dev, DLCR30M_MASKR);
@@ -686,17 +711,17 @@ int		elcore_set_data( void *hdl, void *job)
 	}
 	
 	switch (dev->pm_conf)
-	{
+	{//mem for stack lies at the end of block
 	case DLCR30M_PMCONF_1:
-		xyram_size = 4 * DLCR30M_BANK_SIZE;
+		xyram_size = 4 * DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
 		break;
 	case DLCR30M_PMCONF_3:
 		return ENOTSUP; //TODO: temporary not avail
-		xyram_size = 2 * DLCR30M_BANK_SIZE;
+		xyram_size = 2 * DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
 		break;
 	case DLCR30M_PMCONF_4:
 		return ENOTSUP; //TODO: temporary not avail
-		xyram_size = DLCR30M_BANK_SIZE;
+		xyram_size = DLCR30M_BANK_SIZE - DLCR30M_STACK_SIZE;
 		break;
 	default:
 		return EINVAL;
@@ -967,7 +992,7 @@ int elcore_interrupt_thread(void *hdl)
 		//check all cores
 // 		dsp_set_reg32(&dev->core[0], DLCR30M_DSCR, 0x0);
 		val32 = dsp_get_reg32(dev, DLCR30M_QSTR);
-		
+		printf("%s: DLCR30M_QSTR: %4.8X\n", __func__, val32);
 		stopped_cores = 0;
 		for (it = 0; it < DLCR30M_MAX_CORES; ++it)
 		{
@@ -1004,7 +1029,9 @@ int elcore_interrupt_thread(void *hdl)
 				
 				
 				val32 = dsp_get_reg16(&dev->core[it], DLCR30M_DSCR);
-
+				printf("%s: core[%d] DCSR: %4.8X\n", __func__, it, val32);
+				
+				
 				if (val32 & (DLCR30M_DSCR_PI | DLCR30M_DSCR_SE | DLCR30M_DSCR_BRK))
 				{
 					cur_job->job_pub.rc = ELCORE_JOB_ERROR;
@@ -1017,7 +1044,10 @@ int elcore_interrupt_thread(void *hdl)
 				
 				job_remove_from_queue(&dev->drvhdl, cur_job); //sets DELCORE30M_JOB_IDLE
 				//release sdma chains
-				elcore_release_sdma(dev, cur_job);
+				if (cur_job->sdma_chaincount > 0)
+				{
+					elcore_release_sdma(dev, cur_job);
+				}
 				
 				//TODO: where to release job? now by client
 				elcore_reset_core(dev, it);

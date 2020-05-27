@@ -62,6 +62,8 @@
 
 //size of one block
 #define DLCR30M_BANK_SIZE					0x8000
+//size of core stack
+#define DLCR30M_STACK_SIZE					4096	//taken from linux driver
 
 //------------------ Delcore common regs --------------------------------//
 
@@ -217,7 +219,8 @@ typedef struct {
 	uint32_t				xyram_phys;
 	uint8_t*				pram;
 	uint32_t				pram_phys;
-// 	uint8_t*	stack;
+	uint8_t*				stack; //core stack pointer ()
+	uint32_t				stack_offset; //phys addr of core stack
 	uint8_t*				regs;		//core regs
 	uint8_t					id; //DLCR30M_IDR (0x108) 
 	uint32_t				job_id; //job on DSP core

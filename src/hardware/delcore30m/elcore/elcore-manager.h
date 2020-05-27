@@ -157,7 +157,7 @@ enum elcore_job_result {
 	ELCORE_JOB_SUCCESS = 0,
 };
 
-#define MAX_INPUTS		1
+#define MAX_INPUTS		4
 #define MAX_OUTPUTS		1
 
 //public part of job

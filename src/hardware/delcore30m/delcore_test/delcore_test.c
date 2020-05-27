@@ -26,7 +26,7 @@ Options:
 
 #define DCMD_CUSTOM	__DIOT (_DCMD_ELCORE, 228 + 5, int)
 
-char* fw_path_1 = "/tmp/detector";
+char* fw_path_1 = "/tmp/sum";
 
 int mem_dump(uint8_t* addr, uint32_t len)
 {
@@ -121,7 +121,7 @@ int main( int argc, char** argv )
     int error;
     uint32_t    job_status;
     uint32_t size_1, size_2; //size of program
-    uint8_t *src_data_1, *arg_data;
+    uint8_t *src_data_1, *arg_data ;
     uint64_t src_paddr_1, arg_paddr;
    
 
@@ -159,7 +159,7 @@ int main( int argc, char** argv )
 	
 	size_2 = sizeof(uint32_t) * 2;
 	
-    if ((arg_data = mmap(NULL, size_2 , PROT_READ | PROT_WRITE | PROT_NOCACHE,
+    if ((arg_data = mmap(NULL, size_2 * 4 , PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
 		perror("SRC mmap err");
@@ -173,12 +173,7 @@ int main( int argc, char** argv )
     }
 
     
-    
-//     if (getbytes(src_data_2, fw_path_2, &size_2) < 0)
-//     {
-// 		printf("Getbytes error\n");
-// 		goto exit2;
-//     }
+   
 	
     if (mem_offset64(src_data_1, NOFD, 1, &src_paddr_1, 0) == -1)
 	{
@@ -194,24 +189,30 @@ int main( int argc, char** argv )
 	}
     printf("%s: src_phys_2 0x%08x\n", __func__, src_paddr_1);
     
-    (*(uint32_t*)arg_data) = 0x12345678;
-    (*(uint32_t*)(arg_data + 4)) = 0x11111111;
+    (*(uint32_t*)arg_data) = 0x1;
+    (*(uint32_t*)(arg_data + 4)) = 0x2;
+    
+    (*(uint32_t*)(arg_data + 8)) = 0x4;
+    (*(uint32_t*)(arg_data + 12)) = 0x8;
+    
+    (*(uint32_t*)(arg_data + 16)) = 0x16;
+    (*(uint32_t*)(arg_data + 20)) = 0x32;
+    
+    (*(uint32_t*)(arg_data + 24)) = 0x64;
+    (*(uint32_t*)(arg_data + 28)) = 0x128;
     
     ELCORE_JOB firs_job = {
         .core = 1,
-        .inum = 1,
+        .inum = 4,
         .input[0] = {size_2, arg_paddr},
+        .input[1] = {size_2, arg_paddr + 8},
+        .input[2] = {size_2, arg_paddr + 16},
+        .input[3] = {size_2, arg_paddr + 24},
         .onum = 1,
         .output[0] = {size_2, arg_paddr},
         .code = {size_1, src_paddr_1}
     };
-   
-//     ELCORE_JOB second_job = {
-//         .core = 0,
-//         .inum = 0,
-//         .onum = 0,
-//         .code = {size_2, src_paddr_2}
-//     };
+  
    
     if (error = devctl( fd, DCMD_ELCORE_JOB_CREATE, &firs_job, sizeof(ELCORE_JOB), NULL ) )
     {
