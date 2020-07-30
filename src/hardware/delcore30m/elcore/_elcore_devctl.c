@@ -43,6 +43,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 
 	switch (msg->i.dcmd) 
 	{
+#if 0
 		case DCMD_ELCORE_START:
 		{
 			status = dev->funcs->start_core(drvhdl, ocb->core);
@@ -53,13 +54,6 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 		case DCMD_ELCORE_STOP:
 		{
 			status = dev->funcs->stop_core(drvhdl, ocb->core);
-// 			msg->o.ret_val = status;
-// 			msg->o.nbytes = nbytes;
-			break;
-		}
-		case DCMD_ELCORE_PRINT:
-		{
-			status = dev->funcs->print(drvhdl);
 // 			msg->o.ret_val = status;
 // 			msg->o.nbytes = nbytes;
 			break;
@@ -168,6 +162,15 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 // 			msg->o.nbytes = nbytes;
 			break;
 		}
+#endif
+
+		case DCMD_ELCORE_PRINT:
+		{
+			status = dev->funcs->print(drvhdl);
+// 			msg->o.ret_val = status;
+// 			msg->o.nbytes = nbytes;
+			break;
+		}
 		case DCMD_ELCORE_JOB_CREATE:
 		{
 			ELCORE_JOB		*new_pub_job = (ELCORE_JOB*)devctl_data;
@@ -213,6 +216,7 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 			
 			dma_pub_chain = (SDMA_CHAIN*)devctl_data;
 			tmp_chain = (struct sdma_descriptor*)((uint8_t*)devctl_data + sizeof(SDMA_CHAIN));
+			
 			
 			if ((cur_job = get_stored_by_id(drvhdl, dma_pub_chain->job_id)) == NULL)
 			{
@@ -272,16 +276,16 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 				}
 			}
 			
-			if ( (desc_chain = calloc(cur_job->sdma_chaincount, sizeof(struct sdma_descriptor))) == NULL)
+			if ( (desc_chain = calloc(dma_pub_chain->chain_size, sizeof(struct sdma_descriptor))) == NULL)
 			{
 				return ENOMEM;
 			}
 			
-			memcpy(desc_chain, tmp_chain, cur_job->sdma_chaincount * sizeof(struct sdma_descriptor));
+			memcpy(desc_chain, tmp_chain, dma_pub_chain->chain_size * sizeof(struct sdma_descriptor));
 			
 			cur_job->sdma_chains[cur_job->sdma_chaincount].sdma_chain = desc_chain;
 			cur_job->sdma_chains[cur_job->sdma_chaincount].chain_pub = *dma_pub_chain;
-
+			
 			status = dev->funcs->setup_dmachain(drvhdl, &cur_job->sdma_chains[cur_job->sdma_chaincount]);
             
 			if (status)
@@ -379,11 +383,10 @@ _elcore_devctl(resmgr_context_t *ctp, io_devctl_t *msg, elcore_ocb_t *ocb)
 					return EINVAL;
 				}
 			}
-
-			if (cur_job->job_pub.status == ELCORE_JOB_RUNNING)
+			//BUG: 
+			if (cur_job->job_pub.status == /*ELCORE_JOB_RUNNING*/ELCORE_JOB_ENQUEUED)
 			{
-//                 status = EOK;
-//                 nbytes
+
 				return EBUSY;
 			}
 			

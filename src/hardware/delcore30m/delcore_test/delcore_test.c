@@ -24,9 +24,14 @@ Options:
 
 #include <sys/mman.h>
 
-#define DCMD_CUSTOM	__DIOT (_DCMD_ELCORE, 228 + 5, int)
 
-char* fw_path_1 = "/tmp/sum";
+#define DSP_SYNC_STOP_BIT			(1 << 31)
+#define DSP_SYNC_CPU_READY			(1 << 30) //cpu set new array
+#define DSP_SYNC_DSP_READY			(1 << 29) //dsp counted summ
+#define DSP_SYNC_DMA_READY			(1 << 28)
+#define DSP_DMA_CHANNEL     2
+
+char* fw_path_1 = "/tmp/arr_sum_iter";
 
 int mem_dump(uint8_t* addr, uint32_t len)
 {
@@ -61,7 +66,7 @@ int mem_dump(uint8_t* addr, uint32_t len)
 
 int getbytes(uint8_t* data, const char *filename, uint32_t *size)
 {
-	printf("%s: entry\n", __func__);
+	//printf("%s: entry\n", __func__);
 
 	FILE *f = fopen(filename, "r");
 	if (f == NULL) {
@@ -73,9 +78,9 @@ int getbytes(uint8_t* data, const char *filename, uint32_t *size)
 	*size = ftell(f);
 	fseek(f, 0, SEEK_SET);
 
-	printf("size of file: %u\n", *size);
+	//printf("size of file: %u\n", *size);
 	
-	printf ("bytes read: %d\n",fread(data, 1, *size, f));
+	printf ("%s: bytes read: %d\n",__func__, fread(data, 1, *size, f));
 
 	if (data == NULL)
 	{
@@ -90,7 +95,7 @@ int getbytes(uint8_t* data, const char *filename, uint32_t *size)
 
 int writefile(uint8_t *data, const char *filename, uint32_t *size)
 {
-	printf("%s: entry\n", __func__);
+	//printf("%s: entry\n", __func__);
 
 	FILE *f = fopen(filename, "w");
 	if (f == NULL) {
@@ -105,7 +110,7 @@ int writefile(uint8_t *data, const char *filename, uint32_t *size)
 		perror("No data");
 	}
 	
-	printf ("bytes written: %d\n", fwrite(data, 1, *size, f));
+	//printf ("bytes written: %d\n", fwrite(data, 1, *size, f));
 
 	
 	fclose(f);
@@ -123,16 +128,7 @@ int main( int argc, char** argv )
     uint32_t size_1, size_2; //size of program
     uint8_t *src_data_1, *arg_data ;
     uint64_t src_paddr_1, arg_paddr;
-   
-
-#if 0
-    uint32_t src_paddr_1;
-    printf("input addr:\n");
-    scanf("%u", &src_paddr_1);
-
-    printf("got 0x%08x\n", src_paddr_1);
-    src_paddr = src_paddr_1;
-#endif
+  
     
     fd = open("/dev/elcore0", O_RDWR);
     
@@ -144,11 +140,6 @@ int main( int argc, char** argv )
     
     
     
-//     if ((pram_addr = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE, 0, fd, 0)) == MAP_FAILED )
-//     {
-//         perror("DSP mmap error");
-//     }
-//     
     
 	if ((src_data_1 = mmap(NULL, DMA_TEST_MEM_SIZE, PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
@@ -157,9 +148,18 @@ int main( int argc, char** argv )
 		goto exit0;
 	}
 	
-	size_2 = sizeof(uint32_t) * 2;
+    uint32_t arr_len;
+   
+    printf("Input array len: \n >");
+    if ( scanf("%u", &arr_len) < 0)
+    {
+        goto exit2;
+    }
 	
-    if ((arg_data = mmap(NULL, size_2 * 4 , PROT_READ | PROT_WRITE | PROT_NOCACHE,
+	size_2 = (arr_len + 3) * sizeof(uint32_t);
+	
+   
+    if ((arg_data = mmap(NULL, size_2 , PROT_READ | PROT_WRITE | PROT_NOCACHE,
 		MAP_PHYS | MAP_ANON, NOFD, 0)) == MAP_FAILED)
 	{
 		perror("SRC mmap err");
@@ -171,170 +171,280 @@ int main( int argc, char** argv )
 		printf("Getbytes error\n");
 		goto exit2;
     }
-
-    
    
+    printf("\nProg has been read from file\n");
 	
     if (mem_offset64(src_data_1, NOFD, 1, &src_paddr_1, 0) == -1)
 	{
 		perror("Get src_phys addr error");
 		goto exit2;
 	}
-    printf("%s: src_phys_1 0x%08x\n", __func__, src_paddr_1);
+    //printf("%s: src_phys_1 0x%08x\n", __func__, src_paddr_1);
    
     if (mem_offset64(arg_data, NOFD, 1, &arg_paddr, 0) == -1)
 	{
 		perror("Get src_phys addr error");
 		goto exit2;
 	}
-    printf("%s: src_phys_2 0x%08x\n", __func__, src_paddr_1);
     
-    (*(uint32_t*)arg_data) = 0x1;
-    (*(uint32_t*)(arg_data + 4)) = 0x2;
+//     int i;
+//     printf("Input array by space \n >");
+//     
+//     for (i = 0; i < arr_len; i++)
+//     {
+//         if ( scanf("%u", ((uint32_t*)(arg_data + 4 + i * 4))) < 0)
+//         {
+//             goto exit2;
+//         }
+//         
+//     }
+
+    uint32_t *array_len = (uint32_t*)arg_data;
+    uint32_t *array = (uint32_t*)(arg_data + sizeof(uint32_t));
+    uint32_t arr_paddr = arg_paddr + sizeof(uint32_t);
+    uint32_t *sync_addr = (uint32_t*)(arg_data + arr_len * sizeof(uint32_t) + sizeof(uint32_t));
+    uint32_t sync_paddr = arg_paddr + arr_len * sizeof(uint32_t) + sizeof(uint32_t);
+    uint32_t *dsp_summ = (uint32_t*)(arg_data + arr_len * sizeof(uint32_t) + 2 * sizeof(uint32_t));
+   
+    uint32_t cpu_summ = 0;
     
-    (*(uint32_t*)(arg_data + 8)) = 0x4;
-    (*(uint32_t*)(arg_data + 12)) = 0x8;
+    *array_len = arr_len; //количество чисел
+    *dsp_summ = 0;
+    *sync_addr = sync_paddr; //передаем в качестве параметра физический адрес регистра синхъронизации
+   
+
+
+   
+    int i;
     
-    (*(uint32_t*)(arg_data + 16)) = 0x16;
-    (*(uint32_t*)(arg_data + 20)) = 0x32;
+    for ( i = 0; i < arr_len; i++)
+    {
+        array[i] = rand() % 1000;
+        printf("  %x  ", array[i]);
+        cpu_summ += array[i]; 
+    }
+
+    printf("\n");
     
-    (*(uint32_t*)(arg_data + 24)) = 0x64;
-    (*(uint32_t*)(arg_data + 28)) = 0x128;
-    
-    ELCORE_JOB firs_job = {
-        .core = 1,
-        .inum = 4,
-        .input[0] = {size_2, arg_paddr},
-        .input[1] = {size_2, arg_paddr + 8},
-        .input[2] = {size_2, arg_paddr + 16},
-        .input[3] = {size_2, arg_paddr + 24},
+    ELCORE_JOB arr_sum_job = {
+        .core = 0,
+        .inum = 3,
+        .input[0] = {sizeof(uint32_t), arg_paddr},
+        .input[1] = {arr_len * sizeof(uint32_t), arr_paddr},
+        .input[2] = {sizeof(uint32_t), sync_paddr},
         .onum = 1,
-        .output[0] = {size_2, arg_paddr},
+        .output[0] = {sizeof(uint32_t), arg_paddr + (arr_len * sizeof(uint32_t) + 2 * sizeof(uint32_t))},
         .code = {size_1, src_paddr_1}
     };
-  
-   
-    if (error = devctl( fd, DCMD_ELCORE_JOB_CREATE, &firs_job, sizeof(ELCORE_JOB), NULL ) )
+    
+
+    
+
+    
+    printf(" in0 %08x,\n in1 %08x \n, in2 %08x\n, out0 %08x\n",
+           arg_paddr, arg_paddr + sizeof(uint32_t), sync_paddr, arg_paddr + (arr_len * sizeof(uint32_t) + 2 * 
+sizeof(uint32_t)));
+    
+    
+    
+    
+    printf("count: %u \t result: %u\n", (*array_len), (*dsp_summ));
+    
+    if (error = devctl( fd, DCMD_ELCORE_JOB_CREATE, &arr_sum_job, sizeof(ELCORE_JOB), NULL ) )
     {
         printf( "DCMD_ELCORE_JOB_CREATE error: %s\n", strerror ( error ) );
         goto exit2;
     }
     
-    printf("\n\nJob uploaded job id: %u\n\n", firs_job.id);
+    printf("\nJob uploaded job id: %u\n", arr_sum_job.id);
     
-//     if (error = devctl( fd, DCMD_ELCORE_JOB_CREATE, &second_job, sizeof(ELCORE_JOB), NULL ) )
-//     {
-//         printf( "DCMD_ELCORE_JOB_CREATE error: %s\n", strerror ( error ) );
-//         goto exit2;
-//     }
-//     
-//     printf("\n\nJob uploaded job id: %u\n\n", second_job.id);
-//     
+    uint8_t* sdma_data;
+	uint32_t sdma_len = sizeof(SDMA_CHAIN) + sizeof(struct sdma_descriptor) * 1;
+	
+    if ((sdma_data = malloc(sdma_len)) == NULL)
+    {
+        perror("mmap sdma fail");
+        goto exit2;        
+    }
+    
+    SDMA_CHAIN	*sdma_task = (SDMA_CHAIN*)sdma_data;
+    
+       sdma_task->channel = DSP_DMA_CHANNEL;
+       sdma_task->chain_size = 1; //package number
+       sdma_task->job_id = arr_sum_job.id;
+       sdma_task->from = arr_paddr;
+       sdma_task->to = DSP_SDMA_INPUT(0);
+       
+
+    
+    struct sdma_descriptor *sdma_package = (struct sdma_descriptor*)(sdma_data + sizeof(SDMA_CHAIN));
+    
+	sdma_package->f_off = 0; //offset from sdma_exchange->from
+	sdma_package->t_off = 0;
+	sdma_package->iter = 100; // количество повторов отправки данного пакета от 1 до 255, 0 - повторять бесконечно
+	sdma_package->size = arr_len * sizeof(uint32_t);
+
+    
+    if ( error = devctl( fd, DCMD_ELCORE_SET_SDMACHAIN, sdma_data, sdma_len, NULL ) )
+    {
+        printf( "DCMD_ELCORE_SET_SDMACHAIN error: %s\n", strerror ( error ) );
+        goto exit3;
+    }
+    
+    
     
     if ( error = devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL ) )
     {
         printf( "DCMD_ELCORE_PRINT error: %s\n", strerror ( error ) );
-        goto exit2;
+        goto exit3;
     }
     
     
-    if ( error = devctl( fd, DCMD_ELCORE_JOB_ENQUEUE, &firs_job.id, sizeof(firs_job.id), NULL ) )
+    if ( error = devctl( fd, DCMD_ELCORE_JOB_ENQUEUE, &arr_sum_job.id, sizeof(arr_sum_job.id), NULL ) )
     {
         printf( "DCMD_ELCORE_JOB_ENQUEUE error: %s\n", strerror ( error ) );
-        goto exit2;
+        goto exit3;
     }
-   
-//    if ( error = devctl( fd, DCMD_ELCORE_JOB_ENQUEUE, &second_job.id, sizeof(second_job.id), NULL ) )
-//     {
-//         printf( "DCMD_ELCORE_JOB_ENQUEUE error: %s\n", strerror ( error ) );
-//         goto exit2;
-//     }
-
-    printf("\n\nProg started\n\n");
+ 
+    printf("\nProg started\n");
     
-    job_status = firs_job.id;
+	int it;
+	
+	//repeat summing 10 
+	for (it = 0; it < 10;it++)
+	{
+        printf("Wait dsp\n");
+        
+        devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL );
+
+        
+		//wait DSP to count summ
+	    while (!(*sync_addr & DSP_SYNC_DSP_READY));
+		
+		if (error = devctl( fd, DCMD_ELCORE_JOB_RESULTS, &arr_sum_job.id, sizeof(arr_sum_job.id), NULL ) )
+		{
+			printf( "DCMD_ELCORE_JOB_RESULTS error: %s\n", strerror ( error ) );
+			goto exit3;
+		}
+		
+		printf("\tcount: %u \n \tdsp_summ: %u\n \tcpu_summ: %u \n \tsync_reg: %x \n", 
+		(*array_len), (*dsp_summ), cpu_summ,
+		*sync_addr );
+		
+		cpu_summ = 0;
+			
+	    for ( i = 0; i < arr_len; i++)
+	    {
+	        array[i] = rand() % 1000;
+	        printf("  %x  ", array[i]);
+	        cpu_summ += array[i]; 
+	    }
+
+	    printf("\n");
+	    
+		*sync_addr |= DSP_SYNC_CPU_READY;
+		
+		//wait DMA
+
+		printf("Wait dma\n");
+        
+        devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL );
+        printf("\tcount: %u \n \tdsp_summ: %u\n \tcpu_summ: %u \n \tsync_reg: %x \n", 
+		(*array_len), (*dsp_summ), cpu_summ,
+		*sync_addr );
+        
+        
+        
+		//wait transfer to end
+	    while (!(*sync_addr & DSP_SYNC_DMA_READY));
+        
+        devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL );
+        printf("\tcount: %u \n \tdsp_summ: %u\n \tcpu_summ: %u \n \tsync_reg: %x \n", 
+		(*array_len), (*dsp_summ), cpu_summ,
+		*sync_addr );
+        
+		*sync_addr &= ~DSP_SYNC_CPU_READY;
+   
+	}
+
+    //stop job
+    *sync_addr |= DSP_SYNC_STOP_BIT;
+    
+    
+    job_status = arr_sum_job.id;
+   
+    if ( error = devctl( fd, DCMD_ELCORE_JOB_STATUS, &job_status, sizeof(job_status), NULL ) )
+    {
+        printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
+        goto exit3;
+    }
+    
+    
+    printf("job status: %s\n", job_status == 0? "idle" : "running");
+    
+    
+    printf("\nWaiting for job\n");
+    
+    job_status = arr_sum_job.id;
     
     if ( error = devctl( fd, DCMD_ELCORE_JOB_WAIT, &job_status, sizeof(job_status), NULL ) )
     {
-        printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
-        goto exit2;
+        printf( "DCMD_ELCORE_JOB_WAIT error: %s\n", strerror ( error ) );
+        goto exit3;    printf("count: %u \t dsp_summ: %u\n cpu_summ: %u \n sync_reg: %x \n", 
+           (*array_len), (*dsp_summ), cpu_summ,
+           *sync_addr );
     }
 
-    printf("job_1 rc: %d\n", job_status);
+    printf("job result: %s\n", job_status == 0? "success" : "error");
     
-//     job_status = second_job.id;
-//     
-//     if ( error = devctl( fd, DCMD_ELCORE_JOB_WAIT, &job_status, sizeof(job_status), NULL ) )
+    
+    
+//     if ( error = devctl( fd, DCMD_ELCORE_STOP, NULL, 0, NULL ) )
 //     {
-//         printf( "DCMD_ELCORE_JOB_STATUS error: %s\n", strerror ( error ) );
-//         goto exit2;
+//         printf( "DCMD_ELCORE_STOP error: %s\n", strerror ( error ) );
+//         goto exit3;
 //     }
-// 
-//     printf("job_2 rc: %d\n", job_status);
-    
-    
-    
-    if ( error = devctl( fd, DCMD_ELCORE_STOP, NULL, 0, NULL ) )
-    {
-        printf( "DCMD_ELCORE_STOP error: %s\n", strerror ( error ) );
-        goto exit2;
-    }
-    
-    printf("\n\nProg stopped\n\n");
+
+    printf("\nProg stopped\n");
     
     if ( error = devctl( fd, DCMD_ELCORE_PRINT, NULL, 0, NULL ) )
     {
         printf( "DCMD_ELCORE_PRINT error: %s\n", strerror ( error ) );
-        goto exit2;
+        goto exit3;
     }
-    
-    //elcore_dmarecv_t = elcore_dmasend_t
-    if (error = devctl( fd, DCMD_ELCORE_JOB_RESULTS, &firs_job.id, sizeof(firs_job.id), NULL ) )
+   
+    if (error = devctl( fd, DCMD_ELCORE_JOB_RESULTS, &arr_sum_job.id, sizeof(arr_sum_job.id), NULL ) )
     {
         printf( "DCMD_ELCORE_JOB_RESULTS error: %s\n", strerror ( error ) );
-        goto exit2;
+        goto exit3;
     }
-//     
-//     if (error = devctl( fd, DCMD_ELCORE_JOB_RESULTS, &second_job.id, sizeof(second_job.id), NULL ) )
-//     {
-//         printf( "DCMD_ELCORE_JOB_RESULTS error: %s\n", strerror ( error ) );
-//         goto exit2;
-//     }
     
-    printf("\n\nProg downloaded\n\n");
+    printf("\nProg downloaded\n");
     
     
-    writefile(src_data_1, "/tmp/output1", &size_1);
+    //writefile(src_data_1, "/tmp/output1", &size_1);
 //     writefile(arg_data, "/tmp/output2", &size_2);
-    
-	uint32_t iter = 0;
+
 	
-    
-    mem_dump(src_data_1, size_1);
-    mem_dump(arg_data, size_2);
+		printf("count: %u \t dsp_summ: %u\n cpu_summ: %u \n sync_reg: %x \n", 
+		(*array_len), (*dsp_summ), cpu_summ,
+		*sync_addr );
    
-    
-    
-    if (error = devctl( fd, DCMD_ELCORE_JOB_RELEASE, &firs_job.id, sizeof(firs_job.id), NULL ) )
-    {
-        printf( "DCMD_ELCORE_JOB_RELEASE error: %s\n", strerror ( error ) );
-        goto exit1;
-    }
-    
-//     if (error = devctl( fd, DCMD_ELCORE_JOB_RELEASE, &second_job.id, sizeof(second_job.id), NULL ) )
-//     {
-//         printf( "DCMD_ELCORE_JOB_RELEASE error: %s\n", strerror ( error ) );
-//         goto exit1;
-//     }
-    
-//     printf("Passed string: \n%s\n", src_data);
 
     
+    if (error = devctl( fd, DCMD_ELCORE_JOB_RELEASE, &arr_sum_job.id, sizeof(arr_sum_job.id), NULL ) )
+    {
+        printf( "DCMD_ELCORE_JOB_RELEASE error: %s\n", strerror ( error ) );
+        goto exit3;
+    }
+   
     
+    exit3:
+        free(sdma_data);
     exit2:
-        munmap(arg_data, DMA_TEST_MEM_SIZE);
+        munmap(arg_data, size_2);
     exit1:
-        munmap(src_data_1, DMA_TEST_MEM_SIZE);
+        munmap(src_data_1, size_1);
     exit0:
         close(fd);
     

@@ -50,86 +50,13 @@
     #define	SPI_FEATURE_DMA			(1 << 31)
     #define	SPI_FEATURE_DMA_ALIGN	0xFF		/* DMA buffer alignment mask, alignment = 2^alignment */
     } elcore_drvinfo_t;
-// 
-// 
-    typedef struct {
-        uint32_t	mode;
-//     #define	SPI_MODE_CHAR_LEN_MASK	(0xFF)		/* Charactor length */
-//     #define	SPI_MODE_CKPOL_HIGH		(1 <<  8)
-//     #define	SPI_MODE_CKPHASE_HALF	(1 <<  9)
-//     #define	SPI_MODE_BODER_MSB		(1 << 10)
-//     #define	SPI_MODE_CSPOL_MASK		(1 << 11)	/* Chip select polarity */
-//     #define	SPI_MODE_CSPOL_HIGH		(1 << 11)
-//     #define	SPI_MODE_CSSTAT_HIGH	(1 << 12)
-//     #define	SPI_MODE_CSHOLD_HIGH	(1 << 13)
-//     #define	SPI_MODE_RDY_MASK		(3 << 14)	/* Ready signal control */
-//     #define	SPI_MODE_RDY_NONE		(0 << 14)
-//     #define	SPI_MODE_RDY_EDGE		(1 << 14)	/* Falling edge signal */
-//     #define	SPI_MODE_RDY_LEVEL		(2 << 14)	/* Low level signal */
-//     #define	SPI_MODE_IDLE_INSERT	(1 << 16)
-// 
-//     #define	SPI_MODE_LOCKED			(1 << 31)	/* The device is locked by another client */
-
-        uint32_t	clock_rate;
-    } elcore_cfg_t;
-// 
-//     #define	SPI_DEV_ID_MASK			0xFFFF
-//     #define	SPI_DEV_ID_NONE			SPI_DEV_ID_MASK
-// 
+//TODO: temporary core0 - 0, core1 - 1
 enum elcore_core {
 	ELCORE_DEV_CORE_0 = 0x1,
 	ELCORE_DEV_CORE_1 = 0x2,
 	ELCORE_DEV_CORE_ALL = 0x3,
 };
 
-//     /* For SPI API interface */
-//     #define	SPI_DEV_DEFAULT			(1 << 31)	/* Default device, use by spi_setcfg()/spi_getdevinfo() call */
-//     #define	SPI_DEV_LOCK			(1 << 30)	/* Lock device, for spi_read()/spi_write()/spi_exchange() */
-//     #define	SPI_DEV_UNLOCK			(1 << 29)	/* Unlock device, for spi_read()/spi_write()/spi_exchange() */
-// 
-//     /* For SPI driver interface */
-//     #define SPI_DEV_XFER_MASK		3
-//     #define SPI_DEV_XFER_SHIFT		16
-//     #define SPI_DEV_EXCHANGE		3
-//     #define SPI_DEV_READ			1
-//     #define SPI_DEV_WRITE			2
-// 
-    typedef struct {
-        uint32_t	device;		/* Device ID */
-        char		name[16];	/* Device description */
-        elcore_cfg_t	cfg;		/* Device configuration */
-    } elcore_devinfo_t;
-// 
-// 
-//     /*
-//      * Resource Manager Interface
-//      */
-//     #define	_IOMGR_SPI	(_IOMGR_PRIVATE_BASE + 0x01)
-// 
-//     typedef struct {
-//         io_msg_t	msg_hdr;
-//     #define	_SPI_IOMSG_READ			0x0001
-//     #define	_SPI_IOMSG_WRITE		0x0002
-//     #define	_SPI_IOMSG_EXCHANGE		0x0003
-//     #define	_SPI_IOMSG_CMDREAD		0x0004
-//     #define	_SPI_IOMSG_DMAXCHANGE	0x0005
-//         uint32_t	device;
-//         int32_t		xlen;
-//     } spi_msg_t;
-// 
-//     /*
-//      * DMA buffer address : physical address
-//      */
-//     typedef struct {
-//         uint64_t	rpaddr;
-//         uint64_t	wpaddr;
-//     } spi_dma_paddr_t;
-// 
-// 
-    /*
-     * The following devctls are used by a client application
-     * to control the SPI interface.
-     */
 enum delcore30m_memory_type {
 	DELCORE30M_MEMORY_XYRAM,
 	DELCORE30M_MEMORY_SYSTEM,
@@ -196,6 +123,7 @@ typedef struct _elcore_job_entry {
 //TODO: move this somewhere else
 #include <elcore_job_list.h>
 
+#if 0
 
 typedef struct {
 	uint32_t	len;
@@ -229,18 +157,23 @@ typedef struct {
 	uint32_t	dma_dst;
 } elcore_dmarecv_t;
 
+
+
 #define DCMD_ELCORE_DMARECV			__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 3, elcore_dmarecv_t)
 
 #define DCMD_ELCORE_START			__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 4)
 
 #define DCMD_ELCORE_STOP			__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 5)
 
-#define DCMD_ELCORE_PRINT			__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 6)
-
 #define DCMD_ELCORE_RESET			__DIOT (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 7, int)
+
+#endif
+
+#define DCMD_ELCORE_PRINT			__DION (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 6)
 //send job id, get status
 #define DCMD_ELCORE_JOB_STATUS		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 8, uint32_t)
 //send job id, wait for complete, get result
+//TODO: make timeout
 #define DCMD_ELCORE_JOB_WAIT		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 9, uint32_t)
 
 #define DCMD_ELCORE_JOB_CREATE		__DIOTF (_DCMD_ELCORE, _DCMD_ELCORE_CODE + 10, ELCORE_JOB)

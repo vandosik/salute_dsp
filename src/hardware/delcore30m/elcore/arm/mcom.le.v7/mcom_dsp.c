@@ -44,36 +44,36 @@ int dsp_core_print_regs(dsp_core* core)
 	int iter = 0;
 	printf("\tDump regs %d core:\n",core->id);
 	printf("\tDSCR:       %4.8X\n",dsp_get_reg16(core, DLCR30M_DSCR));
-	printf("\tSR:         %4.8X\n",dsp_get_reg16(core, DLCR30M_SR));
-	printf("\tIDR:        %4.8X\n",dsp_get_reg16(core, DLCR30M_IDR));
-	printf("\tEFR:        %4.8X\n",dsp_get_reg32(core, DLCR30M_EFR));
-	printf("\tDSTART:     %4.8X\n",dsp_get_reg32(core, DLCR30M_DSTART));
-	printf("\tIRQR:       %4.8X\n",dsp_get_reg32(core, DLCR30M_IRQR));
-	printf("\tIMASKR:     %4.8X\n",dsp_get_reg32(core, DLCR30M_IMASKR));
-	printf("\tTMR:        %4.8X\n",dsp_get_reg32(core, DLCR30M_TMR));
-	printf("\tARBR:       %4.8X\n",dsp_get_reg16(core, DLCR30M_ARBR));
+// 	printf("\tSR:         %4.8X\n",dsp_get_reg16(core, DLCR30M_SR));
+// 	printf("\tIDR:        %4.8X\n",dsp_get_reg16(core, DLCR30M_IDR));
+// 	printf("\tEFR:        %4.8X\n",dsp_get_reg32(core, DLCR30M_EFR));
+// 	printf("\tDSTART:     %4.8X\n",dsp_get_reg32(core, DLCR30M_DSTART));
+// 	printf("\tIRQR:       %4.8X\n",dsp_get_reg32(core, DLCR30M_IRQR));
+// 	printf("\tIMASKR:     %4.8X\n",dsp_get_reg32(core, DLCR30M_IMASKR));
+// 	printf("\tTMR:        %4.8X\n",dsp_get_reg32(core, DLCR30M_TMR));
+// 	printf("\tARBR:       %4.8X\n",dsp_get_reg16(core, DLCR30M_ARBR));
 	printf("\tPC:         %4.8X\n",dsp_get_reg16(core, DLCR30M_PC));
-	printf("\tSS:         %4.8X\n",dsp_get_reg16(core, DLCR30M_SS));
-	printf("\tLA:         %4.8X\n",dsp_get_reg16(core, DLCR30M_LA));
-	printf("\tCSL:        %4.8X\n",dsp_get_reg16(core, DLCR30M_CSL));
-	printf("\tLC:         %4.8X\n",dsp_get_reg16(core, DLCR30M_LC));
-	printf("\tCSH:        %4.8X\n",dsp_get_reg16(core, DLCR30M_CSH));
-	printf("\tSP:         %4.8X\n",dsp_get_reg16(core, DLCR30M_SP));
-	printf("\tSAR:        %4.8X\n",dsp_get_reg16(core, DLCR30M_SAR0));
-	printf("\tCNTR:       %4.8X\n",dsp_get_reg16(core, DLCR30M_CNTR));
+// 	printf("\tSS:         %4.8X\n",dsp_get_reg16(core, DLCR30M_SS));
+// 	printf("\tLA:         %4.8X\n",dsp_get_reg16(core, DLCR30M_LA));
+// 	printf("\tCSL:        %4.8X\n",dsp_get_reg16(core, DLCR30M_CSL));
+// 	printf("\tLC:         %4.8X\n",dsp_get_reg16(core, DLCR30M_LC));
+// 	printf("\tCSH:        %4.8X\n",dsp_get_reg16(core, DLCR30M_CSH));
+// 	printf("\tSP:         %4.8X\n",dsp_get_reg16(core, DLCR30M_SP));
+// 	printf("\tSAR:        %4.8X\n",dsp_get_reg16(core, DLCR30M_SAR0));
+// 	printf("\tCNTR:       %4.8X\n",dsp_get_reg16(core, DLCR30M_CNTR));
 	/*for (i=0;i<6;i++)
 	printf("\tSAR%d       %4.8X\n",i,dsp_get_reg16(core,DLCR30M_dbSAR(i)));*/
-	printf("\tCCR:        %4.8X\n",dsp_get_reg16(core,DLCR30M_CCR));
-	printf("\tPDNR:       %4.8X\n",dsp_get_reg16(core,DLCR30M_PDNR));
-	printf("\tSFR:        %4.8X\n",dsp_get_reg32(core,DLCR30M_SFR));
-	printf("\tIVAR:       %4.8X\n",dsp_get_reg16(core,DLCR30M_IVAR));
-	printf("\tdbPCa:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCa));
-	printf("\tdbPCf:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCf));
-	printf("\tdbPCd:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCd));
-	printf("\tdbPCe:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCe));
-	//printf("\tdbSAR0:     %4.8X\n",dsp_get_reg16(core,DLCR30M_dbSAR0));
-	printf("\tdbCNTR:     %4.8X\n",dsp_get_reg16(core,DLCR30M_dbCNTR));
-	printf("\tCNT_RUN:    %4.8X\n",dsp_get_reg32(core, DLCR30M_Cnt_RUN));
+// 	printf("\tCCR:        %4.8X\n",dsp_get_reg16(core,DLCR30M_CCR));
+// 	printf("\tPDNR:       %4.8X\n",dsp_get_reg16(core,DLCR30M_PDNR));
+// 	printf("\tSFR:        %4.8X\n",dsp_get_reg32(core,DLCR30M_SFR));
+// 	printf("\tIVAR:       %4.8X\n",dsp_get_reg16(core,DLCR30M_IVAR));
+// 	printf("\tdbPCa:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCa));
+// 	printf("\tdbPCf:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCf));
+// 	printf("\tdbPCd:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCd));
+// 	printf("\tdbPCe:      %4.8X\n",dsp_get_reg16(core,DLCR30M_dbPCe));
+// 	printf("\tdbSAR0:     %4.8X\n",dsp_get_reg16(core,DLCR30M_dbSAR0));
+// 	printf("\tdbCNTR:     %4.8X\n",dsp_get_reg16(core,DLCR30M_dbCNTR));
+// 	printf("\tCNT_RUN:    %4.8X\n",dsp_get_reg32(core, DLCR30M_Cnt_RUN));
 	/*for (i=0;i<6;i++)
 	printf("\tdbSAR%d       %4.8X\n",i,dsp_get_reg16(core,DLCR30M_dbSAR(i)));*/
     
@@ -83,9 +83,16 @@ int dsp_core_print_regs(dsp_core* core)
 		printf("\tR%u:\t\t%4.8X\n", iter, dsp_get_reg32(core,
 	                                                (!(iter % 2)? DLCR30M_R2L(iter):DLCR30M_R1L(iter))));
 	}
+	
+		for (iter = 0; iter <= 7; iter++) 
+	{
+		printf("\tA%u:\t\t%4.8X\n", iter, dsp_get_reg32(core, DLCR30M_A(iter)));
+	}
     
-	sdma_mem_dump(core->xyram, 40);
+// 	sdma_mem_dump(core->xyram, 40);
 
+
+    
 	return 0;
 }
 
@@ -106,6 +113,9 @@ int dsp_cluster_print_regs(void *hdl)
 	{
 	    dsp_core_print_regs(&(dsp->core[i]));
 	}
+	
+	sdma_print_regs(2);
+	
 	return 0;
 }
 
@@ -249,7 +259,6 @@ void *elcore_func_init(void *hdl, char *options)
 	dev->core[0].regs = dev->base + DLCR30M_DSP0_REGS;
 	dev->core[1].regs = dev->base + DLCR30M_DSP1_REGS;
 
-	dsp_cluster_print_regs(dev);
 	
 	dev->pm_conf = (dsp_get_reg32(dev, DLCR30M_CSR) & DLCR30M_CSR_PM_CONFIG_MASK) >> 2;
 	
@@ -266,6 +275,8 @@ void *elcore_func_init(void *hdl, char *options)
 		dev->sdma[it].busy = 0;
 		dev->sdma[it].id = it;
 	}
+	
+	dsp_cluster_print_regs(dev);
 	
 	return dev;
     
@@ -880,7 +891,7 @@ int		elcore_reset_core(void *hdl, uint32_t core_num)
 	dsp_set_reg32(core, DLCR30M_SP, 0x0);
 	dsp_set_reg16(core, DLCR30M_CNTR, 0x0);
 	
-	for (iter = 0; iter < 7; iter++) //???????????? WHY <= 7
+	for (iter = 0; iter <= 7; iter++) //???????????? WHY <= 7
 	{
 		dsp_set_reg32(core, DLCR30M_A(iter), 0x0);
 	}

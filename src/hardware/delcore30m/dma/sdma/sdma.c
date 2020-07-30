@@ -382,7 +382,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		sdma_command_add(program_buf, SDMA_DMAMOVE_DAR, 2);
 		sdma_command_add(program_buf, task->chain_pub.to + sd->t_off, 4);
 
-		//waiting for events, DSP send events and DMA thread starts
+		
 	// 	if (sd.type == SDMA_DESCRIPTOR_E1I1 ||
 	// 	    sd.type == SDMA_DESCRIPTOR_E1I0) {
 	// 		sdma_command_add(program_buf,
@@ -391,10 +391,7 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	// 				 2);
 	// 	}
         
-		if (task->type == SDMA_DSP_)
-		{
-			sdma_command_add(program_buf,SDMA_DMAWFE +((SDMA_MAX_CHANNELS + task->chain_pub.channel) << 11),2);
-		}
+
         
 		//set number of loop iterations, for several pieces of data
 		if (sd->iter > 0)
@@ -407,7 +404,12 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		}
 		
 		loop_start = program_buf->pos;
-		
+			//waiting for events, DSP send events and DMA thread starts
+			if (task->type == SDMA_DSP_)
+			{
+				sdma_command_add(program_buf,SDMA_DMAWFE +((SDMA_MAX_CHANNELS + task->chain_pub.channel) << 11),2);
+			}
+        
 			if (trans16_pack) 
 			{
 				sdma_command_add(program_buf, SDMA_DMAMOVE_CCR, 2);
@@ -488,8 +490,14 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 		// 		sdma_addr_add(program_buf, SDMA_DMAADDH_DAR,
 		// 			      sd.astride - sd.asize);
 		        
-			/* FIXME: Using barrier SDMA_DMARMB or/and SDMA_DMAWMB? */
 
+
+					//send irq to OS or DSP
+		if (task->type == SDMA_CPU_ || task->type == SDMA_DSP_)
+		{
+			sdma_command_add(program_buf, SDMA_DMASEV + (task->chain_pub.channel << 11), 2);
+		}
+			
 		loop_length = program_buf->pos - loop_start;
 		
 		if (sd->iter > 0)
@@ -508,14 +516,10 @@ static int sdma_program(struct sdma_program_buf *program_buf,
 	// 	    (sd.type == SDMA_DESCRIPTOR_E1I1))
 	// 		sdma_command_add(program_buf, SDMA_DMASEV + (channel << 11), 2);
 		
-		//send irq to OS or DSP
-		if (task->type == SDMA_CPU_ || task->type == SDMA_DSP_)
-		{
-			sdma_command_add(program_buf, SDMA_DMASEV + (task->chain_pub.channel << 11), 2);
-		}
+
 
 	}
-	
+	/* FIXME: Using barrier SDMA_DMARMB or/and SDMA_DMAWMB? */
 	sdma_command_add(program_buf, SDMA_DMAWMB, 1);
 
 	sdma_command_add(program_buf, SDMA_DMAEND, 1);
