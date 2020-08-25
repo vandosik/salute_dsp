@@ -11,9 +11,9 @@
 typedef struct _elcore_job {
 	ELCORE_JOB				job_pub;
 	int						rcvid;
-	uint8_t					mem_part;
-	uint32_t				code_dspaddr;
-	uint32_t				code_cpuaddr;
+	uint8_t					mem_part;		//part of dsp core's memory, allocated by job
+	uint32_t				code_dspaddr;		//addr of code for job in dsp addrs
+	uint32_t				code_cpuaddr;		//addr of code for job in cpu addrs
 	uint32_t				input_dspaddr[MAX_INPUTS]; //in dsp addressing
 	uint32_t				output_dspaddr[MAX_OUTPUTS]; //in dsp adressing
 	uint32_t				input_cpupaddr[MAX_INPUTS]; //in cpu adressing
@@ -25,8 +25,8 @@ typedef struct _elcore_job {
 } elcore_job_t;
 
 typedef struct _elcore_job_hdl {
-	elcore_job_t			*storage;
-	elcore_job_t			*queue;
+	elcore_job_t			*storage; // ELCORE_JOB_IDLE jobs
+	elcore_job_t			*queue; // ELCORE_JOB_ENQUEUED and ELCORE_JOB_RUNNING jobs
 	int						cores_num;
 	uint32_t				*core_jobs_max; //max jobs fore core
 	uint32_t				*core_jobs_cnt; //current quantity of jobs for core

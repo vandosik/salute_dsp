@@ -1026,17 +1026,18 @@ int elcore_interrupt_thread(void *hdl)
 			goto unmask;
 		}
 			
-		maskr_dsp = dsp_get_reg32(dev, DLCR30M_MASKR); //запретить прерывания от тех, откуда пришли?
+		maskr_dsp = dsp_get_reg32(dev, DLCR30M_MASKR); //mask the src of interrupts
 		maskr_dsp &= ~(val32 & DLCR30M_QSTR_MASK);
 		dsp_set_reg32 (dev, DLCR30M_MASKR, maskr_dsp);
 		
 // 		/*wait time to test blocking*/
 // 		delay(10000);
 		
-		for (it = 0; it < DLCR30M_MAX_CORES; ++it) //итерируемся по ядрам
+		for (it = 0; it < DLCR30M_MAX_CORES; ++it)
 		{
 			if ( stopped_cores & (1 << it) )
-			{
+			{	
+				//get the runnung job on core
 				cur_job = get_enqueued_by_id(&dev->drvhdl, dev->core[it].job_id);
 				
 				if (cur_job == NULL)
@@ -1044,12 +1045,12 @@ int elcore_interrupt_thread(void *hdl)
 					//BUG:TODO: what to do???
 					goto unmask;
 				}
-				//TODO: process the result of job
 				
 				
 				val32 = dsp_get_reg16(&dev->core[it], DLCR30M_DSCR);
 				printf("%s: core[%d] DCSR: %4.8X\n", __func__, it, val32);
 				
+				//TODO: process the result of job
 				
 				if (val32 & (DLCR30M_DSCR_PI | DLCR30M_DSCR_SE | DLCR30M_DSCR_BRK))
 				{

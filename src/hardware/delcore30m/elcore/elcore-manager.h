@@ -110,12 +110,12 @@ typedef struct _elcore_job_entry {
 #define DSP_MAX_CHAINS				MAX_INPUTS + MAX_OUTPUTS
 /*
 *Set this macro with number of input arg (begining with 0)to field @to of SDMA_CHAIN struct 
-* to write data to input part of DSP memory
+* to write data to input part of DSP memory. This addr is reserved in DSP namespace.
 */
 #define DSP_SDMA_INPUT(input_num)		(0x38A00000 + input_num)
 /*
 *Set this macro with number of output arg (begining with 0) to field @from of SDMA_CHAIN struct 
-* to write data to input part of DSP memory
+* to write data to input part of DSP memory This addr is reserved in DSP namespace.
 */
 #define DSP_SDMA_OUTPUT(output_num)		(0x3A880000 + output_num)
 //call before enqueue

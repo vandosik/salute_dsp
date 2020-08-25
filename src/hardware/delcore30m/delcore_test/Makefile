@@ -1,8 +1,2 @@
-LIST=CPU
-ifndef QRECURSE
-QRECURSE=recurse.mk
-ifdef QCONFIG
-QRDIR=$(dir $(QCONFIG))
-endif
-endif
-include $(QRDIR)$(QRECURSE)
+LIST=delcore_test
+include recurse.mk
